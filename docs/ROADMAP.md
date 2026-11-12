@@ -44,3 +44,21 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 **Indicador API da macro:** 9/12 checkpoints com artefatos implementados (75%); três gates de execução pendentes. O percentual total do produto ainda depende do escopo Gemini.
 
 **Macro 05 proposta:** executar homologação reproduzível, implementar gestão de papéis/convites somente após especificação e ampliar observabilidade. Nenhuma operação financeira deve ser adicionada sem regras aprovadas.
+
+## Macroentrega 05 — Histórico, integridade e smoke QA (PR #5)
+
+- [x] Endpoint de histórico por usuário, autorizado com `users.manage`.
+- [x] Filtros tipados, paginação e restrição dos campos expostos.
+- [x] Rate limit em consultas administrativas de auditoria.
+- [x] Troca de e-mail com revogação global de sessões.
+- [x] Tratamento de no-op e evento de auditoria com identificação do operador.
+- [x] Bloqueio de payload com campos privilegiados em criação/edição/status.
+- [x] Testes PHPUnit de autorização, privacidade e alteração de contas escritos.
+- [x] OpenAPI 0.5 e documentação operacional atualizada.
+- [ ] `composer.lock` criado/versionado via Composer legítimo.
+- [ ] Testes PHPUnit/Pint e migrations MySQL executados e evidenciados.
+- [ ] Smoke integrado com a API real e testes móveis executados.
+
+**Progresso da macro na API:** 8/11 checkpoints com código e documentação (72,7%); 3 gates de execução bloqueados. Isso não representa o progresso total do produto.
+
+**Próxima macro:** primeiro sanar a ausência de dependências/QA, depois revisar desempenho e privacidade da trilha. O escopo financeiro segue não documentado e não deve ser inventado.

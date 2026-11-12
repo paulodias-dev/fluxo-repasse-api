@@ -38,3 +38,14 @@ O único privilégio implementado é `users.manage`, destinado a administrar con
 - Não há política de delegação, tenant, gestão de papéis via UI, importação de pessoas ou reenvio de senha nesta fase.
 
 **Pendências de segurança:** revisão de acesso por tenant caso aplicável, retenção LGPD de eventos, MFA, recuperação segura de senha, revisão de logs, teste de privilégio escalado e validação em ambiente MySQL real.
+
+## Macro 05 — Redução de exposição e integridade
+
+- Consultas de histórico exigem `users.manage` no backend; o componente PWA sozinho não concede acesso.
+- Dados de auditoria expostos são limitados a tipo, data, ID do evento e ID do operador. Não incluir `ip_hash`, dados pessoais do payload, JWT, senha ou valor financeiro.
+- Filtro por usuário, paginação fixa, enum de eventos e limite de consultas reduzem exposição acidental.
+- Alterar e-mail revoga JWTs anteriores, evitando sessão com identidade desatualizada.
+- Endpoints administrativos retornam 422 ao receber tentativa explícita de inserir `roles`, `permissions`, `auth_version`, senha ou outros campos proibidos; não conceder permissões por mass assignment.
+- Não publicar esses eventos em Cache Storage, logs de frontend ou relatórios externos sem revisão LGPD.
+
+**Limites:** a tabela existente não é imutável perante administradores do banco; retenção, consentimento/base legal, exportação, agregados e consulta por intervalos extensos requerem revisão de privacidade. Não afirmar conformidade LGPD integral sem avaliação jurídica e técnica.
