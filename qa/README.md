@@ -8,7 +8,7 @@ Clonar `fluxo-repasse-api` e `fluxo-repasse-app` em diretórios irmãos. Instala
 
 Antes de iniciar, **gerar e versionar lockfiles legítimos**:
 
-Na API, com Composer 2 e PHP 8.4/extensões instaladas (o `composer.lock` ainda não existe):
+Na API, com Composer 2 e PHP 8.4/extensões instaladas (o `composer.lock` já existe na main):
 
 ```bash
 composer update --no-interaction --no-scripts
@@ -24,7 +24,7 @@ npm run qa:lock
 git add package-lock.json
 ```
 
-Os comandos são instruções de manutenção. O lockfile npm foi encontrado versionado e inspecionado (525 entradas, manifesto alinhado e todos os pacotes com HTTPS/integrity); **não foi gerado nesta entrega**. O lockfile Composer permanece pendente. Não publicar um arquivo vazio ou inventado.
+Os comandos são instruções de manutenção. O lockfile npm foi encontrado versionado e inspecionado (525 entradas, manifesto alinhado e todos os pacotes com HTTPS/integrity); **não foi gerado nesta entrega**. O lockfile Composer também já está na main e passou na inspeção de estrutura, mas não em `composer validate`. Não publicar um arquivo vazio ou inventado.
 
 ## Segredos locais e configuração
 
@@ -89,11 +89,29 @@ A conta de QA deve possuir `users.manage`. O smoke autenticado gera eventos norm
 ## Limites e bloqueios
 
 - A imagem de QA e o Compose estão definidos, mas **não executados** aqui (Docker ausente).
-- `package-lock.json` do APP já está versionado e passou na inspeção estática; `composer.lock` da API permanece ausente. É necessário gerá-lo de fontes reais antes do QA integrado.
+- `package-lock.json` do APP já está versionado e passou na inspeção estática; `composer.lock` da API está presente; é necessário validá-lo via Composer e executar QA integrado.
 - PHPUnit, Pint, MySQL, Vitest, build e E2E mobile não estão homologados.
 - A readiness `/api/v1/ready` deverá retornar HTTP 200 após as migrations; erro 503 deve bloquear o aceite.
 - Para produção: exigir backup/restore, CSP/TLS, política LGPD, controle de segredos e revisões de segurança adicionais.
 
 ## Percentuais
 
-Macro 07: **11/14 checkpoints = 78,57%**. Índice total do roadmap provisório: **6/12 = 50,00%**, pois o marco 07 ainda não pode ser concluído sem o `composer.lock` e a execução integrada. Consulte `docs/PROGRESSO_GERAL.md`.
+Macro 07: **12/14 checkpoints = 85,71%**. Índice total do roadmap provisório: **6/12 = 50,00%**, pois o marco 07 ainda não pode ser concluído sem a execução integrada. Consulte `docs/PROGRESSO_GERAL.md`.
+
+## Atualização Macro 08 — MySQL real e prova RBAC obrigatória
+
+As instruções de **geração inicial** de `composer.lock` podem ser executadas sem Composer instalado no host, pelo comando opt-in:
+
+```bash
+bash qa/resolve-composer-lock.sh
+```
+
+Este script só funciona com Docker e acesso aos registros reais, não sobrescreve um lock existente, executa `composer update --no-install --no-scripts --no-plugins` e valida o resultado com `composer validate --strict`. Nenhuma geração foi executada nesta plataforma.
+
+O runner agora usa `php artisan test --configuration phpunit.mysql.xml`. O bootstrap MySQL bloqueia `APP_ENV` indevido, driver SQLite, banco não exclusivo, host fora do serviço interno, DB_URL externo e senha vazia **antes do autoload PHPUnit/Laravel**. As migrations preliminares do runner são protegidas por rede privada e configurações rígidas do Compose, incluindo `DB_URL=""`.
+
+Antes do smoke, o runner aguarda `/ready` com até 30 tentativas controladas usando o script nativo Node do APP. `QA_LEVEL=full` também exige as variáveis `QA_BASIC_USER_EMAIL` e `QA_BASIC_USER_PASSWORD` de **uma segunda conta, distinta do administrador**, sem `users.manage`. Após o smoke administrativo, executa `npm run qa:rbac` e exige 403 na listagem e no histórico. Não existem mutações de usuários ou repasses nesse teste.
+
+Para provisionar conta comum QA, use o cadastro Artisan existente **sem** conceder `platform_admin`; não reaproveite uma conta produtiva. Credenciais não devem ser versionadas, exibidas em logs ou enviadas neste chat.
+
+Verificação local com PHP/Node/Bash: **35/35 testes passaram**. O Compose real não pôde ser executado aqui; o `composer.lock` já está na main e requer `composer validate`/instalação real. Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para matriz de aceite.

@@ -49,3 +49,11 @@ O único privilégio implementado é `users.manage`, destinado a administrar con
 - Não publicar esses eventos em Cache Storage, logs de frontend ou relatórios externos sem revisão LGPD.
 
 **Limites:** a tabela existente não é imutável perante administradores do banco; retenção, consentimento/base legal, exportação, agregados e consulta por intervalos extensos requerem revisão de privacidade. Não afirmar conformidade LGPD integral sem avaliação jurídica e técnica.
+
+## Macro 08 — Defesa antes de migrations e privilégio mínimo
+
+`phpunit.mysql.xml` carrega `qa/phpunit-mysql-bootstrap.php` antes de PHPUnit/Laravel e falha se APP_ENV não for testing, se conexão não for MySQL privado, se nome DB não terminar em `_qa`, se DB_URL estiver preenchido ou se faltar senha. O Compose fixa DB_URL vazio para impedir sobreposição por arquivos locais.
+
+O runner limita a API aos contêineres QA e força checagem de readiness antes do smoke. O modo completo exige administrador e usuário comum **distintos**. `qa:rbac` não possui endpoints de escrita: realiza login, perfil, leitura negada (403) e logout. O histórico de acessos registrará eventos normais, sem dados financeiros.
+
+Essas proteções **não** substituem revisão de infraestrutura, LGPD, auditoria ou testes reais de isolamento. Nenhuma senha ou conexão de produção deve ser usada nesse processo.

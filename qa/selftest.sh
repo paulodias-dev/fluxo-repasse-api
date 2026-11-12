@@ -6,6 +6,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/api/qa" "$work/app"
 cp "$origin/run.sh" "$work/api/qa/run.sh"
+cp "$origin/resolve-composer-lock.sh" "$work/api/qa/resolve-composer-lock.sh"
 failures=0
 passes=0
 
@@ -27,6 +28,7 @@ check_block() {
 
 check_block 'composer.lock ausente' bash "$work/api/qa/run.sh"
 touch "$work/api/composer.lock"
+check_block 'composer.lock já existe' bash "$work/api/qa/resolve-composer-lock.sh"
 check_block 'QA_APP_PATH obrigatório' bash "$work/api/qa/run.sh"
 check_block 'package-lock.json ausente' env QA_APP_PATH="$work/app" bash "$work/api/qa/run.sh"
 touch "$work/app/package-lock.json"
@@ -34,5 +36,10 @@ check_block 'QA_DB_PASSWORD obrigatório' env QA_APP_PATH="$work/app" bash "$wor
 check_block 'QA_APP_KEY deve ser gerado' env QA_APP_PATH="$work/app" QA_DB_PASSWORD=fixture QA_DB_ROOT_PASSWORD=fixture QA_APP_KEY=invalid QA_JWT_SECRET=fixture bash "$work/api/qa/run.sh"
 check_block 'banco de testes deve terminar em _qa' env QA_APP_PATH="$work/app" QA_DB_PASSWORD=fixture QA_DB_ROOT_PASSWORD=fixture QA_APP_KEY=base64:fixture QA_JWT_SECRET=fixture QA_DB_NAME=production bash "$work/api/qa/run.sh"
 
+# Os próximos checks executam antes de qualquer consulta a Docker.
+check_block 'credenciais de administrador QA' env -u QA_USER_EMAIL -u QA_USER_PASSWORD -u QA_BASIC_USER_EMAIL -u QA_BASIC_USER_PASSWORD QA_APP_PATH="$work/app" QA_DB_PASSWORD=fixture QA_DB_ROOT_PASSWORD=fixture QA_APP_KEY=base64:fixture QA_JWT_SECRET=fixture QA_LEVEL=full QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 bash "$work/api/qa/run.sh"
+check_block 'credenciais separadas de usuário comum QA' env -u QA_BASIC_USER_EMAIL -u QA_BASIC_USER_PASSWORD QA_APP_PATH="$work/app" QA_DB_PASSWORD=fixture QA_DB_ROOT_PASSWORD=fixture QA_APP_KEY=base64:fixture QA_JWT_SECRET=fixture QA_LEVEL=full QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 QA_USER_EMAIL=admin@example.test QA_USER_PASSWORD=fixture bash "$work/api/qa/run.sh"
+check_block 'contas distintas' env QA_APP_PATH="$work/app" QA_DB_PASSWORD=fixture QA_DB_ROOT_PASSWORD=fixture QA_APP_KEY=base64:fixture QA_JWT_SECRET=fixture QA_LEVEL=full QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 QA_USER_EMAIL=mesmo@example.test QA_USER_PASSWORD=fixture QA_BASIC_USER_EMAIL=mesmo@example.test QA_BASIC_USER_PASSWORD=fixture bash "$work/api/qa/run.sh"
+
 printf 'Selftest: %d aprovações, %d falhas. Nenhum Docker ou banco acionado.\n' "$passes" "$failures"
-[[ "$passes" -eq 6 && "$failures" -eq 0 ]]
+[[ "$passes" -eq 10 && "$failures" -eq 0 ]]

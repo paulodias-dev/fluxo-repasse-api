@@ -34,6 +34,7 @@ services:
       SESSION_DRIVER: array
       QUEUE_CONNECTION: sync
       DB_CONNECTION: mysql
+      DB_URL: ""
       DB_HOST: mysql
       DB_PORT: "3306"
       DB_DATABASE: ${QA_DB_NAME:-repasse_qa}
@@ -57,6 +58,8 @@ services:
       QA_USER_PASSWORD: ${QA_USER_PASSWORD:-}
       QA_REQUIRE_AUTH: ${QA_REQUIRE_AUTH:-0}
       QA_REQUIRE_ADMIN: ${QA_REQUIRE_ADMIN:-0}
+      QA_BASIC_USER_EMAIL: ${QA_BASIC_USER_EMAIL:-}
+      QA_BASIC_USER_PASSWORD: ${QA_BASIC_USER_PASSWORD:-}
     depends_on:
       api:
         condition: service_started
