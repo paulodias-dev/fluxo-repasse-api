@@ -57,3 +57,27 @@ Sem `composer.lock`, Composer/dependências instaladas e testes MySQL reais **n�
 Frontend: [fluxo-repasse-app](https://github.com/paulodias-dev/fluxo-repasse-app).
 
 > O histórico funcional do Gemini ainda não foi recuperado. Nenhum contrato financeiro foi inventado.
+
+## Macroentrega 04 — Administração de usuários
+
+A API passa a disponibilizar uma base de RBAC técnico, limitada à permissão `users.manage`. Não são definidos papéis financeiros ou organizações.
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/api/v1/admin/users` | Busca, filtro de status e paginação (15 registros) |
+| POST | `/api/v1/admin/users` | Cadastro de usuário comum, sem papéis |
+| PATCH | `/api/v1/admin/users/{user}` | Edição de nome e e-mail |
+| PATCH | `/api/v1/admin/users/{user}/status` | Ativação/desativação e invalidação de sessões |
+
+Todas as rotas exigem Bearer JWT válido, conta ativa e `users.manage` **validada no backend**.
+
+Para criar o primeiro administrador técnico, após a instalação e as migrations:
+
+```bash
+php artisan repasse:user:create
+php artisan repasse:access:bootstrap email@dominio.com
+```
+
+A segunda operação exige confirmação no terminal, é auditada e invalida sessões antigas. Nenhum usuário ou privilégio é criado automaticamente por seeders. A desativação do último administrador ativo é proibida; a API também impede desativação da própria conta e de contas administradoras.
+
+Leia `docs/MACRO_04_USUARIOS_RBAC.md` para regras e contratos, e `docs/QA.md` para critérios de validação.

@@ -26,3 +26,15 @@ A tabela é apêndice de eventos de identidade; não representa ainda o livro-ra
 
 ## Migração de versões
 Migrations são **aditivas**, sem `migrate:fresh`. Contas já existentes terão `is_active=true` e `auth_version=1`; tokens antigos sem `av` deixam de funcionar e requerem novo login. Antes do deploy, backup e ensaio de migrations em banco homólogo.
+
+## Extensão de arquitetura — Macroentrega 04
+
+- `roles`, `permissions`, `role_user` e `permission_role` compõem um RBAC extensível; por enquanto só `users.manage` é reconhecida como permissão técnica.
+- `User::hasPermission()` consulta o banco a cada operação; a presença de um menu no frontend não concede autorização.
+- `EnsurePermission` executa depois de `bearer.only`, `auth:api` e `session.current`; o padrão é negar (HTTP 403).
+- `AdminUserController` disponibiliza operações de usuários, sem permitir alteração de papéis, senha de terceiros ou movimentações financeiras.
+- `repasse:access:bootstrap` atribui `platform_admin` somente a usuário previamente criado e ativo, com confirmação do operador e auditoria.
+- `auth_security_events.actor_user_id` identifica o operador em cadastros, edições e alterações de status.
+- Todas as respostas de listagem são projetadas explicitamente com `id`, `name`, `email`, `is_active` e `created_at`; hashes, JWT e `auth_version` não são expostos.
+- Desativação de usuário incrementa `auth_version`; JWTs antigos são recusados pelo middleware de sessão vigente.
+- Multiempresa/tenant e papéis financeiros permanecem **não definidos**, sem migrações ou políticas presumidas.

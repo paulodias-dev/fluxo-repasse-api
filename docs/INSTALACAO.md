@@ -49,3 +49,23 @@ O teste rápido PHPUnit usa SQLite em memória; execução MySQL real é obrigat
 
 ## Configurações obrigatórias
 `APP_DEBUG=false` fora do desenvolvimento, `APP_KEY` e `JWT_SECRET` próprios do ambiente, `JWT_TTL=15`, `JWT_REFRESH_TTL=120`, `JWT_BLACKLIST_ENABLED=true`, CORS com origem explícita e TLS. Não inserir segredos em `VITE_*` do frontend.
+
+## Habilitação da Macroentrega 04
+
+Após backup e aplicação do código da Macro 04:
+
+```bash
+composer install
+php artisan migrate
+php artisan repasse:user:create
+php artisan repasse:access:bootstrap admin@seudominio.com
+php artisan route:list --path=api/v1/admin
+```
+
+Substitua o endereço acima por uma conta real já criada; não é uma credencial fornecida pelo projeto. O bootstrap pede confirmação por padrão, e o usuário deve realizar novo login para receber a versão atualizada da sessão.
+
+A migration acrescenta tabelas de RBAC e um campo `actor_user_id` à auditoria existente. Não recriar o banco de produção nem executar `migrate:fresh`. Em produção, preservar APP_KEY e JWT_SECRET.
+
+O PWA mostra gestão de usuários somente quando `GET /auth/me` inclui `users.manage`. O backend **sempre** valida a permissão independentemente de como o cliente chama a rota.
+
+**Pendente para homologação:** gerar e versionar `composer.lock`, executar Composer/PHPUnit/Pint, testar migrations e permissões em MySQL 8 e integrar com o PWA.

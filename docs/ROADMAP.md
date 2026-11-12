@@ -25,3 +25,22 @@
 - [ ] Preparação do modelo de repasse somente após recuperação e aprovação do contexto Gemini.
 
 Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPECIFICADAS.
+
+## Macroentrega 04 — RBAC técnico e usuários (PR #4)
+
+- [x] Tabelas e modelos de papéis, permissões e vínculos, sem dados financeiros.
+- [x] Permissão técnica `users.manage` com middleware deny-by-default.
+- [x] Comando de bootstrap de administrador existente, com auditoria e confirmação.
+- [x] API paginada de listagem e busca de usuários.
+- [x] Cadastro e edição de usuários comuns sem escalar papéis.
+- [x] Ativação/desativação com revogação JWT e proteções de administrador.
+- [x] Trilha de auditoria com referência ao operador.
+- [x] Novos cenários PHPUnit de autorização, usuários e CLI escritos.
+- [x] Contratos OpenAPI 0.4 e documentação de instalação e segurança.
+- [ ] `composer.lock` resolvido/commitado com Composer real.
+- [ ] PHPUnit, Pint, migrations e testes em MySQL 8 executados.
+- [ ] E2E com frontend, cenário de dois administradores e homologação.
+
+**Indicador API da macro:** 9/12 checkpoints com artefatos implementados (75%); três gates de execução pendentes. O percentual total do produto ainda depende do escopo Gemini.
+
+**Macro 05 proposta:** executar homologação reproduzível, implementar gestão de papéis/convites somente após especificação e ampliar observabilidade. Nenhuma operação financeira deve ser adicionada sem regras aprovadas.
