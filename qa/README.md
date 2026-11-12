@@ -8,7 +8,7 @@ Clonar `fluxo-repasse-api` e `fluxo-repasse-app` em diretórios irmãos. Instala
 
 Antes de iniciar, **gerar e versionar lockfiles legítimos**:
 
-Na API, com Composer 2 e PHP 8.4/extensões instaladas:
+Na API, com Composer 2 e PHP 8.4/extensões instaladas (o `composer.lock` ainda não existe):
 
 ```bash
 composer update --no-interaction --no-scripts
@@ -16,7 +16,7 @@ composer validate --strict
 git add composer.lock
 ```
 
-No APP, com Node 22:
+No APP, com Node 22 (o `package-lock.json` **já existe na `main` e passou na inspeção estática**; só resolver novamente se o manifesto mudar):
 
 ```bash
 npm install --package-lock-only --ignore-scripts
@@ -24,7 +24,7 @@ npm run qa:lock
 git add package-lock.json
 ```
 
-Esses comandos resolvem dependências reais e devem ser executados em ambiente confiável, com revisão do diff e das versões antes de commitar. Os lockfiles **não foram gerados nesta entrega**. Não publicar um arquivo vazio ou inventado.
+Os comandos são instruções de manutenção. O lockfile npm foi encontrado versionado e inspecionado (525 entradas, manifesto alinhado e todos os pacotes com HTTPS/integrity); **não foi gerado nesta entrega**. O lockfile Composer permanece pendente. Não publicar um arquivo vazio ou inventado.
 
 ## Segredos locais e configuração
 
@@ -89,11 +89,11 @@ A conta de QA deve possuir `users.manage`. O smoke autenticado gera eventos norm
 ## Limites e bloqueios
 
 - A imagem de QA e o Compose estão definidos, mas **não executados** aqui (Docker ausente).
-- `composer.lock` e `package-lock.json` continuam ausentes. São necessários para instalação reproduzível.
+- `package-lock.json` do APP já está versionado e passou na inspeção estática; `composer.lock` da API permanece ausente. É necessário gerá-lo de fontes reais antes do QA integrado.
 - PHPUnit, Pint, MySQL, Vitest, build e E2E mobile não estão homologados.
 - A readiness `/api/v1/ready` deverá retornar HTTP 200 após as migrations; erro 503 deve bloquear o aceite.
 - Para produção: exigir backup/restore, CSP/TLS, política LGPD, controle de segredos e revisões de segurança adicionais.
 
 ## Percentuais
 
-Macro 07: **10/14 checkpoints = 71,43%**. Índice total do roadmap provisório: **6/12 = 50,00%**, pois o marco 07 ainda não pode ser concluído sem os dois lockfiles e a execução integrada. Consulte `docs/PROGRESSO_GERAL.md`.
+Macro 07: **11/14 checkpoints = 78,57%**. Índice total do roadmap provisório: **6/12 = 50,00%**, pois o marco 07 ainda não pode ser concluído sem o `composer.lock` e a execução integrada. Consulte `docs/PROGRESSO_GERAL.md`.
