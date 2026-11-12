@@ -92,3 +92,19 @@ Verificações executadas: `bash -n qa/run.sh`, `bash -n qa/selftest.sh`, `bash 
 O Compose prepara o caminho para PHP 8.4 + MySQL 8.4 + React, mas **não foi executado** neste ambiente. Para QA integrado, seguir `qa/README.md`: criar/versionar o lock Composer legítimo e validar o lock npm já existente com npm ci, fornecer chaves e credenciais de QA e executar `QA_LEVEL=public bash qa/run.sh` ou `QA_LEVEL=full` com conta administrativa de QA.
 
 Os testes reais de PHPUnit, Pint, MySQL, Vitest, lint/build e PWA mobile seguem bloqueados. Nenhum resultado dessa fase deve ser rotulado como homologação de produção.
+
+## Macro 08 — Evidências de execução e restrições
+
+| Suite | Resultado |
+|---|---|
+| `php qa/mysql-safety.test.php` | 10/10 aprovados, PHP 8.4 |
+| `bash qa/selftest.sh` | 10/10 aprovados, sem Docker |
+| `node --test scripts/wait-api-ready.test.mjs` (APP) | 8/8 aprovados, Node 22 |
+| `node --test scripts/probe-rbac.test.mjs` (APP) | 7/7 aprovados, Node 22 |
+| `php -l`, `bash -n`, `node --check` em arquivos novos | Sem erros |
+
+A configuração MySQL própria executa o bootstrap fail-closed e não usa SQLite. O runner aguarda prontidão da API e, no modo full, valida 403 em listagem e histórico com uma conta comum diferente da administradora.
+
+**Não executados nesta plataforma:** `composer install`, `php artisan test --configuration phpunit.mysql.xml`, Pint, MySQL real, npm ci, Vitest/build, smoke conectado e E2E mobile. `composer.lock` ausente e Docker/registry indisponíveis. Testes isolados não constituem homologação.
+
+Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para condições e `docs/PROGRESSO_GERAL.md` para percentuais.

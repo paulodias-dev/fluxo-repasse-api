@@ -96,3 +96,21 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 **Macro 07 conjunta API+APP: 11/14 checkpoints = 78,57%.** O marco global 07 **não está concluído**. Índice total de marcos fechados: **6/12 = 50,00%**, sem extrapolar para o produto financeiro. Fonte canônica: `docs/PROGRESSO_GERAL.md`.
 
 **Próximo passo:** fechar lockfiles e executar QA isolado; não iniciar operações de repasse sem escopo aprovado.
+
+## Macroentrega 08 — Isolamento MySQL, regresões e RBAC negativo (PR #8)
+
+- [x] Corrigir expectativa de evento de auditoria após troca de e-mail.
+- [x] `phpunit.mysql.xml` força MySQL e remove `:memory:`.
+- [x] Bootstrap fail-closed anterior ao autoload de PHPUnit/Laravel.
+- [x] Dez casos PHP de bloqueio de banco/host/driver/DB_URL executados.
+- [x] Runner com `DB_URL=""` e 10 autotestes shell executados.
+- [x] Script opcional para resolver `composer.lock` via Composer real, sem scripts/plugins.
+- [x] Espera de readiness limitada e 8 testes Node aprovados.
+- [x] Smoke de RBAC negativo com segundo usuário e 7 testes Node aprovados.
+- [x] Modo `QA_LEVEL=full` exige dois usuários diferentes, e manuais atualizados.
+- [ ] Gerar/versionar `composer.lock` com Docker e Packagist reais.
+- [ ] Executar PHPUnit/Pint/migrations em MySQL de QA.
+- [ ] Executar npm ci, Vitest, lint e build reais.
+- [ ] Executar smoke autenticado e QA PWA em navegador real.
+
+**Métrica da macro 08 conjunta:** 14/18 = **77,78%**, 35 testes de isolamento/contrato executados. **Índice global de macromarcos concluídos:** 6/12 = **50,00%**; não contabilizar marcos parciais 07/08. `docs/PROGRESSO_GERAL.md` é a fonte canônica. O percentual financeiro não pode ser aferido sem escopo aprovado.

@@ -53,3 +53,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - `qa/run.sh` executa migrations normais no banco isolado, sem `migrate:fresh` e sem destruição de volumes.
 - Diferenciar seis verificações shell executadas de testes Laravel/MySQL/Composer não executados.
 - Percentual global do roadmap é `marcos concluídos / 12`; marco 07 segue incompleto até locks e QA executado.
+
+## Macro 08 — não declarar QA verde sem infraestrutura
+
+- `phpunit.xml` permanece SQLite local; QA MySQL exige `--configuration phpunit.mysql.xml`, que bloqueia ambiente inseguro antes do autoload.
+- Testes locais **executados**: 10 PHP + 10 shell + 15 Node = 35 aprovados. Não afirmar PHPUnit/MySQL/Vitest/build aprovados.
+- `composer.lock` só pode ser criado com Composer verdadeiro, sem inventar hashes. Há um script opt-in Docker em `qa/resolve-composer-lock.sh`.
+- QA full exige duas contas distintas, uma com users.manage e outra sem; verificar 403 sem mutações de cadastro.
+- Percentual macro 08 = 14/18 (77,78%); total de marcos concluídos = 6/12 (50,00%). Não apresentar isto como progresso de funcionalidades financeiras.
+- Documento de contexto: `docs/MACRO_08_QA_MYSQL_RBAC.md` e `docs/PROGRESSO_GERAL.md`.

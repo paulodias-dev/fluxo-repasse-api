@@ -101,3 +101,13 @@ Permanece obrigatório gerar/versionar `composer.lock` em ambiente conectado e h
 Em vez de depender de PHP/MySQL instalados localmente, é possível usar `compose.qa.yaml` com Docker Compose v2, orientado por `qa/README.md`. É obrigatório fornecer `QA_APP_PATH`, segredos gerados de QA e `composer.lock` genuíno na API e `package-lock.json` já versionado no APP; nenhum segredo deve ser versionado. O runner impede banco fora de `*_qa` e não remove volumes automaticamente.
 
 Primeiro executar `bash qa/selftest.sh` para verificar os bloqueios; depois `QA_LEVEL=public bash qa/run.sh`. O modo completo exige conta admin QA exclusiva e `QA_LEVEL=full`. **Ambiente Docker ainda não executado aqui.**
+
+## Macro 08 — Resolução segura e QA MySQL
+
+Em máquina de QA com Docker e rede, executar de forma explícita `bash qa/resolve-composer-lock.sh` para **gerar** o `composer.lock` com resolução real do Composer. O script não sobrescreve lock existente, proíbe plugins/scripts na resolução e exige revisão e commit manual.
+
+Depois de versionar o lock e configurar segredos próprios do QA, executar `QA_LEVEL=public bash qa/run.sh`. O runner inicia MySQL privado, executa migrations normais e PHPUnit com `--configuration phpunit.mysql.xml`, Pint, npm ci/Vitest/build e smoke público; não remove volumes.
+
+Para `QA_LEVEL=full`, provisionar via Artisan **duas contas distintas**: administrador com `users.manage` e conta comum sem papéis. Definir `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_BASIC_USER_EMAIL`, `QA_BASIC_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1`. A falta de um perfil bloqueia o runner antes de contatar Docker. Veja `qa/README.md`.
+
+A infraestrutura completa continua **sem teste real** neste executor; 35 testes locais de proteção foram executados, não PHPUnit/MySQL.
