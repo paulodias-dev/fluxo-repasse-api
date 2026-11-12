@@ -109,4 +109,15 @@ final class AuthApiTest extends TestCase
             'password' => 'Senha-invalida',
         ])->assertStatus(429);
     }
+    public function test_token_in_query_string_does_not_authenticate(): void
+    {
+        $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
+
+        $token = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Strong-Passphrase-123!',
+        ])->json('access_token');
+
+        $this->getJson('/api/v1/auth/me?token='.urlencode($token))->assertUnauthorized();
+    }
 }

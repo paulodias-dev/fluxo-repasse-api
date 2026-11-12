@@ -12,7 +12,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-login')
             ->name('api.v1.auth.login');
 
-        Route::middleware('auth:api')->group(function (): void {
+        Route::middleware(['bearer.only', 'auth:api'])->group(function (): void {
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
             Route::post('/refresh', [AuthController::class, 'refresh'])->name('api.v1.auth.refresh');
             Route::post('/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
