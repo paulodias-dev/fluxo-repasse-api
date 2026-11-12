@@ -37,3 +37,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Mudanças de auditoria exigem testes de 401, 403, 404, filtros, paginação e privacidade.
 - Smoke Node é leitura da API com login/logout de QA (gera eventos de auditoria); não utiliza credenciais em código e não altera cadastros.
 - `composer.lock` e testes reais são gates formais; não declarar homologação com testes apenas escritos.
+
+## Macro 06 — Prontidão, evidência e progresso
+
+- Health não é readiness: `/api/v1/ready` deve testar conexão DB e tabelas essenciais e responder 503 de forma genérica quando indisponível.
+- Não misturar 8 testes nativos Node executados com 4 testes Laravel apenas escritos. Evidência precisa identificar ambiente e comando.
+- Não incluir segredos, SQL, nomes de hosts ou stack trace em respostas de readiness.
+- Atualizar `docs/PROGRESSO_GERAL.md` com 12 marcos fixos; porcentagens se referem ao índice de roadmap, não à conclusão funcional financeira.
+- Antes de produção: Composer/npm lockfiles genuínos, QA MySQL/PHPUnit/Vitest/build e testes mobile.

@@ -62,3 +62,20 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 **Progresso da macro na API:** 8/11 checkpoints com código e documentação (72,7%); 3 gates de execução bloqueados. Isso não representa o progresso total do produto.
 
 **Próxima macro:** primeiro sanar a ausência de dependências/QA, depois revisar desempenho e privacidade da trilha. O escopo financeiro segue não documentado e não deve ser inventado.
+
+## Macroentrega 06 — Prontidão e testes executáveis (PR #6)
+
+- [x] `GET /api/v1/ready` independente de health, consulta DB e tabelas essenciais.
+- [x] Falha 503 sem vazamento de hostname, SQL ou segredo.
+- [x] 4 novos testes feature Laravel escritos, incluindo cenários de falha.
+- [x] Sintaxe dos 2 arquivos PHP novos verificada com PHP 8.4.24.
+- [x] OpenAPI atualizado para 0.6.
+- [x] Smoke Node do APP passou em 8/8 testes isolados, incluindo falha de readiness.
+- [x] Documentação e medição global fixa registradas.
+- [ ] Gerar/versionar composer.lock com Composer e dependências reais.
+- [ ] PHPUnit/Pint/MySQL e migrations executados integralmente.
+- [ ] QA ponta a ponta com PWA, MySQL e browsers reais.
+
+**Métrica macro 06 (conjunta):** 12/16 checkpoints de API/APP entregues (75,00%), quatro gates sem homologação.
+
+**Métrica global do roadmap provisório:** 5/12 = 41,67% de marcos já na main; **6/12 = 50,00%** incluindo a macro 06 em PR. Não é estimativa de esforço nem de conclusão funcional do repasse. Fonte canônica: `docs/PROGRESSO_GERAL.md`.

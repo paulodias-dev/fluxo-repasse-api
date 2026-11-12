@@ -94,3 +94,11 @@ Leia `docs/MACRO_04_USUARIOS_RBAC.md` para regras e contratos, e `docs/QA.md` pa
 - OpenAPI 0.5: `docs/openapi.yaml`.
 
 **QA:** consulte `docs/MACRO_05_AUDITORIA_QA.md`. O APP contém smoke test com Node 20.19+/22.12+ sem pacotes adicionais. Ainda não foram executados Composer, migrations ou PHPUnit neste ambiente; `composer.lock` permanece ausente.
+
+## Macroentrega 06 — Health separado de readiness
+
+`GET /api/v1/health` confirma apenas a resposta HTTP. O novo `GET /api/v1/ready` verifica a conexão MySQL e sete tabelas essenciais; responde 200/ready ou 503/unavailable sem vazar detalhes operacionais. A especificação OpenAPI foi atualizada para 0.6.
+
+Os arquivos novos passaram em `php -l` com PHP 8.4.24. Foram escritos quatro testes Laravel, ainda **não executados** por ausência de Composer/MySQL. Os oito testes de contrato do smoke do frontend passaram localmente com Node 22.16.0, mas usam API simulada.
+
+**Percentual global registrado:** 41,67% dos 12 macromarcos integrados na main; 50,00% dos marcos com a macro 06 nos PRs #6, ainda pendentes de revisão. Macro 06: 12/16 checkpoints = 75,00%. O percentual de conclusão funcional de repasses não é aferível sem o escopo Gemini. Documentos: `docs/PROGRESSO_GERAL.md` e `docs/MACRO_06_READINESS_QA.md`.

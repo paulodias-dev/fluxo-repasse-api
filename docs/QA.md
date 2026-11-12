@@ -73,3 +73,14 @@ Comandos: `bash scripts/qa-preflight.sh`, `composer test`, `composer lint`, `php
 No app: `npm run qa:smoke:test` (Node, sem npm install) e `QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 npm run qa:smoke` (requer ambiente e conta QA reais). Testar painel de histórico, filtros, paginação, conta desativada, sessão após edição de e-mail e permissões no backend. Os acessos de smoke criam entradas de login/logout na auditoria.
 
 **QA não executado nesta plataforma:** Composer, PHPUnit, MySQL e dependências npm ainda indisponíveis. Ver `docs/MACRO_05_AUDITORIA_QA.md` para critérios e evidências.
+
+## Execução/verificação real registrada — Macro 06
+
+- `php -l ReadinessController.php`: sem erros de sintaxe em PHP 8.4.24 (cópia idêntica da branch).
+- `php -l ReadinessTest.php`: sem erros de sintaxe em PHP 8.4.24.
+- `node --test scripts/smoke-api.test.mjs` no APP: 8/8 testes nativos passaram, Node v22.16.0, usando mocks.
+- `ReadinessTest.php` contém 4 cenários Laravel **escritos e não executados**: DB pronto, tabela ausente, exceção de conexão sem vazamento e health independente.
+- **Ainda não executado:** Composer install, PHPUnit, Laravel Pint, migrations MySQL, Vitest, build ou teste PWA em navegador.
+- Critérios restantes para homologação: `composer.lock`, `package-lock.json`, infraestrutura MySQL de QA, suite real e smoke autenticado.
+
+Ver `docs/MACRO_06_READINESS_QA.md` e `docs/PROGRESSO_GERAL.md` para comandos, evidências e progresso.
