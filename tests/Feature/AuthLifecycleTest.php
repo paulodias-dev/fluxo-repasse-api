@@ -195,4 +195,11 @@ final class AuthLifecycleTest extends TestCase
         $newToken = $this->login($user);
         $this->withToken($newToken)->getJson('/api/v1/auth/me')->assertOk();
     }
+    public function test_login_rejects_non_string_email_with_validation_error(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'email' => ['unexpected' => 'array'],
+            'password' => 'Strong-Passphrase-123!',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['email']);
+    }
 }
