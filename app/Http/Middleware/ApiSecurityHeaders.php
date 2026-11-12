@@ -13,7 +13,12 @@ final class ApiSecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
-        // APIs com identidade/JWT não devem ser armazenadas por proxies ou navegadores.
+        return self::secure($response);
+    }
+
+    public static function secure(Response $response): Response
+    {
+        // Centralizada também para respostas de exceções renderizadas fora do pipeline.
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
