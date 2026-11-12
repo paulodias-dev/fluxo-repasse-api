@@ -1,17 +1,24 @@
 # Fluxo Repasse — API Laravel + MySQL
 
-API REST do projeto **Fluxo Repasse**, com fundação de identidade JWT e contratos em OpenAPI.
+API REST do **Fluxo Repasse**, com identidade JWT, gestão básica de ciclo de contas e auditoria de segurança.
 
-## Estado da implementação
-- Laravel 12, PHP 8.3+, MySQL 8+.
-- `GET /api/v1/health` (público).
-- `POST /api/v1/auth/login` com limite de tentativas.
-- `GET /api/v1/auth/me`, `POST /api/v1/auth/refresh` e `POST /api/v1/auth/logout` via Bearer JWT.
-- Revogação por blacklist e cadastro inicial de usuários exclusivamente pelo terminal.
-- Testes feature escritos para login, acesso protegido, logout, refresh e rate-limit.
-- Nenhuma rota financeira ou cadastro público nesta etapa.
+## Tecnologias
+PHP 8.3+, Laravel 12, MySQL 8+, JWT (php-open-source-saver/jwt-auth), testes PHPUnit.
 
-## Instalação após merge do PR
+## Capacidades disponíveis
+- `GET /api/v1/health`: disponibilidade básica.
+- `POST /api/v1/auth/login`: autenticação, limitação de tentativas e login auditado.
+- `GET /api/v1/auth/me`: perfil autenticado mínimo.
+- `POST /api/v1/auth/refresh`: rotação manual do JWT válido.
+- `POST /api/v1/auth/logout`: revogação individual.
+- `POST /api/v1/auth/password`: troca da própria senha, revogação global dos JWTs anteriores.
+- `php artisan repasse:user:create`: provisionamento interativo sem senha fixa.
+- `php artisan repasse:user:status EMAIL ativo|inativo`: controle de conta via CLI, revogação global das sessões.
+- Auditoria mínima de login, logout, refresh, credenciais e suspensão; sem senha, e-mail digitado ou IP em claro.
+
+Nenhuma rota de repasse, valor financeiro, beneficiário ou cadastro público foi criada. Identidade **não equivale** a autorização financeira.
+
+## Instalação
 ```bash
 git clone https://github.com/paulodias-dev/fluxo-repasse-api.git
 cd fluxo-repasse-api
@@ -24,25 +31,29 @@ php artisan migrate
 php artisan repasse:user:create
 php artisan serve --host=127.0.0.1 --port=8000
 ```
+Na atualização de ambiente existente, preservar APP_KEY/JWT_SECRET e executar migrations **aditivas**, após backup.
 
-## Qualidade
+## QA e pré-homologação
 ```bash
+bash scripts/qa-preflight.sh
 composer test
 composer lint
+php artisan migrate:status
 php artisan route:list --path=api
 ```
+Sem `composer.lock`, Composer/dependências instaladas e testes MySQL reais **não existe homologação**. Gerar o lock e evidências em ambiente conectado antes de produção.
 
 ## Documentação
-- [Instalação](docs/INSTALACAO.md)
-- [Arquitetura](docs/ARQUITETURA.md)
-- [Contrato OpenAPI](docs/openapi.yaml)
-- [Roadmap](docs/ROADMAP.md)
-- [Segurança](docs/SEGURANCA.md)
+- [Instalação/migração](docs/INSTALACAO.md)
+- [Arquitetura de identidade](docs/ARQUITETURA.md)
+- [OpenAPI 0.3](docs/openapi.yaml)
 - [QA](docs/QA.md)
+- [Segurança/LGPD](docs/SEGURANCA.md)
 - [Deploy](docs/DEPLOY.md)
-- [Requisitos de negócio pendentes](docs/REQUISITOS_PENDENTES.md)
-- [Diretrizes de desenvolvimento](AGENTS.md)
-
-**Homologação pendente:** gerar/commit `composer.lock`, executar dependências, testes e migrations no MySQL. O histórico do Gemini não está disponível; nenhuma regra de repasse foi presumida.
+- [Roadmap](docs/ROADMAP.md)
+- [Requisitos funcionais pendentes](docs/REQUISITOS_PENDENTES.md)
+- [AGENTS](AGENTS.md)
 
 Frontend: [fluxo-repasse-app](https://github.com/paulodias-dev/fluxo-repasse-app).
+
+> O histórico funcional do Gemini ainda não foi recuperado. Nenhum contrato financeiro foi inventado.
