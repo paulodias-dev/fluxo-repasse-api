@@ -90,7 +90,7 @@ node --test scripts/smoke-api.test.mjs
 QA_API_BASE_URL=http://127.0.0.1:8000 node scripts/smoke-api.mjs
 ```
 
-O primeiro comando verifica o próprio smoke com respostas simuladas de teste. O segundo comprova apenas os endpoints públicos sem credenciais. Para homologação integrada **obrigatória**, disponibilize `QA_USER_EMAIL`, `QA_USER_PASSWORD` e `QA_REQUIRE_AUTH=1` como variáveis de ambiente, sem gravar senhas no repositório. A conta de QA preferencialmente tem `users.manage` para cobrir listagem e histórico.
+O primeiro comando verifica o próprio smoke com respostas simuladas de teste. O segundo comprova apenas os endpoints públicos sem credenciais. Para homologação integrada **obrigatória**, disponibilize `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1` como variáveis de ambiente, sem gravar senhas no repositório. A conta de QA preferencialmente tem `users.manage` para cobrir listagem e histórico.
 
 O login/logout do smoke gera eventos de auditoria normais, mas não cria/edita/desativa usuários nem executa operações financeiras. Nunca apontar para produção sem autorização e plano de testes.
 

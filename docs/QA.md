@@ -70,6 +70,6 @@ Comandos: `bash scripts/qa-preflight.sh`, `composer test`, `composer lint`, `php
 - Payload com `roles`, `permissions`, `password`, `auth_version` fora das rotas próprias → 422 e ausência de elevação de privilégios.
 
 ### Ponta a ponta
-No app: `npm run qa:smoke:test` (Node, sem npm install) e `QA_REQUIRE_AUTH=1 npm run qa:smoke` (requer ambiente e conta QA reais). Testar painel de histórico, filtros, paginação, conta desativada, sessão após edição de e-mail e permissões no backend. Os acessos de smoke criam entradas de login/logout na auditoria.
+No app: `npm run qa:smoke:test` (Node, sem npm install) e `QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 npm run qa:smoke` (requer ambiente e conta QA reais). Testar painel de histórico, filtros, paginação, conta desativada, sessão após edição de e-mail e permissões no backend. Os acessos de smoke criam entradas de login/logout na auditoria.
 
 **QA não executado nesta plataforma:** Composer, PHPUnit, MySQL e dependências npm ainda indisponíveis. Ver `docs/MACRO_05_AUDITORIA_QA.md` para critérios e evidências.

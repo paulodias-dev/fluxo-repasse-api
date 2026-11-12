@@ -29,7 +29,7 @@ No frontend:
 npm run qa:smoke:test
 QA_API_BASE_URL=http://127.0.0.1:8000 npm run qa:smoke
 ```
-Sem credenciais, o smoke cobre só endpoints públicos/protegidos sem token. Para cobertura autenticada, definir `QA_USER_EMAIL`, `QA_USER_PASSWORD` e `QA_REQUIRE_AUTH=1` no ambiente de QA. O login/logout grava eventos; não altera usuários.
+Sem credenciais, o smoke cobre só endpoints públicos/protegidos sem token. Para cobertura autenticada, definir `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1` para exigir também autorização e histórico no ambiente de QA. O login/logout grava eventos; não altera usuários.
 
 ## Aceite ainda não realizado
 Composer e extensões MySQL não estão disponíveis aqui; `composer.lock` e `package-lock.json` estão ausentes. É obrigatório instalar dependências legítimas, executar suites e testar em MySQL e navegadores reais. Não permitir merge como equivalente a homologação.
