@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(append: [\App\Http\Middleware\ApiSecurityHeaders::class]);
         $middleware->alias(['bearer.only' => \App\Http\Middleware\RequireBearerToken::class,
             'session.current' => \App\Http\Middleware\EnsureCurrentSession::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
