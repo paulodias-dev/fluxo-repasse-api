@@ -21,6 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response): \Symfony\Component\HttpFoundation\Response {
+            if (request()->is('api/*')) {
+                return \App\Http\Middleware\ApiSecurityHeaders::secure($response);
+            }
+
+            return $response;
+        });
+
         $exceptions->render(function (AuthenticationException $exception, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => 'Não autenticado.'], 401);
