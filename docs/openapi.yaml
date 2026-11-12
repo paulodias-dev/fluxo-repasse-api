@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.\n    Não há endpoints financeiros neste estágio.
@@ -35,6 +35,30 @@ paths:
                   version:
                     type: string
                     enum: [v1]
+  /ready:
+    get:
+      summary: Verificar prontidão do serviço e estrutura mínima MySQL
+      description: |
+        Diferentemente de /health, verifica conexão com o banco e presença das
+        tabelas necessárias à autenticação, usuários, papéis e auditoria.
+        A resposta nunca divulga credenciais, host, SQL ou nomes de tabelas.
+      tags: [Conectividade]
+      operationId: readiness
+      responses:
+        '200':
+          description: Dependências essenciais disponíveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '503':
+          description: Banco ou estrutura mínima indisponível
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+        '429':
+          description: Excesso de consultas de disponibilidade
   /auth/login:
     post:
       summary: Autenticar com e-mail e senha
@@ -306,6 +330,19 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    Readiness:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          enum: [ready, unavailable]
+        service:
+          type: string
+          enum: [fluxo-repasse-api]
+        version:
+          type: string
+          enum: [v1]
     UserAuditEvent:
       type: object
       required: [id, event_type, actor_user_id, created_at]
