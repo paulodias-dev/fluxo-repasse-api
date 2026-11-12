@@ -10,7 +10,7 @@ use Throwable;
 
 final class ReadinessController extends Controller
 {
-    private const REQUIRED_TABLES = ['users', 'roles', 'permissions', 'auth_security_events'];
+    private const REQUIRED_TABLES = ['users', 'roles', 'permissions', 'role_user', 'permission_role', 'auth_security_events', 'migrations'];
 
     public function __invoke(): JsonResponse
     {
