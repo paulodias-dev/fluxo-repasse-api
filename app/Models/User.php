@@ -45,6 +45,8 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
+            'auth_version' => 'integer',
         ];
     }
     public function getJWTIdentifier(): mixed
@@ -55,6 +57,6 @@ class User extends Authenticatable implements JWTSubject
     /** @return array<string, mixed> */
     public function getJWTCustomClaims(): array
     {
-        return [];
+        return ['av' => (int) $this->auth_version];
     }
 }
