@@ -102,3 +102,18 @@ Leia `docs/MACRO_04_USUARIOS_RBAC.md` para regras e contratos, e `docs/QA.md` pa
 Os arquivos novos passaram em `php -l` com PHP 8.4.24. Foram escritos quatro testes Laravel, ainda **não executados** por ausência de Composer/MySQL. Os oito testes de contrato do smoke do frontend passaram localmente com Node 22.16.0, mas usam API simulada.
 
 **Percentual global registrado:** 41,67% dos 12 macromarcos integrados na main; 50,00% dos marcos com a macro 06 nos PRs #6, ainda pendentes de revisão. Macro 06: 12/16 checkpoints = 75,00%. O percentual de conclusão funcional de repasses não é aferível sem o escopo Gemini. Documentos: `docs/PROGRESSO_GERAL.md` e `docs/MACRO_06_READINESS_QA.md`.
+
+## Macroentrega 07 — QA reproduzível em ambiente isolado
+
+O repositório agora contém `compose.qa.yaml`, `qa/Dockerfile.api`, `qa/run.sh` e `qa/selftest.sh`. O QA integra MySQL 8.4 privado, PHP 8.4/Composer e Node 22 com o clone React, sem GitHub Actions e sem remoção automática de volumes.
+
+```bash
+bash qa/selftest.sh                 # 6/6 bloqueios testados localmente
+QA_LEVEL=public bash qa/run.sh     # exige os dois lockfiles e segredos de QA
+```
+
+O runner rejeita `composer.lock` ou `package-lock.json` ausentes, banco fora de `*_qa` e chaves não configuradas. Detalhes de segurança e provisionamento em [qa/README.md](qa/README.md).
+
+**QA executado nesta entrega:** seis testes de bloqueio shell, parse do Compose YAML, sintaxe bash; no APP, nove testes reais de integridade npm. **Ainda não executado:** Docker, Composer, PHPUnit, migrations MySQL, npm ci, Vitest ou build. Os lockfiles continuam ausentes e não foram simulados.
+
+**Percentual macro 07:** 10/14 = 71,43%. **Percentual total do roadmap provisório:** 6/12 = 50,00% (marco 07 ainda incompleto). [Medição e evidências](docs/PROGRESSO_GERAL.md).

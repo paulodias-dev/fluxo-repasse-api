@@ -79,3 +79,20 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 **Métrica macro 06 (conjunta):** 12/16 checkpoints de API/APP entregues (75,00%), quatro gates sem homologação.
 
 **Métrica global do roadmap provisório:** 5/12 = 41,67% de marcos já na main; **6/12 = 50,00%** incluindo a macro 06 em PR. Não é estimativa de esforço nem de conclusão funcional do repasse. Fonte canônica: `docs/PROGRESSO_GERAL.md`.
+
+## Macroentrega 07 — Ambiente de QA, locks e execução segura (PR #7)
+
+- [x] Dockerfile PHP 8.4 com Composer, PDO MySQL/SQLite, mbstring, XML e ZIP.
+- [x] Compose com MySQL 8.4 privado, Laravel e Node APP.
+- [x] Runner fail-closed exige locks legítimos, segredos externos e DB exclusivo `*_qa`.
+- [x] O runner não usa `migrate:fresh`, não remove volumes e diferencia QA público/completo.
+- [x] Seis testes locais de bloqueio shell executados e aprovados (6/6).
+- [x] Sintaxe bash, esquema YAML, gitignore de segredos e documentação atualizados.
+- [ ] Resolver/versionar `composer.lock` com acesso ao Packagist.
+- [ ] Resolver/versionar `package-lock.json` com acesso ao registro npm.
+- [ ] Executar Docker/Composer/PHPUnit/Pint/migrations MySQL em banco real.
+- [ ] Executar npm ci, Vitest, lint, build e smoke E2E com evidência.
+
+**Macro 07 conjunta API+APP: 10/14 checkpoints = 71,43%.** O marco global 07 **não está concluído**. Índice total de marcos fechados: **6/12 = 50,00%**, sem extrapolar para o produto financeiro. Fonte canônica: `docs/PROGRESSO_GERAL.md`.
+
+**Próximo passo:** fechar lockfiles e executar QA isolado; não iniciar operações de repasse sem escopo aprovado.

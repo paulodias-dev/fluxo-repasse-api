@@ -45,3 +45,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Não incluir segredos, SQL, nomes de hosts ou stack trace em respostas de readiness.
 - Atualizar `docs/PROGRESSO_GERAL.md` com 12 marcos fixos; porcentagens se referem ao índice de roadmap, não à conclusão funcional financeira.
 - Antes de produção: Composer/npm lockfiles genuínos, QA MySQL/PHPUnit/Vitest/build e testes mobile.
+
+## Macro 07 — política de QA e medição
+
+- Não fabricar `composer.lock`/`package-lock.json`; instalá-los e versioná-los apenas após resolução real de dependências.
+- Usar MySQL QA privado e banco obrigatoriamente `*_qa`; exigir segredos próprios, nunca de produção.
+- `qa/run.sh` executa migrations normais no banco isolado, sem `migrate:fresh` e sem destruição de volumes.
+- Diferenciar seis verificações shell executadas de testes Laravel/MySQL/Composer não executados.
+- Percentual global do roadmap é `marcos concluídos / 12`; marco 07 segue incompleto até locks e QA executado.
