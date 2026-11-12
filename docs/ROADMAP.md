@@ -30,7 +30,7 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 
 - [x] Tabelas e modelos de papéis, permissões e vínculos, sem dados financeiros.
 - [x] Permissão técnica `users.manage` com middleware deny-by-default.
-- [x] Comando de bootstrap de administrador existente, com auditoria e confirmação.
+- [x] Comandos de concessão e revogação de administrador existente, com auditoria e proteção do último administrador.
 - [x] API paginada de listagem e busca de usuários.
 - [x] Cadastro e edição de usuários comuns sem escalar papéis.
 - [x] Ativação/desativação com revogação JWT e proteções de administrador.

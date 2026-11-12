@@ -76,6 +76,7 @@ Para criar o primeiro administrador técnico, após a instalação e as migratio
 ```bash
 php artisan repasse:user:create
 php artisan repasse:access:bootstrap email@dominio.com
+php artisan repasse:access:revoke-admin email@dominio.com
 ```
 
 A segunda operação exige confirmação no terminal, é auditada e invalida sessões antigas. Nenhum usuário ou privilégio é criado automaticamente por seeders. A desativação do último administrador ativo é proibida; a API também impede desativação da própria conta e de contas administradoras.

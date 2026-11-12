@@ -50,6 +50,8 @@ Os testes `tests/Feature/AdminUsersTest.php` verificam:
 8. API bloqueia desativar a própria conta e outra conta administradora.
 9. Bootstrap Artisan concede papel técnico a uma conta existente e audita.
 10. Console impede desativação do último administrador ativo.
+11. Console impede revogar a permissão do último administrador ativo.
+12. Revogar administração invalida tokens antigos e audita a alteração.
 
 **Critérios adicionais de homologação:** testar paginação, filtros de status, edições concorrentes, rollback das migrations, 401/403/422/429, integridade do banco e atuação de dois administradores. Nenhum requisito financeiro está testado ou implementado.
 

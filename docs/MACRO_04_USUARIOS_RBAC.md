@@ -32,6 +32,7 @@ Os endpoints nÃ£o permitem apagar contas, modificar senhas alheias, delegar papÃ
 ```bash
 php artisan repasse:user:create
 php artisan repasse:access:bootstrap operador@dominio.com
+php artisan repasse:access:revoke-admin operador@dominio.com
 php artisan repasse:user:status email@dominio.com ativo
 php artisan repasse:user:status email@dominio.com inativo
 ```

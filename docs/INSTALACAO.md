@@ -59,6 +59,8 @@ composer install
 php artisan migrate
 php artisan repasse:user:create
 php artisan repasse:access:bootstrap admin@seudominio.com
+# Para retirar posteriormente a permissão (preservando o último admin ativo):
+php artisan repasse:access:revoke-admin admin@seudominio.com
 php artisan route:list --path=api/v1/admin
 ```
 
