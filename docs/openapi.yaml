@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: Fluxo Repasse API
+  version: 0.2.0
+  description: |
+    Contratos da fundação de identidade e conectividade.
+    Não há endpoints financeiros neste estágio.
+servers:
+  - url: /api/v1
+tags:
+  - name: Conectividade
+  - name: Autenticação
+paths:
+  /health:
+    get:
+      summary: Verificar disponibilidade básica da API
+      tags: [Conectividade]
+      operationId: health
+      responses:
+        '200':
+          description: Serviço ativo (não representa verificação da integridade do MySQL)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, version]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  service:
+                    type: string
+                    enum: [fluxo-repasse-api]
+                  version:
+                    type: string
+                    enum: [v1]
+  /auth/login:
+    post:
+      summary: Autenticar com e-mail e senha
+      tags: [Autenticação]
+      operationId: login
+      description: Sem cadastro público. Sujeito a limite de tentativas por e-mail e IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: JWT de acesso. Nunca persista em localStorage.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Limite de tentativas excedido
+  /auth/me:
+    get:
+      summary: Consultar perfil autenticado
+      tags: [Autenticação]
+      operationId: me
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dados básicos do usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/refresh:
+    post:
+      summary: Renovar JWT ainda válido
+      tags: [Autenticação]
+      operationId: refresh
+      description: Revoga o token anterior, exige JWT válido; não funciona após expiração.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Novo token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /auth/logout:
+    post:
+      summary: Revogar JWT e encerrar sessão
+      tags: [Autenticação]
+      operationId: logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sessão encerrada no servidor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                    example: Sessão encerrada.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+    Token:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+          description: Token privado, de curta duração.
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Tempo de validade em segundos.
+          example: 900
+    ProfileResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, name, email]
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+  responses:
+    Unauthorized:
+      description: Credenciais inválidas, sessão ausente ou token recusado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Campos inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

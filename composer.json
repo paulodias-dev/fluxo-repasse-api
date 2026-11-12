@@ -5,9 +5,10 @@
     "description": "API REST do Fluxo Repasse em Laravel e MySQL.",
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.3",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "php-open-source-saver/jwt-auth": "^2.10"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
