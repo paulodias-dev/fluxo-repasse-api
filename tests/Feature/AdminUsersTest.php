@@ -140,7 +140,7 @@ final class AdminUsersTest extends TestCase
         $this->assertSame(0, $target->roles()->count());
         $this->assertDatabaseHas('auth_security_events', [
             'actor_user_id' => $admin->id, 'user_id' => $target->id,
-            'event_type' => 'account_updated',
+            'event_type' => 'account_email_changed',
         ]);
     }
 
