@@ -11,6 +11,7 @@ use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 
 final class AdminUserController extends Controller
@@ -101,7 +102,9 @@ final class AdminUserController extends Controller
 
             // Revalidar a proteção de contas privilegiadas após obter lock do registro.
             if (! $active && $target->roles()->where('slug', 'platform_admin')->exists()) {
-                return false;
+                throw ValidationException::withMessages([
+                    'is_active' => ['Contas administradoras devem ser desativadas pelo console.'],
+                ]);
             }
 
             $target->is_active = $active;
