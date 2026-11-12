@@ -12,7 +12,7 @@ O teste `AdminUsersTest::test_admin_editing_user_does_not_grant_privileges` espe
 
 `phpunit.xml` continua destinado a testes locais SQLite, sem perder compatibilidade.
 
-`phpunit.mysql.xml` é a configuração exclusiva de QA: `DB_CONNECTION=mysql` e sem `DB_DATABASE=:memory:`. A configuração utiliza `qa/phpunit-mysql-bootstrap.php`, executado **antes** do autoload Laravel e da execução de qualquer teste/migration.
+`phpunit.mysql.xml` é a configuração exclusiva de QA: `DB_CONNECTION=mysql` e sem `DB_DATABASE=:memory:`. A configuração utiliza `qa/phpunit-mysql-bootstrap.php`, executado **antes** do autoload Laravel e de migrations iniciadas pelo PHPUnit. A migration preliminar do runner é protegida pelo isolamento do Docker Compose, pelas variáveis fixas de conexão e pelo bloqueio de banco fora de `*_qa`.
 
 `qa/mysql-safety.php` recusa:
 - `APP_ENV` diferente de `testing`.
