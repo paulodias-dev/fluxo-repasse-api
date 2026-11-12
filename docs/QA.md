@@ -1,35 +1,37 @@
-# QA — API Fluxo Repasse
+# QA — Macroentrega 2: identidade e confiabilidade
 
-## 1. Prerequisitos
-- PHP >= 8.2, Composer, extensões PHP exigidas e MySQL 8+.
-- Configurar banco local com usuário de privilégios restritos.
-- Executar `composer install` e `php artisan key:generate`.
-- Criar e versionar `composer.lock` antes da homologação; `composer install` sem lock resolve pacotes dinamicamente.
-
-## 2. Verificações automatizadas
+## Execução obrigatória antes da homologação
 ```bash
 composer validate --strict
+composer install
+php artisan key:generate
+php artisan jwt:secret
+php artisan migrate
 composer test
 composer lint
 php artisan route:list --path=api
 php artisan migrate:status
 ```
-O `phpunit.xml` padrão utiliza SQLite em memória para testes rápidos; isso **não substitui** uma rodada de integração no MySQL 8.
+Criar usuário via `php artisan repasse:user:create` e testar com senhas próprias, nunca dados reais de produção.
 
-## 3. Testes com MySQL
-1. Criar banco exclusivo de testes, nunca apontar suite para dados de produção.
-2. Aplicar migrations e verificar charset/collation UTF8MB4.
-3. Verificar conexões, constraints, índices, timezone e rollback.
-4. Executar `GET /api/v1/health` e validar JSON/HTTP 200, Cache-Control no-store.
-5. Confirmar que `POST /api/v1/repasses` retorna 404 (não existe função financeira neste bootstrap).
-6. Com frontend em `http://localhost:5173`, verificar CORS e bloquear origens não autorizadas.
-7. Verificar que respostas de erro não expõem dados sensíveis (em produção, `APP_DEBUG=false`).
+## Testes automatizados definidos
+- Login correto emite JWT e perfil expõe somente `id`, `name`, `email`.
+- Senha incorreta retorna 401 com mensagem genérica.
+- `/auth/me`, `/auth/logout` e `/auth/refresh` sem JWT retornam 401.
+- Logout invalida token antigo; perfil com token revogado não é acessível.
+- Não existem endpoints públicos de registro nem de criação de repasses.
+- Endpoint de saúde continua acessível sem autenticação.
 
-## 4. Gatilhos de qualidade para o futuro
-- Testes de autenticação, expiração, revogação e autorização por papel.
-- Provas de isolamento organizacional se o sistema for multi-tenant.
-- Testes concorrentes, transacionais, precisão decimal, idempotência e rollback de erros.
-- Segurança de webhooks, replay, logs de auditoria, reconciliação e recuperação de desastres.
-- OpenAPI/L5-Swagger e testes de contrato antes de novos consumidores.
+## Cenários manuais de segurança
+1. Rate-limit com 6 logins inválidos em 60s pela mesma combinação e-mail/IP → 429; reavaliar limite global por IP.
+2. Token inválido ou expirado → 401, nunca 500 com stack trace.
+3. Refresh com JWT válido → token novo, token antigo revogado; refresh com JWT expirado → 401.
+4. Validação com e-mail ausente, formato inválido e payload inesperado → 422.
+5. Criar usuário duplicado por e-mail → comando falha sem duplicação.
+6. Corromper `JWT_SECRET` entre instâncias no ambiente isolado → tokens recusados.
+7. Testar CORS permitido e origem não permitida; sem `Access-Control-Allow-Origin: *`.
+8. Rodar migracões e testes em MySQL 8 com charset UTF8MB4.
+9. Implantação: verificar HTTPS, APP_DEBUG=false, armazenamento de blacklist compartilhado, backup e restore.
 
-**Status:** cenários descritos; nenhuma execução de Composer, migrations ou PHPUnit foi comprovada nesta entrega.
+## Limitação desta entrega
+Não há Composer nem dependências instaladas no executor, e não há MySQL disponível. Testes e migrations foram escritos, **não executados**; a conformidade de runtime está pendente.
