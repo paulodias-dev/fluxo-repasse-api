@@ -153,4 +153,46 @@ final class AuthLifecycleTest extends TestCase
         $this->assertFalse(str_contains(json_encode($event), $user->email));
         $this->assertFalse(str_contains(json_encode($event), 'incorrect-password'));
     }
+
+    public function test_login_normalizes_email_case_and_spacing(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'qa.login@example.test',
+            'password' => 'Strong-Passphrase-123!',
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => '  QA.LOGIN@EXAMPLE.TEST  ',
+            'password' => 'Strong-Passphrase-123!',
+        ])->assertOk()->assertJsonStructure(['access_token']);
+
+        $this->withToken($response->json('access_token'))
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', $user->email);
+    }
+
+    public function test_reactivation_requires_new_login_and_does_not_revalidate_old_token(): void
+    {
+        $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
+        $token = $this->login($user);
+
+        $this->artisan('repasse:user:status', [
+            'email' => $user->email,
+            'state' => 'inativo',
+            '--yes' => true,
+        ])->assertExitCode(0);
+
+        $this->artisan('repasse:user:status', [
+            'email' => $user->email,
+            'state' => 'ativo',
+            '--yes' => true,
+        ])->assertExitCode(0);
+
+        $this->assertSame(3, $user->fresh()->auth_version);
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+
+        $newToken = $this->login($user);
+        $this->withToken($newToken)->getJson('/api/v1/auth/me')->assertOk();
+    }
 }
