@@ -69,4 +69,44 @@ final class AuthApiTest extends TestCase
         $this->postJson('/api/v1/auth/register', [])->assertNotFound();
         $this->postJson('/api/v1/repasses', [])->assertNotFound();
     }
+
+    public function test_refresh_rotates_and_invalidates_old_token(): void
+    {
+        $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
+
+        $oldToken = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Strong-Passphrase-123!',
+        ])->json('access_token');
+
+        $newToken = $this->withToken($oldToken)
+            ->postJson('/api/v1/auth/refresh')
+            ->assertOk()
+            ->json('access_token');
+
+        $this->assertNotSame($oldToken, $newToken);
+
+        $this->withToken($oldToken)->getJson('/api/v1/auth/me')->assertUnauthorized();
+        $this->withToken($newToken)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', $user->email);
+    }
+
+    public function test_login_is_throttled_after_repeated_failed_attempts(): void
+    {
+        $user = User::factory()->create();
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->postJson('/api/v1/auth/login', [
+                'email' => $user->email,
+                'password' => 'Senha-invalida',
+            ])->assertUnauthorized();
+        }
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Senha-invalida',
+        ])->assertStatus(429);
+    }
 }
