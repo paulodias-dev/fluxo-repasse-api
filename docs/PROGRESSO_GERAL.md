@@ -1,4 +1,4 @@
-# Fluxo Repasse — Medição global provisória (Macroentrega 08)
+# Fluxo Repasse — Medição global provisória (Macroentrega 09)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
@@ -20,8 +20,8 @@
 | 05 | Histórico administrativo e smoke de API | Incorporado | PR #5 em ambos |
 | 06 | Readiness MySQL, diferenciação health/ready, regressões e testes nativos executados | Incorporado | PR #6 em ambos |
 | 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 incorporado, QA pendente | Runner QA/Compose; ambos os lockfiles existentes e inspecionados; instalação real pendente |
-| 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Em execução (PR #8) | PHPUnit MySQL seguro, 35 novos testes isolados; integração real pendente |
-| 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Pendente | Dispositivos e navegadores |
+| 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Parcial, PR #8 incorporado | PHPUnit MySQL isolado e 35 testes de proteção executados; integração real pendente |
+| 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Parcial, PR #9 em revisão | Política offline, 8 testes Node executados, a11y de base; E2E mobile pendente |
 | 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Pendente | Aprovação operacional |
 | 11 | Especificação **aprovada** das regras de repasse, papéis de negócio e integrações | Pendente de fonte | Não inventar processos |
 | 12 | Operações reais do produto, integrações financeiras e aceite E2E do negócio | Pendente de escopo | Não criar transações sem regras |
@@ -30,7 +30,7 @@
 
 `main = 6 ÷ 12 × 100 = 50,00%`
 
-`main + macro 08 em PR = 6 ÷ 12 × 100 = 50,00%` (marcos 07 e 08 ainda incompletos; não contar entregas parciais como marcos concluídos)
+`main + macro 09 em PR = 6 ÷ 12 × 100 = 50,00%` (marcos 07, 08 e 09 ainda incompletos; não contabilizar código parcial como marco integral)
 
 **Cuidado:** estes são números de marcos de mesmo peso e não refletem a complexidade desigual entre autenticação e operações financeiras. Assim que o escopo funcional for recuperado/aprovado, substituir este baseline por uma matriz de funcionalidades e pesos consensuais, com histórico auditável da mudança de denominador.
 
@@ -146,3 +146,43 @@ Completar o marco 07 em ambiente com registros e Docker acessíveis: validar amb
 Concluir os gates reais dos marcos 07/08 com infraestrutura e Composer conectados. Só então elevar o percentual de marcos concluídos. O domínio financeiro exige as regras de negócio aprovadas antes de criar transações, retenções ou cálculos.
 
 **Atualização de evidência — Macro 08:** uma nova conferência da árvore GitHub identificou `composer.lock` já presente na `main` da API (316.325 bytes no objeto Git, 81 pacotes de produção e 32 dev; `content-hash` com formato hexadecimal de 32 caracteres; requisitos principais encontrados; nenhuma URL `source`/`dist` não HTTPS). Não houve download/execução do Composer; a integridade completa depende de `composer validate --strict` e `composer install`. Essa evidência elevou a Macro 08 para **15/18 = 83,33%** e a Macro 07 para **12/14 = 85,71%**, sem alterar o índice global de macromarcos fechados (**6/12 = 50,00%**).
+
+## Macroentrega 09 — Segurança PWA offline e acessibilidade
+
+### Critérios entregues ou verificados
+
+1. [x] Middleware global do grupo API para cabeçalhos de privacidade e anti-cache.
+2. [x] Tratamento central das respostas de exceções 401/403 com a mesma política.
+3. [x] Cinco testes Laravel de headers em sucesso, login protegido e acesso negado escritos.
+4. [x] Sintaxe PHP de dois novos arquivos validada localmente pelo PHP 8.4.
+5. [x] Política única Workbox: precache de shell estático, sem runtime caching.
+6. [x] Oito testes Node nativos da política de cache executados: **8/8 aprovados**.
+7. [x] Fallback offline autorizado somente em `/` e `/index.html`, sem páginas presumidas.
+8. [x] Área privada oculta imediatamente ao ficar offline e sessão local descartada.
+9. [x] Login pendente não pode restaurar sessão durante perda de conexão.
+10. [x] Acessibilidade de base: skip link, aviso offline, foco teclado, touch 44px, preferências de movimento/contraste.
+11. [x] OpenAPI 0.7, manuais, scripts QA e roadmap documentados.
+
+### Gates ainda não cumpridos
+
+12. [ ] Executar Vitest de UI, especialmente queda de conexão e login pendente.
+13. [ ] Executar PHPUnit/MySQL dos cabeçalhos de segurança com API real.
+14. [ ] Executar `npm ci`, build PWA e inspecionar artefato real do service worker e Cache Storage.
+15. [ ] Executar testes móveis, navegação por teclado e auditoria de acessibilidade/desempenho em navegadores/dispositivos.
+
+**Macro 09: 11/15 = 73,33%** dos checkpoints, com quatro gates de execução real pendentes.
+
+**Evolução total provisória: 6/12 = 50,00%** dos macromarcos integralmente concluídos na `main` de ambos os repositórios. PRs #7/#8 foram incorporados, mas os seus critérios de QA não foram totalmente fechados. Macro #9 está em revisão e também não foi contabilizada como concluída. Esta métrica é de roadmap técnico com peso igual e não representa % real de operações financeiras.
+
+### Evidência desta entrega
+
+- `node --test src/pwa/cachePolicy.test.mjs` — **8/8 pass** Node.js 22.16.0.
+- `node --check` nos dois arquivos JS da política — sem erros.
+- `php -l` no middleware e no teste feature novos — sem erros de sintaxe, PHP 8.4.
+- Conteúdos executados comparados aos blobs de GitHub via comprimento/checksum FNV-1a.
+- Três testes Vitest de UI e cinco testes feature Laravel foram escritos, **não executados**: faltam npm ci/Composer/PHPUnit, MySQL e navegador.
+- Nenhum endpoint ou cálculo financeiro foi introduzido.
+
+## Próxima entrega
+
+Fechar os gates reais de QA de 07–09 (dependências já versionadas; execução ainda pendente), executar build PWA e inspecionar o service worker em navegadores reais. Depois, revisar deploy/backup/restore, observabilidade e segurança operacional do marco 10.
