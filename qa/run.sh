@@ -34,10 +34,12 @@ compose=(docker compose -f compose.qa.yaml)
 "${compose[@]}" run --rm --no-deps api sh -ec '
   composer install --no-interaction --prefer-dist --no-progress
   php artisan migrate --force
-  php artisan test
+  php artisan test --configuration phpunit.mysql.xml
   vendor/bin/pint --test
 '
 "${compose[@]}" up -d api
+# Aguardar prontidão real antes dos testes HTTP, sem tentativas ilimitadas.
+"${compose[@]}" run --rm --no-deps app node scripts/wait-api-ready.mjs
 
 # npm ci e testes com lockfile, sem bypass de integridade.
 "${compose[@]}" run --rm --no-deps app sh -ec '
