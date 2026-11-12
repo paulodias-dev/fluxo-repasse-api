@@ -114,6 +114,6 @@ QA_LEVEL=public bash qa/run.sh     # exige os dois lockfiles e segredos de QA
 
 O runner rejeita `composer.lock` ou `package-lock.json` ausentes, banco fora de `*_qa` e chaves não configuradas. Detalhes de segurança e provisionamento em [qa/README.md](qa/README.md).
 
-**QA executado nesta entrega:** seis testes de bloqueio shell, parse do Compose YAML, sintaxe bash; no APP, nove testes reais de integridade npm. **Ainda não executado:** Docker, Composer, PHPUnit, migrations MySQL, npm ci, Vitest ou build. Os lockfiles continuam ausentes e não foram simulados.
+**QA executado nesta entrega:** seis testes de bloqueio shell, parse do Compose YAML, sintaxe bash; no APP, nove testes reais de integridade npm. **Ainda não executado:** Docker, Composer, PHPUnit, migrations MySQL, npm ci, Vitest ou build. O `package-lock.json` do APP já estava versionado na `main` e foi auditado nesta entrega (npm v3, 525 entradas, checksums e manifesto coerentes). O `composer.lock` da API segue ausente; nenhum arquivo foi fabricado.
 
-**Percentual macro 07:** 10/14 = 71,43%. **Percentual total do roadmap provisório:** 6/12 = 50,00% (marco 07 ainda incompleto). [Medição e evidências](docs/PROGRESSO_GERAL.md).
+**Percentual macro 07:** 11/14 = 78,57%. **Percentual total do roadmap provisório:** 6/12 = 50,00% (marco 07 ainda incompleto). [Medição e evidências](docs/PROGRESSO_GERAL.md).
