@@ -27,3 +27,13 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Auditoria de modificações administrativas deve registrar `actor_user_id` e `user_id`, sem dados sigilosos.
 - Não assumir multitenancy ou escopo financeiro; regras dependem da fonte funcional original.
 - Exigir lockfiles, testes MySQL, PHPUnit, Pint e validação ponta a ponta antes de homologação.
+
+## Macro 05 — integridade e auditoria administrativa
+
+- Consultas `/admin/users/{user}/events` exigem `users.manage` e retornam apenas os campos públicos definidos em `docs/openapi.yaml`.
+- Não expor `ip_hash`, endereços IP, tokens, senhas ou payloads em respostas de histórico.
+- Qualquer alteração de e-mail incrementa `auth_version` em transação e invalida JWTs antigos.
+- Rejeitar explicitamente tentativas de alterar campos privilegiados via endpoints de usuários comuns; verificar 422 em testes.
+- Mudanças de auditoria exigem testes de 401, 403, 404, filtros, paginação e privacidade.
+- Smoke Node é leitura da API com login/logout de QA (gera eventos de auditoria); não utiliza credenciais em código e não altera cadastros.
+- `composer.lock` e testes reais são gates formais; não declarar homologação com testes apenas escritos.

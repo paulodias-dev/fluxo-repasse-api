@@ -38,3 +38,13 @@ Migrations são **aditivas**, sem `migrate:fresh`. Contas já existentes terão 
 - Todas as respostas de listagem são projetadas explicitamente com `id`, `name`, `email`, `is_active` e `created_at`; hashes, JWT e `auth_version` não são expostos.
 - Desativação de usuário incrementa `auth_version`; JWTs antigos são recusados pelo middleware de sessão vigente.
 - Multiempresa/tenant e papéis financeiros permanecem **não definidos**, sem migrações ou políticas presumidas.
+
+## Macro 05 — Histórico de conta e integridade de sessão
+
+`AdminUserAuditController` consulta a tabela existente `auth_security_events`, restringe `user_id` ao parâmetro com model binding e projeta apenas os campos `id`, `event_type`, `actor_user_id` e `created_at`. Utiliza `users.manage` na mesma cadeia `bearer.only → auth:api → session.current → permission:users.manage`, com limite de consultas por usuário e paginação de 15 registros.
+
+Os filtros `type` (enum de eventos conhecidos), `from` e `to` (datas YYYY-MM-DD, intervalo válido) e `page` são validados antes da consulta. Não existe endpoint público de auditoria, exportação em massa nem acesso a hashes de IP.
+
+`AdminUserController::update` aplica lock pessimista e transação. Ao alterar e-mail incrementa `auth_version`, revogando JWTs anteriores de todos os dispositivos, e registra `account_email_changed`. Alteração somente de nome gera `account_updated`; no-op não grava evento. O contrato não permite atribuir papéis, permissões ou senha por essa rota.
+
+Como não houve inclusão de tabelas/colunas nesta macro, não há migration nova. Ainda é necessário aplicar as migrations anteriores em um banco MySQL de homologação limpo e executar testes.

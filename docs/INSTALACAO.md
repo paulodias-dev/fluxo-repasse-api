@@ -71,3 +71,27 @@ A migration acrescenta tabelas de RBAC e um campo `actor_user_id` à auditoria e
 O PWA mostra gestão de usuários somente quando `GET /auth/me` inclui `users.manage`. O backend **sempre** valida a permissão independentemente de como o cliente chama a rota.
 
 **Pendente para homologação:** gerar e versionar `composer.lock`, executar Composer/PHPUnit/Pint, testar migrations e permissões em MySQL 8 e integrar com o PWA.
+
+## Teste integrado da Macro 05
+
+Após aplicar todas as migrations anteriores e iniciar API Laravel com MySQL isolado para QA:
+
+```bash
+bash scripts/qa-preflight.sh
+composer test
+composer lint
+php artisan route:list --path=api/v1/admin
+```
+
+No repositório `fluxo-repasse-app`, com Node.js 20.19+ ou 22.12+, o smoke test não exige dependências npm:
+
+```bash
+node --test scripts/smoke-api.test.mjs
+QA_API_BASE_URL=http://127.0.0.1:8000 node scripts/smoke-api.mjs
+```
+
+O primeiro comando verifica o próprio smoke com respostas simuladas de teste. O segundo comprova apenas os endpoints públicos sem credenciais. Para homologação integrada **obrigatória**, disponibilize `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1` como variáveis de ambiente, sem gravar senhas no repositório. A conta de QA preferencialmente tem `users.manage` para cobrir listagem e histórico.
+
+O login/logout do smoke gera eventos de auditoria normais, mas não cria/edita/desativa usuários nem executa operações financeiras. Nunca apontar para produção sem autorização e plano de testes.
+
+Permanece obrigatório gerar/versionar `composer.lock` em ambiente conectado e homologar MySQL/PHPUnit antes de merge ou deploy.

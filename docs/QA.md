@@ -56,3 +56,20 @@ Os testes `tests/Feature/AdminUsersTest.php` verificam:
 **Critérios adicionais de homologação:** testar paginação, filtros de status, edições concorrentes, rollback das migrations, 401/403/422/429, integridade do banco e atuação de dois administradores. Nenhum requisito financeiro está testado ou implementado.
 
 Comandos: `bash scripts/qa-preflight.sh`, `composer test`, `composer lint`, `php artisan migrate:status`. Os testes foram escritos mas **não executados** nesta entrega por indisponibilidade das dependências PHP/MySQL; não considerar homologado.
+
+## Macro 05 — Casos de auditoria, sessão e mass assignment
+
+### API
+- Conta não autenticada → 401 ao consultar histórico.
+- Conta autenticada sem `users.manage` → 403.
+- Administrador → histórico somente do usuário consultado, sem hash de IP ou segredos.
+- Filtros `type/from/to/page` válidos e inválidos → paginação correta, 422 no caso inválido.
+- Conta inexistente → 404.
+- Edição de e-mail → JWT anterior retorna 401; registra operador/conta e `account_email_changed`.
+- Edição somente do nome → mantém JWT válido; no-op não gera evento novo.
+- Payload com `roles`, `permissions`, `password`, `auth_version` fora das rotas próprias → 422 e ausência de elevação de privilégios.
+
+### Ponta a ponta
+No app: `npm run qa:smoke:test` (Node, sem npm install) e `QA_REQUIRE_AUTH=1 QA_REQUIRE_ADMIN=1 npm run qa:smoke` (requer ambiente e conta QA reais). Testar painel de histórico, filtros, paginação, conta desativada, sessão após edição de e-mail e permissões no backend. Os acessos de smoke criam entradas de login/logout na auditoria.
+
+**QA não executado nesta plataforma:** Composer, PHPUnit, MySQL e dependências npm ainda indisponíveis. Ver `docs/MACRO_05_AUDITORIA_QA.md` para critérios e evidências.

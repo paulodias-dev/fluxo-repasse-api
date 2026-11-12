@@ -82,3 +82,15 @@ php artisan repasse:access:revoke-admin email@dominio.com
 A segunda operação exige confirmação no terminal, é auditada e invalida sessões antigas. Nenhum usuário ou privilégio é criado automaticamente por seeders. A desativação do último administrador ativo é proibida; a API também impede desativação da própria conta e de contas administradoras.
 
 Leia `docs/MACRO_04_USUARIOS_RBAC.md` para regras e contratos, e `docs/QA.md` para critérios de validação.
+
+## Macroentrega 05 — Histórico e proteção de identidade
+
+- `GET /api/v1/admin/users/{user}/events`: histórico paginado, filtros `type`, `from`, `to`, `page`, autorização `users.manage`.
+- Respostas de auditoria incluem somente `id`, `event_type`, `actor_user_id` e `created_at`; sem hash de IP, senhas, token ou payload.
+- Troca de e-mail de usuário incrementa `auth_version`, invalida sessões anteriores e grava evento `account_email_changed`.
+- Alteração somente de nome não revoga JWT; edição sem mudança não cria auditoria duplicada.
+- `StoreUserRequest`, `UpdateUserRequest` e `SetUserStatusRequest` rejeitam explicitamente campos de papéis, permissões, senha ou estado fora do endpoint permitido.
+- Testes PHPUnit adicionais documentam autorização, filtros, LGPD, revogação de sessões e negação de campos privilegiados.
+- OpenAPI 0.5: `docs/openapi.yaml`.
+
+**QA:** consulte `docs/MACRO_05_AUDITORIA_QA.md`. O APP contém smoke test com Node 20.19+/22.12+ sem pacotes adicionais. Ainda não foram executados Composer, migrations ou PHPUnit neste ambiente; `composer.lock` permanece ausente.
