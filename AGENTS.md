@@ -1,18 +1,18 @@
-# AGENTS — Fluxo Repasse API
+# AGENTS — Fluxo Repasse API (Macroentrega 03)
 
-## Contexto
-API Laravel 12 + MySQL 8+ (PHP 8.3+) em `paulodias-dev/fluxo-repasse-api`.
-Frontend PWA React/Vite em `paulodias-dev/fluxo-repasse-app`.
-O histórico funcional do Gemini não foi recuperado. A fundação de identidade não autoriza assumir regras financeiras.
+## Fundamentos
+Laravel 12, PHP >=8.3, MySQL 8+, API REST `/api/v1`. Frontend React/Vite/PWA no repositório `fluxo-repasse-app`.
+O histórico funcional Gemini não foi recuperado: não inventar fluxos financeiros, comissões, repasses, multitenancy ou perfis.
 
-## Regras obrigatórias
-1. Idioma pt-BR/UTF-8, contratos REST em `/api/v1`, sem dados financeiros fictícios e sem usuários/senhas fixos em seeders.
-2. JWT via `php-open-source-saver/jwt-auth`, segredos somente `.env`, rotas privadas com `auth:api`, refresh rotativo e blacklist persistente.
-3. Nunca abrir registro de usuários sem decisão aprovada de negócio; provisionar por `repasse:user:create`.
-4. Todas as operações futuras têm políticas de autorização explícitas (deny-by-default), validação `FormRequest`, testes e auditoria.
-5. Não criar repasses, beneficiários, comissões, movimentações ou regras tributárias sem fonte funcional aprovada.
-6. Valor monetário: evitar `float`; validar moeda, escala, arredondamento, idempotência e concorrência.
-7. `composer.lock` deve ser gerado e commitado antes de homologar; sempre rodar `composer test`, `composer lint`, migrations em MySQL e revisar `docs/openapi.yaml`.
-8. Não divulgar segredos em `VITE_*`, logs, respostas ou repositório.
-9. PRs não draft, sem alterar main diretamente; informar cobertura realmente executada, status verificável e próxima macroentrega.
-10. Revisar `docs/REQUISITOS_PENDENTES.md` e `docs/SEGURANCA.md` em toda entrega relevante.
+## Requisitos inegociáveis
+1. pt-BR/UTF-8, validação FormRequest, Swagger/OpenAPI atualizado por endpoint e teste feature por mudança.
+2. Usuário autenticado não possui direitos financeiros por padrão; rotas de dinheiro inexistem até RBAC e escopo aprovados.
+3. Token Bearer JWT exclusivamente no header. Config `JWT_SECRET` somente em ambiente. Verificar `auth_version` e `is_active` a cada requisição privada.
+4. Em troca de senha e status de conta, incrementar `auth_version` em transação, revogando todos os JWTs existentes.
+5. Auditoria mínima de identidade, sem senhas, JWT, dados financeiros ou IP bruto; retenção LGPD pendente de aprovação.
+6. Jamais adicionar senha fixa/usuário exemplo em seeder de produção; contas reais por `repasse:user:create`.
+7. Qualquer escrita futura de dinheiro exige transações, locks, idempotência, testes de concorrência, rastreabilidade e valores monetários sem `float`.
+8. Não executar `migrate:fresh` em ambiente persistente; manter migrations aditivas, backups e estratégia de rollback.
+9. Sem segredos em arquivos versionados; `composer.lock` obrigatório para homologar, nunca forjar versão ou hash.
+10. Executar `composer test`, `composer lint`, testes MySQL 8 reais e revisar `docs/QA.md` antes do merge.
+11. PRs não draft; entregar documentação e relatório de resultados reais. Não alegar execução de testes não executados.

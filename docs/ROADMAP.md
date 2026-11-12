@@ -1,29 +1,27 @@
-# Roadmap — Fluxo Repasse API
+# Fluxo Repasse API — roadmap de execução
 
-Status de macros por capacidade implementada **não equivale ao percentual total do produto**, que depende do contexto funcional ainda inacessível.
+## Histórico
+- [x] Macro 01: Laravel/MySQL, estrutura REST e health — merge na main.
+- [x] Macro 02: identidade JWT, refresh/logout, provisionamento inicial, contrato e testes escritos — merge na main.
 
-## Macro 01 — fundação (integrada à main em 12/11/2026)
-- [x] Laravel 12, MySQL configurável, estrutura HTTP.
-- [x] Endpoint público `/api/v1/health`.
-- [x] Migrations de infraestrutura, seeder vazio.
-- [x] Documentação e teste inicial escrito.
+## Macro 03: segurança do ciclo de identidade (PR #3)
+- [x] Campo `is_active` e versão revogável de sessão `auth_version`.
+- [x] Middlewares contra conta desativada e JWT antigo, inclusive após refresh.
+- [x] Nova rota autenticada para alteração da própria senha.
+- [x] Comando seguro para ativação/desativação de conta.
+- [x] Eventos de segurança persistidos com minimização de dados.
+- [x] Testes feature para credenciais, revogação global e auditoria escritos.
+- [x] OpenAPI, documentação operacional, LGPD e QA atualizados.
+- [ ] Composer lockfile gerado e versionado.
+- [ ] Testes PHPUnit/Laravel Pint e migrations MySQL 8 executados e evidenciados.
+- [ ] Testes integrados com PWA e homologação de segurança.
 
-## Macro 02 — identidade e contrato (PR 2)
-- [x] JWT guard e User JWTSubject (PHP >= 8.3).
-- [x] Login e rate limit; sem registro público.
-- [x] Me/Refresh/Logout autenticados e revogação JWT.
-- [x] Provisionamento de usuário via Artisan, sem senha fixa.
-- [x] Testes feature adicionais escritos.
-- [x] OpenAPI e documentação de segurança, QA e instalação.
-- [ ] composer.lock gerado e versionado.
-- [ ] Suite PHPUnit/Laravel Pint e migrations MySQL executadas com evidências.
-- [ ] Homologação da integração real com PWA.
- 
-## Macro 03 — autorização e robustez (depende de requisitos)
-- [ ] Definição de RBAC, papéis, escopos, políticas de sessão.
-- [ ] Controle de acesso por organização/tenant apenas se confirmado.
-- [ ] Auditoria de ações, logs e política de privacidade.
-- [ ] Plano de observabilidade, deploy seguro, backup e rollback.
-- [ ] Teste de concorrência e proteção de operação financeira após definição de domínio.
+**Métrica da macro 03:** 7/10 checkpoints com artefatos implementados (70%), pendentes 3 gates executáveis. Este indicador não representa o progresso total do produto.
 
-**Medição da Macro 02:** 6/9 critérios com artefatos implementados (66,7%); 3 requerem execução em ambiente real. Não inferir avanço total do negócio.
+## Próxima macroentrega (dependente de escopo)
+- [ ] Autorização por papéis e organizações com política deny-by-default, sem presumir multitenancy.
+- [ ] Rotina de recuperação de credenciais e reforço de sessão conforme política aprovada.
+- [ ] Observabilidade, retenção LGPD de eventos, testes de concorrência e operação.
+- [ ] Preparação do modelo de repasse somente após recuperação e aprovação do contexto Gemini.
+
+Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPECIFICADAS.

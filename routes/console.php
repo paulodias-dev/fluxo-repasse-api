@@ -33,3 +33,47 @@ Artisan::command('repasse:user:create', function (): int {
 
     return Command::SUCCESS;
 })->purpose('Criar usuário inicial sem credenciais fixas ou cadastro público');
+
+Artisan::command('repasse:user:status {email : E-mail do usuário} {state : ativo ou inativo} {--yes : Confirmar sem prompt}', function (): int {
+    $email = Str::lower(trim((string) $this->argument('email')));
+    $state = (string) $this->argument('state');
+
+    if (! in_array($state, ['ativo', 'inativo'], true)) {
+        $this->error('Informe apenas ativo ou inativo.');
+        return Command::FAILURE;
+    }
+
+    $user = User::query()->where('email', $email)->first();
+
+    if (! $user) {
+        $this->error('Usuário não encontrado.');
+        return Command::FAILURE;
+    }
+
+    $active = $state === 'ativo';
+
+    if ((bool) $user->is_active === $active) {
+        $this->info('A conta já está no estado solicitado.');
+        return Command::SUCCESS;
+    }
+
+    if (! $this->option('yes') && ! $this->confirm('Confirmar alteração de status e invalidação de todas as sessões?', false)) {
+        return Command::FAILURE;
+    }
+
+    \Illuminate\Support\Facades\DB::transaction(function () use ($user, $active): void {
+        $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+        $locked->is_active = $active;
+        $locked->auth_version = (int) $locked->auth_version + 1;
+        $locked->save();
+
+        app(\App\Services\AuthEventRecorder::class)->record(
+            $active ? 'account_activated' : 'account_deactivated',
+            null,
+            $locked
+        );
+    });
+
+    $this->info('Status atualizado. Todas as sessões anteriores foram invalidadas.');
+    return Command::SUCCESS;
+})->purpose('Ativar ou desativar uma conta e revogar todos os JWTs emitidos');

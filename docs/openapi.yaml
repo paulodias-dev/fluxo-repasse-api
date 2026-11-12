@@ -1,10 +1,10 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Contratos da fundação de identidade e conectividade.
-    Não há endpoints financeiros neste estágio.
+    Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.\n    Não há endpoints financeiros neste estágio.
 servers:
   - url: /api/v1
 tags:
@@ -97,6 +97,36 @@ paths:
                 $ref: '#/components/schemas/Token'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /auth/password:
+    post:
+      summary: Alterar a própria senha
+      description: |
+        Confere senha atual, valida a senha nova e incrementa auth_version.
+        Todos os JWTs anteriores são invalidados, incluindo os de outros dispositivos.
+        Após sucesso é obrigatório autenticar novamente.
+      tags: [Autenticação]
+      operationId: changePassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Senha alterada, todas as sessões anteriores invalidadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Limite de tentativas excedido
   /auth/logout:
     post:
       summary: Revogar JWT e encerrar sessão
@@ -125,6 +155,27 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    ChangePasswordRequest:
+      type: object
+      required: [current_password, new_password, new_password_confirmation]
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+          minLength: 12
+          description: Requer maiúscula, minúscula, número e símbolo.
+        new_password_confirmation:
+          type: string
+          format: password
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
     LoginRequest:
       type: object
       required: [email, password]

@@ -1,37 +1,38 @@
-# QA — Macroentrega 2: identidade e confiabilidade
+# QA — Macroentrega 03 (API)
 
-## Execução obrigatória antes da homologação
+## Matriz de teste automatizado
+Além de `AuthApiTest` da macro 02, `AuthLifecycleTest` adiciona:
+1. Alteração de senha só com Bearer válido.
+2. Senha atual incorreta → 422, sem alterar a credencial.
+3. Senha nova fraca → 422.
+4. Senha alterada → JWT antigo de qualquer sessão retorna 401; login com senha antiga falha; nova funciona.
+5. Conta inativa → login recusado e JWT previamente emitido retorna 401.
+6. CLI de desativação → aumenta `auth_version`, audita evento e invalida token.
+7. Refresh com JWT válido preserva a versão `av` e revoga token anterior.
+8. Auditoria de login falho sem senha, e-mail fornecido ou IP em claro.
+9. Cenários anteriores: throttle 429, exigência de Bearer no header, logout e rotação.
+
+## Comandos
 ```bash
+bash scripts/qa-preflight.sh
 composer validate --strict
 composer install
-php artisan key:generate
-php artisan jwt:secret
 php artisan migrate
 composer test
 composer lint
 php artisan route:list --path=api
-php artisan migrate:status
 ```
-Criar usuário via `php artisan repasse:user:create` e testar com senhas próprias, nunca dados reais de produção.
+Testar com `.env.testing` isolado. Não apontar PHPUnit para base de produção. Executar também em MySQL 8+; SQLite é apenas teste rápido.
 
-## Testes automatizados definidos
-- Login correto emite JWT e perfil expõe somente `id`, `name`, `email`.
-- Senha incorreta retorna 401 com mensagem genérica.
-- `/auth/me`, `/auth/logout` e `/auth/refresh` sem JWT retornam 401.
-- Logout invalida token antigo; perfil com token revogado não é acessível.
-- Não existem endpoints públicos de registro nem de criação de repasses.
-- Endpoint de saúde continua acessível sem autenticação.
+## Aceite de banco e segurança
+- Migrations aditivas, rollback planejado, `is_active` e `auth_version` com defaults.
+- `auth_security_events` não armazena token/senha/CPF/e-mail digitado nem IP bruto.
+- Simular duas sessões concorrentes antes/depois da troca de senha; verificar invalidação cruzada.
+- Auditar cache de JWT blacklist em múltiplas instâncias e comportamento de refresh.
+- Desativação/reativação via Artisan com confirmação, sem cadastro público.
+- Rotas financeiras devem permanecer 404 até definição de regras de negócio.
+- Testar bloqueio por rate-limit e duração do JWT.
+- Verificar CORS, TLS, erros sem stack trace e `APP_DEBUG=false` em produção.
 
-## Cenários manuais de segurança
-1. Rate-limit com 6 logins inválidos em 60s pela mesma combinação e-mail/IP → 429; reavaliar limite global por IP.
-2. Token inválido ou expirado → 401, nunca 500 com stack trace.
-3. Refresh com JWT válido → token novo, token antigo revogado; refresh com JWT expirado → 401.
-4. Validação com e-mail ausente, formato inválido e payload inesperado → 422.
-5. Criar usuário duplicado por e-mail → comando falha sem duplicação.
-6. Corromper `JWT_SECRET` entre instâncias no ambiente isolado → tokens recusados.
-7. Testar CORS permitido e origem não permitida; sem `Access-Control-Allow-Origin: *`.
-8. Rodar migracões e testes em MySQL 8 com charset UTF8MB4.
-9. Implantação: verificar HTTPS, APP_DEBUG=false, armazenamento de blacklist compartilhado, backup e restore.
-
-## Limitação desta entrega
-Não há Composer nem dependências instaladas no executor, e não há MySQL disponível. Testes e migrations foram escritos, **não executados**; a conformidade de runtime está pendente.
+## Limitações desta entrega
+PHP disponível localmente, mas sem Composer, pdo_mysql, base MySQL nem acesso ao registro de pacotes. Não é possível alegar PHPUnit, migrations ou integração reais executados. Validar integralmente antes do merge e go-live.

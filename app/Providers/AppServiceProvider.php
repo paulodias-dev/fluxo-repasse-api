@@ -17,8 +17,20 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('repasse-refresh', function (Request $request): Limit {
+            $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+            return Limit::perMinute(30)->by('refresh:'.$id);
+        });
+
+        RateLimiter::for('repasse-password', function (Request $request): Limit {
+            $userId = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+
+            return Limit::perMinute(3)->by('password:'.$userId);
+        });
+
         RateLimiter::for('repasse-login', function (Request $request): array {
-            $email = Str::lower(trim((string) $request->input('email', '')));
+            $input = $request->input('email');
+            $email = is_string($input) ? Str::lower(trim($input)) : '__invalid__';
             $ip = $request->ip() ?? 'unknown';
 
             return [
