@@ -22,6 +22,7 @@ if [[ "${QA_LEVEL:-public}" == full ]]; then
   [[ "${QA_REQUIRE_AUTH:-0}" == 1 && "${QA_REQUIRE_ADMIN:-0}" == 1 ]] || fail 'QA_LEVEL=full exige QA_REQUIRE_AUTH=1 e QA_REQUIRE_ADMIN=1.'
   [[ -n "${QA_USER_EMAIL:-}" && -n "${QA_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais de administrador QA.'
   [[ -n "${QA_BASIC_USER_EMAIL:-}" && -n "${QA_BASIC_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais separadas de usuário comum QA.'
+  [[ "${QA_USER_EMAIL}" != "${QA_BASIC_USER_EMAIL}" ]] || fail 'QA_LEVEL=full exige contas distintas para administrador e usuário comum.'
 fi
 
 command -v docker >/dev/null || fail 'Docker Engine/Compose indisponível.'
