@@ -70,7 +70,7 @@ final class AuthLifecycleTest extends TestCase
             'current_password' => 'Strong-Passphrase-123!',
             'new_password' => 'Another-Secure-Password-234!',
             'new_password_confirmation' => 'Another-Secure-Password-234!',
-        ])->assertOk()->assertHeader('Cache-Control', 'no-store');
+        ])->assertOk()->assertHeader('Cache-Control', 'no-store, private');
 
         $this->withToken($first)->getJson('/api/v1/auth/me')->assertUnauthorized();
         $this->withToken($second)->getJson('/api/v1/auth/me')->assertUnauthorized();

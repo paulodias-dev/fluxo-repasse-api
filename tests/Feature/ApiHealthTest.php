@@ -15,7 +15,7 @@ final class ApiHealthTest extends TestCase
                 'service' => 'fluxo-repasse-api',
                 'version' => 'v1',
             ])
-            ->assertHeader('Cache-Control', 'no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_financial_routes_are_not_published_before_domain_approval(): void

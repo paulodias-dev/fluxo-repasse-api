@@ -21,7 +21,7 @@ final class ReadinessTest extends TestCase
                 'service' => 'fluxo-repasse-api',
                 'version' => 'v1',
             ])
-            ->assertHeader('Cache-Control', 'no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_missing_required_table_returns_generic_503(): void
@@ -36,7 +36,7 @@ final class ReadinessTest extends TestCase
                 'version' => 'v1',
             ])
             ->assertDontSee('users')
-            ->assertHeader('Cache-Control', 'no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_database_exception_does_not_leak_connection_details(): void
