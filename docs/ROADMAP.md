@@ -89,10 +89,10 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [x] Seis testes locais de bloqueio shell executados e aprovados (6/6).
 - [x] Sintaxe bash, esquema YAML, gitignore de segredos e documentação atualizados.
 - [ ] Resolver/versionar `composer.lock` com acesso ao Packagist.
-- [ ] Resolver/versionar `package-lock.json` com acesso ao registro npm.
+- [x] `package-lock.json` já presente na main do APP; inspecionado em 525 entradas, com manifesto consistente e hashes de integridade.
 - [ ] Executar Docker/Composer/PHPUnit/Pint/migrations MySQL em banco real.
 - [ ] Executar npm ci, Vitest, lint, build e smoke E2E com evidência.
 
-**Macro 07 conjunta API+APP: 10/14 checkpoints = 71,43%.** O marco global 07 **não está concluído**. Índice total de marcos fechados: **6/12 = 50,00%**, sem extrapolar para o produto financeiro. Fonte canônica: `docs/PROGRESSO_GERAL.md`.
+**Macro 07 conjunta API+APP: 11/14 checkpoints = 78,57%.** O marco global 07 **não está concluído**. Índice total de marcos fechados: **6/12 = 50,00%**, sem extrapolar para o produto financeiro. Fonte canônica: `docs/PROGRESSO_GERAL.md`.
 
 **Próximo passo:** fechar lockfiles e executar QA isolado; não iniciar operações de repasse sem escopo aprovado.
