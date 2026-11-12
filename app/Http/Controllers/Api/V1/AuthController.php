@@ -7,11 +7,13 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 final class AuthController extends Controller
 {
@@ -76,6 +78,12 @@ final class AuthController extends Controller
         // A atualização da senha, versão de sessão e auditoria são atômicas.
         DB::transaction(function () use ($user, $data, $request): void {
             $current = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $tokenVersion = JWTAuth::parseToken()->getPayload()->get('av');
+
+            if (! $current->is_active || ! is_int($tokenVersion) ||
+                $tokenVersion !== (int) $current->auth_version) {
+                throw new AuthenticationException('Sessão inválida.');
+            }
 
             if (! Hash::check($data['current_password'], $current->password)) {
                 throw ValidationException::withMessages([
