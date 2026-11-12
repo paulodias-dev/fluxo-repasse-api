@@ -201,4 +201,33 @@ final class AdminUsersTest extends TestCase
 
         $this->assertTrue($admin->fresh()->is_active);
     }
+
+    public function test_cli_prevents_revocation_of_last_active_admin(): void
+    {
+        $admin = $this->admin();
+
+        $this->artisan('repasse:access:revoke-admin', [
+            'email' => $admin->email, '--yes' => true,
+        ])->assertExitCode(1);
+
+        $this->assertTrue($admin->fresh()->hasPermission('users.manage'));
+    }
+
+    public function test_cli_revocation_removes_admin_permission_and_revokes_old_jwt(): void
+    {
+        $first = $this->admin();
+        $second = $this->admin();
+        $token = $this->token($second);
+
+        $this->artisan('repasse:access:revoke-admin', [
+            'email' => $second->email, '--yes' => true,
+        ])->assertExitCode(0);
+
+        $this->assertFalse($second->fresh()->hasPermission('users.manage'));
+        $this->withToken($token)->getJson('/api/v1/admin/users')->assertUnauthorized();
+        $this->assertDatabaseHas('auth_security_events', [
+            'user_id' => $second->id, 'event_type' => 'platform_admin_revoked',
+        ]);
+        $this->assertTrue($first->fresh()->hasPermission('users.manage'));
+    }
 }
