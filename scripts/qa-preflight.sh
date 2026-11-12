@@ -43,8 +43,8 @@ if [ ! -f composer.lock ]; then
   report_failure "composer.lock ausente: resolva e versione as dependências antes do deploy"
 fi
 
-if [ ! -f .env ]; then
-  report_failure ".env não configurado para instalação local (jamais versionar)"
+if [ ! -f .env ] && [ -z "${APP_KEY:-}" ]; then
+  report_failure "Sem .env e sem APP_KEY configurado no ambiente (não versionar segredos)"
 fi
 
 if [ ! -f vendor/autoload.php ]; then

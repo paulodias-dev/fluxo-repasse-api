@@ -84,3 +84,11 @@ No app: `npm run qa:smoke:test` (Node, sem npm install) e `QA_REQUIRE_AUTH=1 QA_
 - Critérios restantes para homologação: `composer.lock`, `package-lock.json`, infraestrutura MySQL de QA, suite real e smoke autenticado.
 
 Ver `docs/MACRO_06_READINESS_QA.md` e `docs/PROGRESSO_GERAL.md` para comandos, evidências e progresso.
+
+## Macroentrega 07 — Execução de QA sem dependências externas
+
+Verificações executadas: `bash -n qa/run.sh`, `bash -n qa/selftest.sh`, `bash qa/selftest.sh` (**6 testes aprovados**), análise sintática de `compose.qa.yaml` com PyYAML (3 serviços, MySQL sem porta publicada). Em paralelo o APP executou **9 testes Node aprovados** do validador de `package-lock.json`.
+
+O Compose prepara o caminho para PHP 8.4 + MySQL 8.4 + React, mas **não foi executado** neste ambiente. Para QA integrado, seguir `qa/README.md`: criar/versionar o lock Composer legítimo e validar o lock npm já existente com npm ci, fornecer chaves e credenciais de QA e executar `QA_LEVEL=public bash qa/run.sh` ou `QA_LEVEL=full` com conta administrativa de QA.
+
+Os testes reais de PHPUnit, Pint, MySQL, Vitest, lint/build e PWA mobile seguem bloqueados. Nenhum resultado dessa fase deve ser rotulado como homologação de produção.

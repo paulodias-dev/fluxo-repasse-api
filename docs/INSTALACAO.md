@@ -95,3 +95,9 @@ O primeiro comando verifica o próprio smoke com respostas simuladas de teste. O
 O login/logout do smoke gera eventos de auditoria normais, mas não cria/edita/desativa usuários nem executa operações financeiras. Nunca apontar para produção sem autorização e plano de testes.
 
 Permanece obrigatório gerar/versionar `composer.lock` em ambiente conectado e homologar MySQL/PHPUnit antes de merge ou deploy.
+
+## Ambiente de QA reproduzível (Macro 07)
+
+Em vez de depender de PHP/MySQL instalados localmente, é possível usar `compose.qa.yaml` com Docker Compose v2, orientado por `qa/README.md`. É obrigatório fornecer `QA_APP_PATH`, segredos gerados de QA e `composer.lock` genuíno na API e `package-lock.json` já versionado no APP; nenhum segredo deve ser versionado. O runner impede banco fora de `*_qa` e não remove volumes automaticamente.
+
+Primeiro executar `bash qa/selftest.sh` para verificar os bloqueios; depois `QA_LEVEL=public bash qa/run.sh`. O modo completo exige conta admin QA exclusiva e `QA_LEVEL=full`. **Ambiente Docker ainda não executado aqui.**

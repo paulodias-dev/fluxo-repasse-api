@@ -1,11 +1,11 @@
-# Fluxo Repasse — Medição global provisória (Macroentrega 06)
+# Fluxo Repasse — Medição global provisória (Macroentrega 07)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
 ## Regra matemática estável
 - Denominador: **12 macromarcos definidos** abaixo, cada um com peso idêntico (1/12).
-- Integrado na `main` dos dois repositórios: **5 de 12 = 41,67%**.
-- Com a Macro 06 implementada nos PRs #6, **6 de 12 = 50,00% de código/artefatos entregues**, condicionado à revisão e ao merge dos dois PRs.
+- Integrado na `main` dos dois repositórios: **6 de 12 = 50,00%**.
+- A Macro 06 foi incorporada. A Macro 07 está implementada parcialmente nos PRs #7, mas o seu marco global **não é considerado concluído** sem lockfiles genuínos e instalação executada; por isso o índice de marcos concluídos continua **6 de 12 = 50,00%**.
 - Esta porcentagem provisória inclui os marcos 11 e 12 apenas como **placeholders**, porque o escopo funcional do Gemini não foi disponibilizado. **Não afirmar que o negócio de repasses está 50% implementado.**
 - Homologação ponta a ponta: não concluída; documentar separadamente, nunca embutir esse status no percentual.
 
@@ -18,8 +18,8 @@
 | 03 | Conta ativa, expiração, auditoria de identidade e troca de senha | Incorporado | PR #3 em ambos |
 | 04 | RBAC técnico e módulo administrativo de usuários | Incorporado | PR #4 em ambos |
 | 05 | Histórico administrativo e smoke de API | Incorporado | PR #5 em ambos |
-| 06 | Readiness MySQL, diferenciação health/ready, regressões e testes nativos executados | PR aberto | PR #6 de ambos |
-| 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Pendente | Não gerar lock fictício |
+| 06 | Readiness MySQL, diferenciação health/ready, regressões e testes nativos executados | Incorporado | PR #6 em ambos |
+| 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 aberto | Runner QA/Compose; package-lock npm existente e validado; composer.lock ainda ausente |
 | 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Pendente | Evidências obrigatórias |
 | 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Pendente | Dispositivos e navegadores |
 | 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Pendente | Aprovação operacional |
@@ -28,9 +28,9 @@
 
 ## Percentuais
 
-`main = 5 ÷ 12 × 100 = 41,666…% ≈ 41,67%`
+`main = 6 ÷ 12 × 100 = 50,00%`
 
-`main + macro 06 em revisão = 6 ÷ 12 × 100 = 50,00%`
+`main + macro 07 em PR = 6 ÷ 12 × 100 = 50,00%` (o marco 07 ainda está incompleto; não contar entregas parciais como marcos concluídos)
 
 **Cuidado:** estes são números de marcos de mesmo peso e não refletem a complexidade desigual entre autenticação e operações financeiras. Assim que o escopo funcional for recuperado/aprovado, substituir este baseline por uma matriz de funcionalidades e pesos consensuais, com histórico auditável da mudança de denominador.
 
@@ -65,5 +65,41 @@ Gates não cumpridos:
 - Sintaxe PHP: `php -l` em `ReadinessController.php` e `ReadinessTest.php` — **sem erros**; cópias locais exatas verificadas.
 - Não realizado: Laravel/PHPUnit/Vitest/build, integração com MySQL, instalação de dependências ou navegadores reais. Isso impede homologação total.
 
+## Macroentrega 07 — Reprodutibilidade de dependências e segurança do QA
+
+Checkpoints com código, verificação ou documentação:
+
+1. [x] Validador offline `qa-lock.mjs` para lock npm v3 e consistência de dependências.
+2. [x] Nove testes nativos de lockfile executados: **9/9 aprovados** com Node.js v22.16.0.
+3. [x] `preflight` do APP integrado à inspeção de lockfile (fail-closed).
+4. [x] Scripts npm `qa:lock` e `qa:native` adicionados.
+5. [x] Dockerfile PHP 8.4 com Composer e extensões PDO MySQL/SQLite, mbstring, XML, ZIP.
+6. [x] `compose.qa.yaml` com MySQL 8.4 privado, API Laravel e APP Node 22.
+7. [x] Runner `qa/run.sh` com segredos externos, banco obrigatório `*_qa` e sem comandos destrutivos.
+8. [x] Seis testes de bloqueio do runner executados: **6/6 aprovados**, sem Docker nem MySQL.
+9. [x] Verificação sintática `bash -n` dos dois scripts e parse YAML do Compose; sem erros.
+10. [x] Manuais de QA, rastreabilidade e progresso atualizados em ambos os repositórios.
+
+Gates ainda pendentes:
+
+11. [ ] Gerar e commitar `composer.lock` resolvido de fontes reais.
+12. [x] `package-lock.json` do APP já versionado na main, inspecionado: npm v3, 525 entradas, ranges corretos, origem HTTPS e checksums presentes. Não gerado nesta entrega.
+13. [ ] Executar Compose/Composer, migrations MySQL, PHPUnit/Pint e registrar evidências.
+14. [ ] Executar `npm ci`, Vitest, lint, build e QA integrado/mobile real.
+
+**Progresso macro 07: 11/14 = 78,57%.** Não houve execução de Docker, MySQL, Composer, npm ci ou do produto completo no navegador; infraestrutura indisponível.
+
+**Evolução total do projeto — índice provisório do roadmap: 6/12 = 50,00%.** Não aumentar esse indicador enquanto o marco 07 não estiver integralmente concluído. O número mede exclusivamente marcos iguais, **não** a fração real de implementação do negócio financeiro, ainda sem especificação validada.
+
+### Evidências desta macro
+
+- `node --check` nos dois scripts de lock: sem erro; `node --test scripts/qa-lock.test.mjs`: **9 pass / 0 fail**.
+- `bash -n qa/run.sh` e `bash -n qa/selftest.sh`: aprovados; `bash qa/selftest.sh`: **6 aprovações / 0 falhas**, executado em diretórios temporários.
+- `compose.qa.yaml`: YAML parseado com PyYAML 6.0.3, 3 serviços, nenhuma porta MySQL exposta.
+- Conteúdo dos scripts publicados comparado com cópias locais por comprimento e checksum FNV-1a de codepoints.
+- O `package-lock.json` existente do APP foi inspecionado diretamente no GitHub: 525 entradas, 0 sem HTTPS, 0 sem integridade, 0 divergências de dependências diretas. `composer.lock` segue ausente.
+- Estado dos bloqueios: Composer, Docker, extensões PDO, registros de pacotes npm/Packagist e banco MySQL indisponíveis para execução aqui.
+
 ## Próxima implementação
-**Macro 07** — fechar lockfiles e ambiente de dependências legítimo, rodar suites completas e confirmar prontidão/identidade contra MySQL. Após essa evidência, avançar para dispositivos PWA e critérios de produção.
+
+Completar o marco 07 em ambiente com registros e Docker acessíveis: resolver/versionar o `composer.lock`, validar o lock npm já existente com `npm ci` e rodar o QA isolado integralmente. Depois avançar ao marco 08 de homologação com MySQL e PWA, sem assumir regras financeiras.
