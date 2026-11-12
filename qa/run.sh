@@ -24,6 +24,7 @@ docker compose version >/dev/null || fail 'Docker Compose v2 indisponível.'
 if [[ "${QA_LEVEL:-public}" == full ]]; then
   [[ "${QA_REQUIRE_AUTH:-0}" == 1 && "${QA_REQUIRE_ADMIN:-0}" == 1 ]] || fail 'QA_LEVEL=full exige QA_REQUIRE_AUTH=1 e QA_REQUIRE_ADMIN=1.'
   [[ -n "${QA_USER_EMAIL:-}" && -n "${QA_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais de administrador QA.'
+  [[ -n "${QA_BASIC_USER_EMAIL:-}" && -n "${QA_BASIC_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais separadas de usuário comum QA.'
 fi
 
 compose=(docker compose -f compose.qa.yaml)
@@ -55,6 +56,7 @@ compose=(docker compose -f compose.qa.yaml)
 
 if [[ "${QA_LEVEL:-public}" == full ]]; then
   "${compose[@]}" run --rm --no-deps app npm run qa:smoke
+  "${compose[@]}" run --rm --no-deps app npm run qa:rbac
   printf 'QA FULL: testes executados. Ainda revisar PWA em navegadores reais e evidências de produção.\n'
 else
   printf 'QA PARCIAL: checks públicos concluídos, sem login E2E. Para QA completo, use QA_LEVEL=full com conta exclusiva de homologação.\n'
