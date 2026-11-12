@@ -38,6 +38,7 @@ Status pede confirmação; em scripts de manutenção supervisionados há `--yes
 
 ## QA
 ```bash
+bash scripts/qa-preflight.sh
 composer validate --strict
 composer test
 composer lint
