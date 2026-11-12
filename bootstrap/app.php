@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['bearer.only' => \App\Http\Middleware\RequireBearerToken::class,
             'session.current' => \App\Http\Middleware\EnsureCurrentSession::class,
+            'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

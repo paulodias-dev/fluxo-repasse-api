@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
@@ -51,6 +52,26 @@ class User extends Authenticatable implements JWTSubject
             'auth_version' => 'integer',
         ];
     }
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class);
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return $this->roles()->whereHas('permissions', function ($query) use ($permission): void {
+            $query->where('key', $permission);
+        })->exists();
+    }
+
+    /** @return list<string> */
+    public function grantedPermissions(): array
+    {
+        return $this->roles()->with('permissions')->get()
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('key'))
+            ->unique()->values()->all();
+    }
+
     public function getJWTIdentifier(): mixed
     {
         return $this->getKey();

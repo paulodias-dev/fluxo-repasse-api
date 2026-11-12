@@ -28,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by('password:'.$userId);
         });
 
+        RateLimiter::for('repasse-admin-write', function (Request $request): Limit {
+            $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+            return Limit::perMinute(30)->by('users-write:'.$id);
+        });
+
         RateLimiter::for('repasse-login', function (Request $request): array {
             $input = $request->input('email');
             $email = is_string($input) ? Str::lower(trim($input)) : '__invalid__';
