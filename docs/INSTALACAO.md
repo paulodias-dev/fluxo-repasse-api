@@ -1,20 +1,18 @@
-# Fluxo Repasse API — instalação e inicialização da identidade
+# Instalação — Fluxo Repasse API (Macroentrega 03)
 
-## Pré-requisitos
-PHP 8.3+, Composer 2, extensões PHP exigidas pelo Laravel (incluindo pdo_mysql, mbstring, openssl, xml e sodium), MySQL 8+.
-O pacote JWT é `php-open-source-saver/jwt-auth:^2.10` (compatível com Laravel 12).
+## Requisitos
+PHP >=8.3, Composer 2, extensões `pdo_mysql`, `mbstring`, `openssl`, `xml`, `sodium` e demais dependências exigidas pelo Laravel; MySQL 8+; servidor HTTPS para produção.
 
-## Instalação
+## Primeira instalação
 ```bash
 git clone https://github.com/paulodias-dev/fluxo-repasse-api.git
 cd fluxo-repasse-api
-# Após merge do PR 2, utilizar a main.
 composer install
 cp .env.example .env
 php artisan key:generate
 php artisan jwt:secret
 ```
-Criar previamente o banco `fluxo_repasse` em MySQL/UTF8MB4 e um usuário de acesso com permissões apenas para o banco. Preencher `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` e `DB_PASSWORD` no `.env`.
+Criar banco e usuário MySQL com UTF8MB4 e privilégios mínimos. Configurar `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` no `.env`.
 
 ```bash
 php artisan migrate
@@ -22,29 +20,31 @@ php artisan repasse:user:create
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-O comando de provisionamento solicita nome, e-mail e senha de forma interativa e segura, sem credencial fixa e sem permissões financeiras. Não há rota de cadastro público.
+## Atualização a partir da Macro 02
+1. Fazer backup restaurável do banco; não executar `migrate:fresh`.
+2. Atualizar código e instalar dependências com lockfile reproduzível.
+3. Validar `JWT_SECRET` e cache da blacklist compartilhado em instalações com múltiplas instâncias.
+4. Executar `php artisan migrate`; são adicionados `users.is_active`, `users.auth_version` e `auth_security_events`.
+5. Tokens anteriores à macro 03 são rejeitados pelo middleware por não terem a claim `av`; exigir novo login.
+6. Validar a troca de senha, o bloqueio da conta e a consulta a perfil com JWT novo.
 
-## Endpoints de identidade
-- `GET /api/v1/health` — público.
-- `POST /api/v1/auth/login` — recebe `email`, `password` e retorna `access_token`, `token_type`, `expires_in`.
-- `GET /api/v1/auth/me` — exige `Authorization: Bearer TOKEN`.
-- `POST /api/v1/auth/refresh` — exige JWT **ainda válido**, rotaciona token e revoga o antigo.
-- `POST /api/v1/auth/logout` — exige JWT, invalida token em cache compartilhado.
+## Gestão de contas via terminal
+```bash
+php artisan repasse:user:create
+php artisan repasse:user:status usuario@dominio.com inativo
+php artisan repasse:user:status usuario@dominio.com ativo
+```
+Status pede confirmação; em scripts de manutenção supervisionados há `--yes`. Cada alteração incrementa `auth_version` e revoga todos os tokens anteriores. Não existe cadastro nem gestão administrativa pública de usuários.
 
-Contrato completo: `docs/openapi.yaml`.
-
-## Verificação
+## QA
 ```bash
 composer validate --strict
 composer test
 composer lint
-php artisan route:list --path=api
 php artisan migrate:status
+php artisan route:list --path=api
 ```
-Testes unitários/feature usam SQLite em memória por padrão. Fazer rodada adicional no MySQL 8, antes de homologar. Ver `docs/QA.md`.
+O teste rápido PHPUnit usa SQLite em memória; execução MySQL real é obrigatória antes de homologação. `composer.lock` deve ser gerado e versionado em ambiente com Packagist/Composer; nunca inventar hash de dependência ou publicar sem lock.
 
-## Atenção — dependências reprodutíveis
-`composer.lock` ainda está pendente porque esta entrega não dispõe de acesso ao Packagist e não executou Composer. **Antes de aprovar o deploy**, gerar o lock em ambiente íntegro com `composer update` e versioná-lo. Em seguida usar sempre `composer install`. Não afirmar testes verdes até executar.
-
-## Segurança de ambiente
-`JWT_SECRET` deve ser exclusivo do ambiente, nunca versionado. Ajustes: `JWT_TTL=15` minutos, `JWT_REFRESH_TTL=120` minutos, blacklist habilitada, cache de blacklist centralizado em produção. HTTPS, `APP_DEBUG=false`, proteção da `.env` e origens CORS específicas são obrigatórios.
+## Configurações obrigatórias
+`APP_DEBUG=false` fora do desenvolvimento, `APP_KEY` e `JWT_SECRET` próprios do ambiente, `JWT_TTL=15`, `JWT_REFRESH_TTL=120`, `JWT_BLACKLIST_ENABLED=true`, CORS com origem explícita e TLS. Não inserir segredos em `VITE_*` do frontend.
