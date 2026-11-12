@@ -18,14 +18,14 @@ done
 [[ "${QA_DB_NAME:-repasse_qa}" == *_qa ]] || fail 'O banco de testes deve terminar em _qa.'
 [[ "${QA_LEVEL:-public}" == public || "${QA_LEVEL:-public}" == full ]] || fail 'QA_LEVEL: use public ou full.'
 
-command -v docker >/dev/null || fail 'Docker Engine/Compose indisponível.'
-docker compose version >/dev/null || fail 'Docker Compose v2 indisponível.'
-
 if [[ "${QA_LEVEL:-public}" == full ]]; then
   [[ "${QA_REQUIRE_AUTH:-0}" == 1 && "${QA_REQUIRE_ADMIN:-0}" == 1 ]] || fail 'QA_LEVEL=full exige QA_REQUIRE_AUTH=1 e QA_REQUIRE_ADMIN=1.'
   [[ -n "${QA_USER_EMAIL:-}" && -n "${QA_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais de administrador QA.'
   [[ -n "${QA_BASIC_USER_EMAIL:-}" && -n "${QA_BASIC_USER_PASSWORD:-}" ]] || fail 'QA_LEVEL=full exige credenciais separadas de usuário comum QA.'
 fi
+
+command -v docker >/dev/null || fail 'Docker Engine/Compose indisponível.'
+docker compose version >/dev/null || fail 'Docker Compose v2 indisponível.'
 
 compose=(docker compose -f compose.qa.yaml)
 "${compose[@]}" config --quiet
