@@ -129,6 +129,11 @@ final class AdminUsersTest extends TestCase
             'name' => 'Nome Atualizado',
             'email' => 'alterado@example.test',
             'roles' => ['platform_admin'],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['roles']);
+
+        $this->withToken($this->token($admin))->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Nome Atualizado',
+            'email' => 'alterado@example.test',
         ])->assertOk()->assertJsonPath('data.name', 'Nome Atualizado');
 
         $this->assertSame('alterado@example.test', $target->fresh()->email);
@@ -229,5 +234,82 @@ final class AdminUsersTest extends TestCase
             'user_id' => $second->id, 'event_type' => 'platform_admin_revoked',
         ]);
         $this->assertTrue($first->fresh()->hasPermission('users.manage'));
+    }
+
+    public function test_changing_email_invalidates_all_previous_sessions_and_records_actor(): void
+    {
+        $admin = $this->admin();
+        $target = User::factory()->create([
+            'email' => 'original@example.test',
+            'password' => 'Strong-Passphrase-123!',
+        ]);
+        $oldToken = $this->token($target);
+        $adminToken = $this->token($admin);
+
+        $this->withToken($adminToken)
+            ->patchJson('/api/v1/admin/users/'.$target->id, [
+                'email' => 'updated@example.test',
+            ])->assertOk()->assertJsonPath('data.email', 'updated@example.test');
+
+        $this->assertSame(2, $target->fresh()->auth_version);
+        $this->withToken($oldToken)->getJson('/api/v1/auth/me')->assertUnauthorized();
+        $this->assertDatabaseHas('auth_security_events', [
+            'actor_user_id' => $admin->id,
+            'user_id' => $target->id,
+            'event_type' => 'account_email_changed',
+        ]);
+    }
+
+    public function test_name_only_change_keeps_token_valid_and_noop_does_not_audit(): void
+    {
+        $admin = $this->admin();
+        $target = User::factory()->create([
+            'name' => 'Nome Original',
+            'password' => 'Strong-Passphrase-123!',
+        ]);
+        $userToken = $this->token($target);
+        $adminToken = $this->token($admin);
+
+        $this->withToken($adminToken)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Nome Atualizado',
+        ])->assertOk();
+
+        $this->assertSame(1, $target->fresh()->auth_version);
+        $this->withToken($userToken)->getJson('/api/v1/auth/me')->assertOk();
+
+        $this->withToken($adminToken)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Nome Atualizado',
+        ])->assertOk();
+
+        $this->assertDatabaseCount('auth_security_events', 3);
+    }
+
+    public function test_admin_cannot_set_sensitive_fields_during_creation_or_update(): void
+    {
+        $admin = $this->admin();
+        $token = $this->token($admin);
+        $target = User::factory()->create();
+
+        $this->withToken($token)->postJson('/api/v1/admin/users', [
+            'name' => 'Pessoa Nova',
+            'email' => 'nova@example.test',
+            'password' => 'Strong-Passphrase-123!',
+            'password_confirmation' => 'Strong-Passphrase-123!',
+            'permissions' => ['users.manage'],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['permissions']);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'auth_version' => 999,
+            'password' => 'malicious',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['auth_version', 'password']);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$target->id.'/status', [
+            'is_active' => false,
+            'roles' => ['platform_admin'],
+        ])->assertUnprocessable()->assertJsonValidationErrors(['roles']);
+
+        $this->assertSame(1, $target->fresh()->auth_version);
+        $this->assertTrue($target->fresh()->is_active);
+        $this->assertSame(0, $target->roles()->count());
     }
 }
