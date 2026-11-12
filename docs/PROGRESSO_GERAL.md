@@ -65,9 +65,6 @@ Gates não cumpridos:
 - Sintaxe PHP: `php -l` em `ReadinessController.php` e `ReadinessTest.php` — **sem erros**; cópias locais exatas verificadas.
 - Não realizado: Laravel/PHPUnit/Vitest/build, integração com MySQL, instalação de dependências ou navegadores reais. Isso impede homologação total.
 
-## Próxima implementação
-**Macro 07** — fechar lockfiles e ambiente de dependências legítimo, rodar suites completas e confirmar prontidão/identidade contra MySQL. Após essa evidência, avançar para dispositivos PWA e critérios de produção.
-
 ## Macroentrega 07 — Reprodutibilidade de dependências e segurança do QA
 
 Checkpoints com código, verificação ou documentação:
