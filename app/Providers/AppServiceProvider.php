@@ -17,6 +17,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('repasse-refresh', function (Request $request): Limit {
+            $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+            return Limit::perMinute(30)->by('refresh:'.$id);
+        });
+
         RateLimiter::for('repasse-password', function (Request $request): Limit {
             $userId = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
 
