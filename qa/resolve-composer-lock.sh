@@ -17,6 +17,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   composer update --no-install --no-interaction --no-plugins --no-scripts --prefer-dist --no-progress
 
 [[ -s composer.lock ]] || fail 'Composer não produziu um lockfile válido.'
+docker run --rm -v "$PWD:/workspace/api:ro" -w /workspace/api "$image" composer validate --strict --no-interaction
 docker run --rm -v "$PWD:/workspace/api:ro" -w /workspace/api "$image" php -r '
   $lock=json_decode(file_get_contents("composer.lock"), true, 512, JSON_THROW_ON_ERROR);
   if (!isset($lock["content-hash"], $lock["packages"], $lock["packages-dev"])) { exit(1); }
