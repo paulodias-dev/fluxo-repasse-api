@@ -98,6 +98,6 @@ Permanece obrigatório gerar/versionar `composer.lock` em ambiente conectado e h
 
 ## Ambiente de QA reproduzível (Macro 07)
 
-Em vez de depender de PHP/MySQL instalados localmente, é possível usar `compose.qa.yaml` com Docker Compose v2, orientado por `qa/README.md`. É obrigatório fornecer `QA_APP_PATH`, segredos gerados de QA e lockfiles reais nos dois repositórios; nenhum segredo deve ser versionado. O runner impede banco fora de `*_qa` e não remove volumes automaticamente.
+Em vez de depender de PHP/MySQL instalados localmente, é possível usar `compose.qa.yaml` com Docker Compose v2, orientado por `qa/README.md`. É obrigatório fornecer `QA_APP_PATH`, segredos gerados de QA e `composer.lock` genuíno na API e `package-lock.json` já versionado no APP; nenhum segredo deve ser versionado. O runner impede banco fora de `*_qa` e não remove volumes automaticamente.
 
 Primeiro executar `bash qa/selftest.sh` para verificar os bloqueios; depois `QA_LEVEL=public bash qa/run.sh`. O modo completo exige conta admin QA exclusiva e `QA_LEVEL=full`. **Ambiente Docker ainda não executado aqui.**
