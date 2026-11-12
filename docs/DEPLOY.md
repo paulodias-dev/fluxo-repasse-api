@@ -23,3 +23,9 @@
 
 ## Rollback
 Migrations aditivas evitam destruir a tabela `users`. Voltar ao código macro 02 sem planejar a compatibilidade dos tokens pode reabrir tokens já revogados por versão; **não fazer rollback apenas do código** sem plano de revogação, contingência e revisão de segurança. Nunca usar `migrate:fresh` em banco persistente.
+
+## Monitoramento de prontidão — Macroentrega 06
+
+Sondas de infraestrutura devem distinguir `GET /api/v1/health` (liveness, não verifica MySQL) e `GET /api/v1/ready` (readiness, verifica DB + tabelas). Utilize **/ready** para decidir se a instância pode receber tráfego autenticado; em falha retorna HTTP 503 e JSON mínimo sem detalhes do ambiente.
+
+A readiness não substitui monitoramento de cache compartilhado, backup ou auditoria; a confirmação de MySQL real depende da infraestrutura de produção. Recomenda-se monitorar também revogação JWT, latência e disponibilidade externa, após escopo operacional aprovado.
