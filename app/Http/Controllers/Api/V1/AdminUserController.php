@@ -43,7 +43,8 @@ final class AdminUserController extends Controller
             $query->where('is_active', $filters['status'] === 'active');
         }
 
-        $users = $query->orderByDesc('id')->paginate(15);
+        $users = $query->orderByDesc('id')->paginate(15)
+            ->through(fn (User $user): array => $this->publicUser($user));
 
         return response()->json($users)->header('Cache-Control', 'no-store');
     }
