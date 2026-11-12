@@ -29,6 +29,7 @@ fi
 compose=(docker compose -f compose.qa.yaml)
 "${compose[@]}" config --quiet
 "${compose[@]}" up --wait -d mysql
+"${compose[@]}" run --rm --no-deps api php qa/mysql-safety.test.php
 
 # Migrations e testes somente no banco *_qa sem expor porta MySQL nem destruir volumes.
 "${compose[@]}" run --rm --no-deps api sh -ec '
