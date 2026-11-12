@@ -131,3 +131,11 @@ O `composer.lock` já está versionado. Em ambiente com Composer, executar `comp
 Detalhes: `docs/MACRO_08_QA_MYSQL_RBAC.md`, `qa/README.md` e `docs/PROGRESSO_GERAL.md`.
 
 **Macro 08: 15/18 = 83,33%. Total técnico provisório: 6/12 = 50,00% dos marcos concluídos.**
+
+## Macroentrega 09 — Respostas privadas sem cache
+
+Novo `ApiSecurityHeaders` no grupo API impõe `Cache-Control: no-store, private`, `Pragma: no-cache`, `nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` e CSP limitada às respostas JSON. O handler central replica a política em respostas de erro (401/403/422). OpenAPI 0.7 atualizado. Cinco testes PHPUnit escritos para esses comportamentos, **ainda não executados**; `php -l` passou nos dois novos arquivos PHP.
+
+O PWA parceiro descarta sessão local offline e restringe Workbox ao shell público. Sua política passou em **8/8 testes Node nativos executados**. Nenhum endpoint financeiro foi acrescentado.
+
+Detalhes: `docs/MACRO_09_SEGURANCA_PWA.md`. **Macro 09: 11/15 = 73,33%. Roadmap total técnico provisório: 6/12 = 50,00%** de macromarcos integralmente concluídos; homologação e escopo financeiro seguem pendentes.

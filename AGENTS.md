@@ -62,3 +62,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - QA full exige duas contas distintas, uma com users.manage e outra sem; verificar 403 sem mutações de cadastro.
 - Percentual macro 08 = 15/18 (83,33%); total de marcos concluídos = 6/12 (50,00%). Não apresentar isto como progresso de funcionalidades financeiras.
 - Documento de contexto: `docs/MACRO_08_QA_MYSQL_RBAC.md` e `docs/PROGRESSO_GERAL.md`.
+
+## Macro 09 — privacidade offline e cabeçalhos HTTP
+
+- Toda resposta `/api/*`, inclusive 401/403, deve receber cabeçalhos no-store/private e nosniff; validar com PHPUnit.
+- O PWA só pode armazenar o shell público em precache; nenhuma resposta JSON com JWT ou dados pessoais entra em runtimeCaching.
+- Ao ficar offline, a aplicação não deve exibir dados privados nem restaurar a sessão automaticamente; revogação remota não pode ser prometida sem conexão.
+- Testes desta macro: 8 Node PWA **executados**; 5 PHPUnit **escritos, não executados**; php -l em dois arquivos aprovado.
+- Métricas: macro 09 11/15 (73,33%); roadmap total 6/12 (50,00%) de marcos fechados; não equivale a conclusão funcional financeira.
