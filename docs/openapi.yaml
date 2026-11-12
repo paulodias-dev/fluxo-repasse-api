@@ -1,10 +1,13 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     Contratos da fundação de identidade e conectividade.
-    Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.\n    Não há endpoints financeiros neste estágio.
+    Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
+    Respostas v1 aplicam Cache-Control no-store/private, Pragma no-cache, nosniff,
+    Referrer-Policy no-referrer, X-Frame-Options DENY e CSP restritiva.
+    Não há endpoints financeiros neste estágio.
 servers:
   - url: /api/v1
 tags:
