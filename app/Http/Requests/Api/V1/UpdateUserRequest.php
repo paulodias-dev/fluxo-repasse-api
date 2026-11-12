@@ -29,6 +29,11 @@ final class UpdateUserRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'min:2', 'max:255'],
             'email' => ['sometimes', 'required', 'email', 'max:254',
                 Rule::unique('users', 'email')->ignore($this->route('user')?->getKey())],
+            'roles' => ['prohibited'],
+            'permissions' => ['prohibited'],
+            'password' => ['prohibited'],
+            'is_active' => ['prohibited'],
+            'auth_version' => ['prohibited'],
         ];
     }
 }

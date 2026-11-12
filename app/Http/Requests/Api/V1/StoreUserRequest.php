@@ -30,6 +30,11 @@ final class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+            'roles' => ['prohibited'],
+            'permissions' => ['prohibited'],
+            'is_active' => ['prohibited'],
+            'auth_version' => ['prohibited'],
+            'email_verified_at' => ['prohibited'],
         ];
     }
 }

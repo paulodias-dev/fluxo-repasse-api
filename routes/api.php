@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -30,6 +31,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.store');
         Route::patch('/users/{user}', [AdminUserController::class, 'update'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.update');
+        Route::get('/users/{user}/events', AdminUserAuditController::class)
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.admin.users.events');
         Route::patch('/users/{user}/status', [AdminUserController::class, 'status'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.status');
     });

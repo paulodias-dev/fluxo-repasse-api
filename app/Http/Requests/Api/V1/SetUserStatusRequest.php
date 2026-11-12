@@ -16,6 +16,10 @@ final class SetUserStatusRequest extends FormRequest
     {
         return [
             'is_active' => ['required', 'boolean'],
+            'roles' => ['prohibited'],
+            'permissions' => ['prohibited'],
+            'auth_version' => ['prohibited'],
+            'password' => ['prohibited'],
         ];
     }
 }

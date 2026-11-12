@@ -68,12 +68,25 @@ final class AdminUserController extends Controller
 
         DB::transaction(function () use ($request, $user, $changes): void {
             $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $target->fill($changes);
 
-            if ($changes !== []) {
-                $target->fill($changes);
-                $target->save();
-                $this->events->record('account_updated', $request, $target, $request->user('api'));
+            if (! $target->isDirty()) {
+                return;
             }
+
+            $emailChanged = $target->isDirty('email');
+            if ($emailChanged) {
+                // Impedir que sessões antigas continuem válidas após alteração de identidade.
+                $target->auth_version = (int) $target->auth_version + 1;
+            }
+
+            $target->save();
+            $this->events->record(
+                $emailChanged ? 'account_email_changed' : 'account_updated',
+                $request,
+                $target,
+                $request->user('api'),
+            );
         });
 
         return response()->json(['data' => $this->publicUser($user->fresh())])
