@@ -1,11 +1,11 @@
-# Fluxo Repasse — Medição global provisória (Macroentrega 07)
+# Fluxo Repasse — Medição global provisória (Macroentrega 08)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
 ## Regra matemática estável
 - Denominador: **12 macromarcos definidos** abaixo, cada um com peso idêntico (1/12).
 - Integrado na `main` dos dois repositórios: **6 de 12 = 50,00%**.
-- A Macro 06 foi incorporada. A Macro 07 está implementada parcialmente nos PRs #7, mas o seu marco global **não é considerado concluído** sem lockfiles genuínos e instalação executada; por isso o índice de marcos concluídos continua **6 de 12 = 50,00%**.
+- A Macro 06 foi incorporada. A Macro 07 teve seus PRs #7 incorporados à main, mas o seu marco global **não é considerado concluído** sem lockfiles genuínos e instalação executada; por isso o índice de marcos concluídos continua **6 de 12 = 50,00%**.
 - Esta porcentagem provisória inclui os marcos 11 e 12 apenas como **placeholders**, porque o escopo funcional do Gemini não foi disponibilizado. **Não afirmar que o negócio de repasses está 50% implementado.**
 - Homologação ponta a ponta: não concluída; documentar separadamente, nunca embutir esse status no percentual.
 
@@ -19,8 +19,8 @@
 | 04 | RBAC técnico e módulo administrativo de usuários | Incorporado | PR #4 em ambos |
 | 05 | Histórico administrativo e smoke de API | Incorporado | PR #5 em ambos |
 | 06 | Readiness MySQL, diferenciação health/ready, regressões e testes nativos executados | Incorporado | PR #6 em ambos |
-| 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 aberto | Runner QA/Compose; package-lock npm existente e validado; composer.lock ainda ausente |
-| 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Pendente | Evidências obrigatórias |
+| 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 incorporado, QA pendente | Runner QA/Compose; package-lock npm existente e validado; composer.lock ainda ausente |
+| 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Em execução (PR #8) | PHPUnit MySQL seguro, 35 novos testes isolados; integração real pendente |
 | 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Pendente | Dispositivos e navegadores |
 | 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Pendente | Aprovação operacional |
 | 11 | Especificação **aprovada** das regras de repasse, papéis de negócio e integrações | Pendente de fonte | Não inventar processos |
@@ -30,7 +30,7 @@
 
 `main = 6 ÷ 12 × 100 = 50,00%`
 
-`main + macro 07 em PR = 6 ÷ 12 × 100 = 50,00%` (o marco 07 ainda está incompleto; não contar entregas parciais como marcos concluídos)
+`main + macro 08 em PR = 6 ÷ 12 × 100 = 50,00%` (marcos 07 e 08 ainda incompletos; não contar entregas parciais como marcos concluídos)
 
 **Cuidado:** estes são números de marcos de mesmo peso e não refletem a complexidade desigual entre autenticação e operações financeiras. Assim que o escopo funcional for recuperado/aprovado, substituir este baseline por uma matriz de funcionalidades e pesos consensuais, com histórico auditável da mudança de denominador.
 
@@ -103,3 +103,44 @@ Gates ainda pendentes:
 ## Próxima implementação
 
 Completar o marco 07 em ambiente com registros e Docker acessíveis: resolver/versionar o `composer.lock`, validar o lock npm já existente com `npm ci` e rodar o QA isolado integralmente. Depois avançar ao marco 08 de homologação com MySQL e PWA, sem assumir regras financeiras.
+
+## Macroentrega 08 — MySQL PHPUnit seguro, regressões e prova de RBAC
+
+### Critérios concluídos nesta macro
+1. [x] Corrigir teste de regressão `account_updated` vs `account_email_changed`.
+2. [x] Criar `phpunit.mysql.xml` com driver MySQL explícito, sem `:memory:`.
+3. [x] Proteger a suíte antes de carregar o autoload Laravel.
+4. [x] Recusar `APP_ENV` diferente de testing, driver diferente de mysql e DB malformado.
+5. [x] Recusar DB_HOST externo, porta inesperada e senha de banco vazia.
+6. [x] Fixar `DB_URL=""` no Compose e bloquear configuração de URL externa.
+7. [x] Executar **10/10** cenários PHP da política de isolamento MySQL.
+8. [x] Executar **10/10** autotestes shell do runner (lock/credenciais/banco/papéis).
+9. [x] Criar comando opt-in de resolução de `composer.lock` com Composer real e sem plugins/scripts.
+10. [x] Criar espera de `/ready` limitada, tolerante a falhas transitórias e sem tokens.
+11. [x] Executar **8/8** testes Node da espera de prontidão.
+12. [x] Criar prova de RBAC negativo via conta comum sem alterar registros.
+13. [x] Executar **7/7** testes Node da prova de RBAC.
+14. [x] Exigir duas contas distintas no QA full e atualizar as documentações/roadmaps.
+
+### Gates ainda pendentes
+15. [ ] Gerar e versionar `composer.lock` a partir do Composer/Packagist reais.
+16. [ ] Executar PHPUnit/Pint/migrations contra MySQL real e guardar evidências.
+17. [ ] Executar `npm ci`, Vitest, ESLint e build do APP com evidências.
+18. [ ] Executar smoke autenticado e homologação PWA em navegadores reais.
+
+**Macro 08 = 14/18 = 77,78%**, critérios definidos previamente para a entrega. Os 35 testes de isolamento foram executados e passaram, mas não incluem o funcionamento completo do Laravel/React com banco real.
+
+**Índice global técnico do roadmap = 6/12 = 50,00% de macromarcos concluídos.** O fato de PRs #7 já estarem na main e de a macro #8 estar em revisão não autoriza contabilizar marcos incompletos. O progresso funcional do produto financeiro continua impossível de mensurar com precisão sem especificação aprovada dos repasses.
+
+### Evidências da macro 08
+
+- `node --test scripts/wait-api-ready.test.mjs scripts/probe-rbac.test.mjs` — 15/15 aprovados, Node 22.16.0.
+- `php qa/mysql-safety.test.php` — 10/10 aprovados com PHP CLI 8.4.24.
+- `bash qa/selftest.sh` — 10/10 aprovados; nenhum serviço Docker ou banco real executado.
+- `node --check`, `php -l`, `bash -n` — sem erros de sintaxe nos arquivos testados.
+- Arquivos testados em cópias locais foram conferidos contra os conteúdos publicados nos repositórios por comprimento e checksum FNV-1a.
+- `composer.lock`, PHPUnit/Pint em MySQL, npm ci/Vitest/build e QA mobile real continuam indisponíveis no executor atual.
+
+## Próxima prioridade
+
+Concluir os gates reais dos marcos 07/08 com infraestrutura e Composer conectados. Só então elevar o percentual de marcos concluídos. O domínio financeiro exige as regras de negócio aprovadas antes de criar transações, retenções ou cálculos.
