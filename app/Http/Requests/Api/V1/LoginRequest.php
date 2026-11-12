@@ -9,9 +9,11 @@ final class LoginRequest extends FormRequest
 {
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'email' => Str::lower(trim((string) $this->input('email', ''))),
-        ]);
+        $email = $this->input('email');
+
+        if (is_string($email)) {
+            $this->merge(['email' => Str::lower(trim($email))]);
+        }
     }
 
     public function authorize(): bool

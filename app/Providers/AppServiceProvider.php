@@ -29,7 +29,8 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('repasse-login', function (Request $request): array {
-            $email = Str::lower(trim((string) $request->input('email', '')));
+            $input = $request->input('email');
+            $email = is_string($input) ? Str::lower(trim($input)) : '__invalid__';
             $ip = $request->ip() ?? 'unknown';
 
             return [
