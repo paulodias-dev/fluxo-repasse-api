@@ -16,3 +16,14 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 9. Sem segredos em arquivos versionados; `composer.lock` obrigatório para homologar, nunca forjar versão ou hash.
 10. Executar `composer test`, `composer lint`, testes MySQL 8 reais e revisar `docs/QA.md` antes do merge.
 11. PRs não draft; entregar documentação e relatório de resultados reais. Não alegar execução de testes não executados.
+
+## Macroentrega 04 — regras adicionais de acesso
+
+- `users.manage` é uma permissão técnica inicial, sem acesso financeiro; jamais equiparar a superpoderes sobre repasses.
+- Todo endpoint administrativo requer `bearer.only`, `auth:api`, `session.current` e `permission:users.manage`.
+- Toda alteração deve estar documentada em `docs/openapi.yaml` e testada com usuário comum, admin e não autenticado.
+- Criar contas sem papéis por padrão; concessões e revogações de privilégio exclusivamente via Artisan confirmado, preservando o último admin ativo.
+- Proteger a última conta administradora ativa e impedir alteração de status própria por HTTP.
+- Auditoria de modificações administrativas deve registrar `actor_user_id` e `user_id`, sem dados sigilosos.
+- Não assumir multitenancy ou escopo financeiro; regras dependem da fonte funcional original.
+- Exigir lockfiles, testes MySQL, PHPUnit, Pint e validação ponta a ponta antes de homologação.

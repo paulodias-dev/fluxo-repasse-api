@@ -47,6 +47,7 @@ final class AuthController extends Controller
                 'id' => $user->getAuthIdentifier(),
                 'name' => $user->name,
                 'email' => $user->email,
+                'permissions' => $user->grantedPermissions(),
             ],
         ])->header('Cache-Control', 'no-store');
     }

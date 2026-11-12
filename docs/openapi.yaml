@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.\n    Não há endpoints financeiros neste estágio.
@@ -10,6 +10,7 @@ servers:
 tags:
   - name: Conectividade
   - name: Autenticação
+  - name: Administração de usuários
 paths:
   /health:
     get:
@@ -148,13 +149,163 @@ paths:
                     example: Sessão encerrada.
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /admin/users:
+    get:
+      tags: [Administração de usuários]
+      summary: Listar usuários com filtros e paginação (requer users.manage)
+      operationId: listAdminUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [all, active, inactive] }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Página de usuários sem credenciais ou claims JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersPage'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Administração de usuários]
+      summary: Criar usuário sem qualquer papel ou permissão
+      operationId: createAdminUser
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StoreUser' }
+      responses:
+        '201':
+          description: Usuário criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de gravações excedido }
+  /admin/users/{user}:
+    patch:
+      tags: [Administração de usuários]
+      summary: Atualizar nome e e-mail, sem alteração de papéis
+      operationId: updateAdminUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUser' }
+      responses:
+        '200':
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Usuário não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/users/{user}/status:
+    patch:
+      tags: [Administração de usuários]
+      summary: Ativar ou desativar usuário comum, invalidando seus JWTs
+      description: A API não permite desativar a própria conta nem contas administradoras por HTTP.
+      operationId: setAdminUserStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        '200':
+          description: Estado atualizado ou já coincidente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/UserResponse'
+                  - type: object
+                    properties:
+                      changed: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Usuário não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  parameters:
+    UserId:
+      name: user
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
   schemas:
+    UserRecord:
+      type: object
+      required: [id, name, email, is_active, created_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    UserResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/UserRecord' }
+    UsersPage:
+      type: object
+      required: [current_page, data, last_page, per_page, total]
+      properties:
+        current_page: { type: integer }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserRecord' }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+    StoreUser:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 255 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, format: password, minLength: 12 }
+        password_confirmation: { type: string, format: password, minLength: 12 }
+    UpdateUser:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 255 }
+        email: { type: string, format: email, maxLength: 254 }
     ChangePasswordRequest:
       type: object
       required: [current_password, new_password, new_password_confirmation]
@@ -216,12 +367,20 @@ components:
             email:
               type: string
               format: email
+            permissions:
+              type: array
+              items: { type: string }
     Error:
       type: object
       properties:
         message:
           type: string
   responses:
+    Forbidden:
+      description: Permissão técnica users.manage ausente
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: Credenciais inválidas, sessão ausente ou token recusado.
       content:

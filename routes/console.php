@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -61,8 +63,20 @@ Artisan::command('repasse:user:status {email : E-mail do usuário} {state : ativ
         return Command::FAILURE;
     }
 
-    \Illuminate\Support\Facades\DB::transaction(function () use ($user, $active): void {
-        $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+    try {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user, $active): void {
+            $adminRole = Role::query()->where('slug', 'platform_admin')->lockForUpdate()->first();
+            $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! $active && $adminRole && $locked->roles()->whereKey($adminRole->getKey())->exists()) {
+                $activeAdmins = User::query()->where('is_active', true)->whereHas('roles',
+                    fn ($query) => $query->whereKey($adminRole->getKey())
+                )->count();
+
+                if ($activeAdmins <= 1) {
+                    throw new \RuntimeException('Não é permitido desativar o último administrador ativo.');
+                }
+            }
         $locked->is_active = $active;
         $locked->auth_version = (int) $locked->auth_version + 1;
         $locked->save();
@@ -72,8 +86,98 @@ Artisan::command('repasse:user:status {email : E-mail do usuário} {state : ativ
             null,
             $locked
         );
-    });
+        });
+    } catch (\RuntimeException $exception) {
+        $this->error($exception->getMessage());
+        return Command::FAILURE;
+    }
 
     $this->info('Status atualizado. Todas as sessões anteriores foram invalidadas.');
     return Command::SUCCESS;
 })->purpose('Ativar ou desativar uma conta e revogar todos os JWTs emitidos');
+
+Artisan::command('repasse:access:bootstrap {email : Usuário existente para acesso administrativo} {--yes : Confirmar sem prompt}', function (): int {
+    $email = Str::lower(trim((string) $this->argument('email')));
+    $user = User::query()->where('email', $email)->first();
+
+    if (! $user || ! $user->is_active) {
+        $this->error('O usuário precisa existir e estar ativo.');
+        return Command::FAILURE;
+    }
+
+    if (! $this->option('yes') && ! $this->confirm('Conceder users.manage à conta por meio do papel técnico platform_admin?', false)) {
+        return Command::FAILURE;
+    }
+
+    \Illuminate\Support\Facades\DB::transaction(function () use ($user): void {
+        $permission = Permission::query()->firstOrCreate(
+            ['key' => 'users.manage'], ['description' => 'Gerenciar usuários e seu estado']
+        );
+        $role = Role::query()->firstOrCreate(
+            ['slug' => 'platform_admin'], ['name' => 'Administrador técnico']
+        );
+        $role->permissions()->syncWithoutDetaching([$permission->getKey()]);
+        $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+        if (! $locked->roles()->whereKey($role->getKey())->exists()) {
+            $locked->roles()->syncWithoutDetaching([$role->getKey()]);
+            $locked->auth_version = (int) $locked->auth_version + 1;
+            $locked->save();
+            app(\App\Services\AuthEventRecorder::class)->record('platform_admin_granted', null, $locked);
+        }
+    });
+
+    $this->info('Permissão técnica concedida. É necessário novo login; não há privilégio financeiro.');
+    return Command::SUCCESS;
+})->purpose('Conceder permissão administrativa técnica, com confirmação e auditoria');
+
+Artisan::command('repasse:access:revoke-admin {email : Usuário que perderá a permissão técnica} {--yes : Confirmar sem prompt}', function (): int {
+    $email = Str::lower(trim((string) $this->argument('email')));
+    $user = User::query()->where('email', $email)->first();
+
+    if (! $user) {
+        $this->error('Usuário não encontrado.');
+        return Command::FAILURE;
+    }
+
+    $role = Role::query()->where('slug', 'platform_admin')->first();
+
+    if (! $role || ! $user->roles()->whereKey($role->getKey())->exists()) {
+        $this->info('Esta conta não possui o papel administrativo.');
+        return Command::SUCCESS;
+    }
+
+    if (! $this->option('yes') && ! $this->confirm('Revogar users.manage e todas as sessões atuais?', false)) {
+        return Command::FAILURE;
+    }
+
+    try {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($user): void {
+            $role = Role::query()->where('slug', 'platform_admin')->lockForUpdate()->firstOrFail();
+            $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+
+            if (! $locked->roles()->whereKey($role->getKey())->exists()) {
+                return;
+            }
+
+            $activeAdmins = User::query()->where('is_active', true)->whereHas('roles',
+                fn ($query) => $query->whereKey($role->getKey())
+            )->count();
+
+            if ($locked->is_active && $activeAdmins <= 1) {
+                throw new \RuntimeException('Não é permitido revogar o último administrador ativo.');
+            }
+
+            $locked->roles()->detach($role->getKey());
+            $locked->auth_version = (int) $locked->auth_version + 1;
+            $locked->save();
+            app(\App\Services\AuthEventRecorder::class)->record('platform_admin_revoked', null, $locked);
+        });
+    } catch (\RuntimeException $exception) {
+        $this->error($exception->getMessage());
+        return Command::FAILURE;
+    }
+
+    $this->info('Permissão técnica revogada; tokens anteriores inválidos.');
+    return Command::SUCCESS;
+})->purpose('Revogar administração técnica sem permitir remover o último admin ativo');

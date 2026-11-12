@@ -36,3 +36,23 @@ Testar com `.env.testing` isolado. Não apontar PHPUnit para base de produção.
 
 ## Limitações desta entrega
 PHP disponível localmente, mas sem Composer, pdo_mysql, base MySQL nem acesso ao registro de pacotes. Não é possível alegar PHPUnit, migrations ou integração reais executados. Validar integralmente antes do merge e go-live.
+
+## Matriz adicional — Macroentrega 04
+
+Os testes `tests/Feature/AdminUsersTest.php` verificam:
+1. Rotas administrativas exigem autenticação e retornam 403 sem `users.manage`.
+2. `/auth/me` expõe permissão técnica concedida explicitamente, sem senha.
+3. Listagem filtra por nome/e-mail e não devolve `password` nem `auth_version`.
+4. Cadastro aceita dados validados, não concede papel ou acesso financeiro automaticamente e registra operador.
+5. E-mails duplicados e senhas fracas são recusados.
+6. Edição de nome/e-mail não aceita concessão de papéis.
+7. Desativação de usuário comum incrementa versão, revoga JWT e audita o autor.
+8. API bloqueia desativar a própria conta e outra conta administradora.
+9. Bootstrap Artisan concede papel técnico a uma conta existente e audita.
+10. Console impede desativação do último administrador ativo.
+11. Console impede revogar a permissão do último administrador ativo.
+12. Revogar administração invalida tokens antigos e audita a alteração.
+
+**Critérios adicionais de homologação:** testar paginação, filtros de status, edições concorrentes, rollback das migrations, 401/403/422/429, integridade do banco e atuação de dois administradores. Nenhum requisito financeiro está testado ou implementado.
+
+Comandos: `bash scripts/qa-preflight.sh`, `composer test`, `composer lint`, `php artisan migrate:status`. Os testes foram escritos mas **não executados** nesta entrega por indisponibilidade das dependências PHP/MySQL; não considerar homologado.

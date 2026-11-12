@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use Illuminate\Support\Facades\Route;
@@ -20,5 +21,16 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/password', [AuthController::class, 'changePassword'])
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');
         });
+    });
+    Route::prefix('admin')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:users.manage',
+    ])->group(function (): void {
+        Route::get('/users', [AdminUserController::class, 'index'])->name('api.v1.admin.users.index');
+        Route::post('/users', [AdminUserController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.store');
+        Route::patch('/users/{user}', [AdminUserController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.update');
+        Route::patch('/users/{user}/status', [AdminUserController::class, 'status'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.status');
     });
 });

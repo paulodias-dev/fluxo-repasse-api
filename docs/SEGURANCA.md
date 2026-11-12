@@ -23,3 +23,18 @@
 
 ## Antes do ambiente produtivo
 Backup/restore, HTTPS, monitoramento, testes de invasão, política de sessão, revisão LGPD, RPO/RTO, rotação de segredos, autenticação reforçada para operações de alto risco, verificação das bibliotecas e proteção no proxy.
+
+## Controles RBAC — Macroentrega 04
+
+O único privilégio implementado é `users.manage`, destinado a administrar contas; não permite repasses, comissões, conciliação ou acesso a fundos.
+
+- Não há permissão automática para usuários cadastrados por HTTP.
+- Administradores técnicos são concedidos e revogados exclusivamente por comandos de console confirmados, com auditoria e invalidação de sessões.
+- Operações protegidas usam middleware de identidade + versão de sessão + autorização em banco, com política de negação por padrão.
+- Status de conta é alterado com lock/transaction e incremento de `auth_version`, revogando JWTs anteriores.
+- A API não permite desativação da conta própria ou de outra conta admin; para contas admin existe rotina CLI com proteção do último operador ativo.
+- Auditoria liga operador e conta afetada por IDs, sem armazenar senhas ou tokens.
+- O frontend pode esconder rotas, mas não é uma barreira de segurança.
+- Não há política de delegação, tenant, gestão de papéis via UI, importação de pessoas ou reenvio de senha nesta fase.
+
+**Pendências de segurança:** revisão de acesso por tenant caso aplicável, retenção LGPD de eventos, MFA, recuperação segura de senha, revisão de logs, teste de privilégio escalado e validação em ambiente MySQL real.
