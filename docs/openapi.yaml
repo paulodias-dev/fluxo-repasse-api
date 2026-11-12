@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.\n    Não há endpoints financeiros neste estágio.
@@ -201,6 +201,7 @@ paths:
     patch:
       tags: [Administração de usuários]
       summary: Atualizar nome e e-mail, sem alteração de papéis
+      description: Alteração de e-mail revoga todos os JWTs anteriores da conta.
       operationId: updateAdminUser
       security:
         - BearerAuth: []
@@ -221,6 +222,43 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Usuário não encontrado }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/users/{user}/events:
+    get:
+      tags: [Administração de usuários]
+      summary: Consultar eventos de segurança de uma conta
+      operationId: listUserSecurityEvents
+      description: |
+        Requer users.manage. Retorna apenas id, tipo, operador e data.
+        Não inclui hash de IP, payload de login, senha ou JWT.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [login_succeeded, token_refreshed, logout, password_changed, account_created, account_updated, account_email_changed, account_activated, account_deactivated, platform_admin_granted, platform_admin_revoked]
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 10000 }
+      responses:
+        '200':
+          description: Histórico paginado limitado à conta informada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAuditPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Conta não encontrada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de consultas excedido }
   /admin/users/{user}/status:
     patch:
       tags: [Administração de usuários]
@@ -268,6 +306,31 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    UserAuditEvent:
+      type: object
+      required: [id, event_type, actor_user_id, created_at]
+      properties:
+        id: { type: integer }
+        event_type: { type: string }
+        actor_user_id: { type: integer, nullable: true }
+        created_at:
+          type: string
+          description: Timestamp registrado pelo banco da API.
+    UserAuditPage:
+      type: object
+      required: [user_id, events]
+      properties:
+        user_id: { type: integer }
+        events:
+          type: object
+          required: [data, current_page, last_page, total]
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/UserAuditEvent' }
+            current_page: { type: integer }
+            last_page: { type: integer }
+            total: { type: integer }
     UserRecord:
       type: object
       required: [id, name, email, is_active, created_at]
