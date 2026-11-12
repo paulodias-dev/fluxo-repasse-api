@@ -14,6 +14,7 @@ Além de `AuthApiTest` da macro 02, `AuthLifecycleTest` adiciona:
 
 ## Comandos
 ```bash
+bash scripts/qa-preflight.sh
 composer validate --strict
 composer install
 php artisan migrate
