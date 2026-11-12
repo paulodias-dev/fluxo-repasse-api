@@ -104,9 +104,9 @@ Primeiro executar `bash qa/selftest.sh` para verificar os bloqueios; depois `QA_
 
 ## Macro 08 — Resolução segura e QA MySQL
 
-Em máquina de QA com Docker e rede, executar de forma explícita `bash qa/resolve-composer-lock.sh` para **gerar** o `composer.lock` com resolução real do Composer. O script não sobrescreve lock existente, proíbe plugins/scripts na resolução e exige revisão e commit manual.
+O `composer.lock` já está versionado na main. Em máquina de QA com Docker e rede, executar `composer validate --strict` e `composer install`; `bash qa/resolve-composer-lock.sh` é opt-in apenas para um clone ainda sem lockfile.
 
-Depois de versionar o lock e configurar segredos próprios do QA, executar `QA_LEVEL=public bash qa/run.sh`. O runner inicia MySQL privado, executa migrations normais e PHPUnit com `--configuration phpunit.mysql.xml`, Pint, npm ci/Vitest/build e smoke público; não remove volumes.
+Depois de validar os locks existentes e configurar segredos próprios do QA, executar `QA_LEVEL=public bash qa/run.sh`. O runner inicia MySQL privado, executa migrations normais e PHPUnit com `--configuration phpunit.mysql.xml`, Pint, npm ci/Vitest/build e smoke público; não remove volumes.
 
 Para `QA_LEVEL=full`, provisionar via Artisan **duas contas distintas**: administrador com `users.manage` e conta comum sem papéis. Definir `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_BASIC_USER_EMAIL`, `QA_BASIC_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1`. A falta de um perfil bloqueia o runner antes de contatar Docker. Veja `qa/README.md`.
 

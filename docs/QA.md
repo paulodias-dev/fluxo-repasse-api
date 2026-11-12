@@ -105,6 +105,6 @@ Os testes reais de PHPUnit, Pint, MySQL, Vitest, lint/build e PWA mobile seguem 
 
 A configuração MySQL própria executa o bootstrap fail-closed e não usa SQLite. O runner aguarda prontidão da API e, no modo full, valida 403 em listagem e histórico com uma conta comum diferente da administradora.
 
-**Não executados nesta plataforma:** `composer install`, `php artisan test --configuration phpunit.mysql.xml`, Pint, MySQL real, npm ci, Vitest/build, smoke conectado e E2E mobile. `composer.lock` ausente e Docker/registry indisponíveis. Testes isolados não constituem homologação.
+**Não executados nesta plataforma:** `composer install`, `php artisan test --configuration phpunit.mysql.xml`, Pint, MySQL real, npm ci, Vitest/build, smoke conectado e E2E mobile. `composer.lock` presente, 113 pacotes inspecionados; Composer/Docker/registry indisponíveis para execução. Testes isolados não constituem homologação.
 
-Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para condições e `docs/PROGRESSO_GERAL.md` para percentuais.
+O lock Composer existente ainda precisa passar por `composer validate --strict` e instalação. Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para condições e `docs/PROGRESSO_GERAL.md` para percentuais.

@@ -108,9 +108,9 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [x] Espera de readiness limitada e 8 testes Node aprovados.
 - [x] Smoke de RBAC negativo com segundo usuário e 7 testes Node aprovados.
 - [x] Modo `QA_LEVEL=full` exige dois usuários diferentes, e manuais atualizados.
-- [ ] Gerar/versionar `composer.lock` com Docker e Packagist reais.
+- [x] `composer.lock` já versionado na main da API, 113 pacotes inspecionados; validação Composer real ainda pendente.
 - [ ] Executar PHPUnit/Pint/migrations em MySQL de QA.
 - [ ] Executar npm ci, Vitest, lint e build reais.
 - [ ] Executar smoke autenticado e QA PWA em navegador real.
 
-**Métrica da macro 08 conjunta:** 14/18 = **77,78%**, 35 testes de isolamento/contrato executados. **Índice global de macromarcos concluídos:** 6/12 = **50,00%**; não contabilizar marcos parciais 07/08. `docs/PROGRESSO_GERAL.md` é a fonte canônica. O percentual financeiro não pode ser aferido sem escopo aprovado.
+**Métrica da macro 08 conjunta:** 15/18 = **83,33%**, 35 testes de isolamento/contrato executados. **Índice global de macromarcos concluídos:** 6/12 = **50,00%**; não contabilizar marcos parciais 07/08. `docs/PROGRESSO_GERAL.md` é a fonte canônica. O percentual financeiro não pode ser aferido sem escopo aprovado.

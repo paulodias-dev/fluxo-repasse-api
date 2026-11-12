@@ -33,7 +33,7 @@ php artisan test --configuration phpunit.mysql.xml
 vendor/bin/pint --test
 ```
 
-Em uma estação sem Composer, o script opt-in `bash qa/resolve-composer-lock.sh` pode gerar um **lockfile legítimo** usando a imagem Docker de QA e `composer update --no-install --no-plugins --no-scripts`. Ele só funciona com Docker e acesso ao Packagist, não sobrescreve lock existente, valida o resultado com `composer validate --strict` e exige revisão manual antes de commit. **Não foi executado nesta plataforma; composer.lock permanece ausente.**
+Em uma estação sem Composer, o script opt-in `bash qa/resolve-composer-lock.sh` pode gerar um **lockfile legítimo** usando a imagem Docker de QA e `composer update --no-install --no-plugins --no-scripts`. Ele só funciona com Docker e acesso ao Packagist, não sobrescreve lock existente, valida o resultado com `composer validate --strict` e exige revisão manual antes de commit. **Não foi executado nesta plataforma. O `composer.lock` já existe na main e foi inspecionado; não é necessário regenerá-lo, apenas validá-lo com Composer real.**
 
 ## Readiness com tentativas limitadas
 
@@ -64,10 +64,10 @@ Total: **35 testes de isolamento/contrato executados e aprovados**, todos sem de
 
 ## Indicadores
 
-**Macro 08:** 14/18 checkpoints = **77,78%**. Os quatro restantes são lockfile Composer, PHPUnit/MySQL/Pint real, npm/Vitest/build real e aceite integrado em navegadores.
+**Macro 08:** 15/18 checkpoints = **83,33%**. O lockfile Composer já existe; os três restantes são PHPUnit/MySQL/Pint real, npm/Vitest/build real e aceite integrado em navegadores.
 
 **Roadmap global provisório:** 6/12 = **50,00% dos macromarcos concluídos**. Marcos 07 e 08 têm entregas parciais, mas não são computados como concluídos. O percentual não representa implementação do domínio financeiro, cujo escopo funcional permanece sem aprovação documentada.
 
 ## Próximos passos
 
-Executar `qa/resolve-composer-lock.sh` em infraestrutura com acesso aos registros, revisar e versionar o lock, rodar `QA_LEVEL=public bash qa/run.sh` e `QA_LEVEL=full bash qa/run.sh` após provisionar dois usuários distintos. Corrigir as falhas reais de PHPUnit, MySQL, Vitest e PWA antes de abrir aceite de produção.
+Validar o lock já versionado com `composer validate --strict` e `composer install` em infraestrutura conectada, rodar `QA_LEVEL=public bash qa/run.sh` e `QA_LEVEL=full bash qa/run.sh` após provisionar dois usuários distintos. Corrigir as falhas reais de PHPUnit, MySQL, Vitest e PWA antes de abrir aceite de produção.

@@ -114,7 +114,7 @@ QA_LEVEL=public bash qa/run.sh     # exige os dois lockfiles e segredos de QA
 
 O runner rejeita `composer.lock` ou `package-lock.json` ausentes, banco fora de `*_qa` e chaves não configuradas. Detalhes de segurança e provisionamento em [qa/README.md](qa/README.md).
 
-**QA executado nesta entrega:** seis testes de bloqueio shell, parse do Compose YAML, sintaxe bash; no APP, nove testes reais de integridade npm. **Ainda não executado:** Docker, Composer, PHPUnit, migrations MySQL, npm ci, Vitest ou build. O `package-lock.json` do APP já estava versionado na `main` e foi auditado nesta entrega (npm v3, 525 entradas, checksums e manifesto coerentes). O `composer.lock` da API segue ausente; nenhum arquivo foi fabricado.
+**QA executado nesta entrega:** seis testes de bloqueio shell, parse do Compose YAML, sintaxe bash; no APP, nove testes reais de integridade npm. **Ainda não executado:** Docker, Composer, PHPUnit, migrations MySQL, npm ci, Vitest ou build. O `package-lock.json` do APP já estava versionado na `main` e foi auditado nesta entrega (npm v3, 525 entradas, checksums e manifesto coerentes). O `composer.lock` da API também está na main (113 pacotes inspecionados); nenhum lock foi fabricado.
 
 **Percentual macro 07:** 11/14 = 78,57%. **Percentual total do roadmap provisório:** 6/12 = 50,00% (marco 07 ainda incompleto). [Medição e evidências](docs/PROGRESSO_GERAL.md).
 
@@ -126,8 +126,8 @@ A regressão de teste de auditoria `account_email_changed` foi corrigida. `QA_LE
 
 **Testes efetivamente executados nesta entrega:** 10 PHP + 10 Shell + 15 Node = **35/35**, com mocks e validação de gates, sem bancos reais. Não foram executados PHPUnit/Pint/MySQL, npm ci/Vitest/build ou PWA em navegador.
 
-Para obter `composer.lock` genuíno, o usuário pode executar **explicitamente** `bash qa/resolve-composer-lock.sh` em estação com Docker/Packagist conectados, revisar o resultado e só então commitar. Nenhum lock foi inventado nesta entrega.
+O `composer.lock` já está versionado. Em ambiente com Composer, executar `composer validate --strict` e `composer install`; `qa/resolve-composer-lock.sh` fica disponível apenas como opção para um clone que não tenha lockfile. O lock já existia na main e não foi alterado nesta entrega.
 
 Detalhes: `docs/MACRO_08_QA_MYSQL_RBAC.md`, `qa/README.md` e `docs/PROGRESSO_GERAL.md`.
 
-**Macro 08: 14/18 = 77,78%. Total técnico provisório: 6/12 = 50,00% dos marcos concluídos.**
+**Macro 08: 15/18 = 83,33%. Total técnico provisório: 6/12 = 50,00% dos marcos concluídos.**
