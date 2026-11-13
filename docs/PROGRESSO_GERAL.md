@@ -1,4 +1,4 @@
-# Fluxo Repasse — Medição global provisória (Macroentrega 10)
+# Fluxo Repasse — Medição global provisória (entrega técnica de QA React 11)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
@@ -22,7 +22,7 @@
 | 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 incorporado, QA pendente | Runner QA/Compose; ambos os lockfiles existentes e inspecionados; instalação real pendente |
 | 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Parcial, PR #8 incorporado | PHPUnit MySQL isolado e 35 testes de proteção executados; integração real pendente |
 | 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Parcial, PR #9 incorporado | Política offline, 8 testes Node executados, a11y de base; E2E mobile pendente |
-| 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Parcial, PR #10 em revisão | X-Request-ID, preflight, backup e restauração em QA simulados, gate de release PWA; execução real pendente |
+| 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Parcial, PR #10 incorporado | X-Request-ID, preflight, backup e restauração em QA simulados, gate de release PWA; execução real pendente |
 | 11 | Especificação **aprovada** das regras de repasse, papéis de negócio e integrações | Pendente de fonte | Não inventar processos |
 | 12 | Operações reais do produto, integrações financeiras e aceite E2E do negócio | Pendente de escopo | Não criar transações sem regras |
 
@@ -222,3 +222,45 @@ Fechar os gates reais de QA de 07–10 (dependências versionadas, testes Larave
 **Evolução total do roadmap técnico provisório: 6/12 = 50,00% de macromarcos integralmente concluídos**. Não elevar este índice apenas porque código parcial foi mesclado ou entregue em PR. A medição usa marcos de mesmo peso e **não** representa 50% das operações financeiras, cujo escopo funcional continua pendente de fonte aprovada.
 
 Documentos: `docs/MACRO_10_OPERACAO.md` nos dois repositórios, `ops/README.md` na API. No APP, `npm run qa:release:test` cobre o gate de publicação; na API, `ops/preflight-selftest.sh` e `ops/selftest.sh` cobrem bloqueios sem tocar em produção.
+
+## Entrega técnica 11 — estabilização API e QA React local (fora do marco financeiro canônico)
+
+**Evidência real do operador no MacBook após PR #12:**
+- `composer install`: concluído, sem instalação pendente.
+- `vendor/bin/pint --test`: **67 arquivos aprovados**.
+- `qa/selftest.sh`: 10/10; `ops/selftest.sh`: 13/13; `ops/preflight-selftest.sh`: 13/13; `qa/mysql-local-safety.test.php`: 13/13.
+- `php artisan test`: **59 testes aprovados, 329 asserções**, com SQLite em memória.
+- O único aviso identificado foi `Option --configuration cannot be used more than once`. O PR desta entrega remove o argumento duplicado do runner.
+
+**Implementações na API:** corrigir invocação do PHPUnit no runner local: SQLite usa `php artisan test` sem flag de configuração, MySQL opcional usa `vendor/bin/phpunit -c phpunit.local-mysql.xml` com guards de banco `*_qa`. Preserva o MySQL operacional.
+
+**Implementações no APP:** `npm run qa:local` agrega preflight, testes Node, ESLint, Vitest, build Vite/Workbox e verificador de `dist` em URL HTTP de loopback. `QA_INTEGRATION=1` acrescenta CORS PATCH/headers/readiness, mais smoke da API local. Relatório JSON contém somente fases/status/durações e é ignorado pelo Git. `qa:release` de produção continua exigindo HTTPS.
+
+**Novos testes realmente executados:** **21/21 Node nativos**, sendo 9 do pipeline, 8 de CORS com respostas simuladas e 4 do gate de build local com verificador injetado. **Dois casos adicionais de regressão** sobre HTTPS/allowLocal foram escritos e precisam ser executados com a suíte completa no Mac.
+
+### Critérios desta entrega técnica (não confundir com marco financeiro 11)
+
+1. [x] Leitura dos logs reais API/Pint/SQLite do Mac.
+2. [x] Correção da chamada duplicada `--configuration` no runner.
+3. [x] Preservação de SQLite em memória como banco de testes.
+4. [x] Preservação do modo MySQL de QA opcional com proteção.
+5. [x] Novo pipeline npm local sem Docker.
+6. [x] Validação de origem API de loopback antes de qualquer fase.
+7. [x] Pré-flight de dependências/ícones/Node integrado.
+8. [x] Suíte nativa Node integrada.
+9. [x] ESLint no pipeline.
+10. [x] Vitest no pipeline.
+11. [x] Build Vite/Workbox no pipeline.
+12. [x] Verificação do `dist` local, mantendo `qa:release` HTTPS restrito.
+13. [x] Relatório JSON sem credenciais e ignorado pelo Git.
+14. [x] Smoke CORS/preflight PATCH/readiness opt-in, sem escrita.
+15. [x] 21/21 testes Node novos executados e conferidos por tamanho/hash.
+16. [x] Manuais e procedimento operacional sincronizados.
+17. [ ] Executar `npm ci`, ESLint e Vitest reais no Mac.
+18. [ ] Executar build Vite/Workbox e validação do `dist` real.
+19. [ ] Executar smoke CORS/API local com MySQL ativo e confirmação do runner API sem aviso.
+20. [ ] Inspecionar PWA, acessibilidade, Cache Storage e modo offline em navegador/dispositivo real.
+
+**Entrega técnica 11 = 16/20 = 80,00%** de checkpoints de implementação/QA isolado, com quatro gates reais pendentes. **Total canônico = 6/12 = 50,00%** de marcos integralmente encerrados. O marco 11 canônico refere-se a **especificação financeira aprovada**, ainda pendente; esta entrega técnica não demonstra 80% de implantação financeira.
+
+Documentos: `docs/MACRO_11_QA_REACT_LOCAL.md` na API e no APP.
