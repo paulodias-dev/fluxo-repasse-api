@@ -16,6 +16,9 @@ docker compose version >/dev/null 2>&1 || fail 'Docker Compose v2 indisponível.
 
 [[ ! -L "$QA_BACKUP_DIR" ]] || fail 'Diretório não pode ser symlink.'
 mkdir -p -- "$QA_BACKUP_DIR"
+backup_real="$(cd "$QA_BACKUP_DIR" && pwd -P)"
+[[ "$backup_real" != "$PWD" && "$backup_real" != "$PWD/"* ]] ||
+  fail 'Backup precisa ficar fora do repositório, nunca dentro de public/ ou do Git.'
 chmod 700 -- "$QA_BACKUP_DIR"
 [[ -d "$QA_BACKUP_DIR" && -w "$QA_BACKUP_DIR" ]] || fail 'Diretório não gravável.'
 tmp="$(mktemp "$QA_BACKUP_DIR/.repasse-XXXXXX.sql.gz")"
