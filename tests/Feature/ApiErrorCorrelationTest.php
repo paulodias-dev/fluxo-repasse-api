@@ -67,6 +67,22 @@ final class ApiErrorCorrelationTest extends TestCase
         $this->assertNotSame($clientProvided, $response->headers->get('X-Request-ID'));
     }
 
+    public function test_cors_preflight_has_private_headers_and_correlation_id(): void
+    {
+        $response = $this->withHeaders([
+            'Origin' => 'http://localhost:5173',
+            'Access-Control-Request-Method' => 'PATCH',
+            'Access-Control-Request-Headers' => 'authorization,content-type',
+        ])->options('/api/v1/admin/users/1/status');
+
+        $this->assertContains($response->getStatusCode(), [200, 204]);
+        $this->assertPrivateErrorHeaders($response);
+        $this->assertStringContainsString(
+            'PATCH',
+            (string) $response->headers->get('Access-Control-Allow-Methods')
+        );
+    }
+
     public function test_unrelated_health_route_is_not_affected_by_api_only_correlation(): void
     {
         // /up is the framework's health route, outside the API namespace.
