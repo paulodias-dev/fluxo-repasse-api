@@ -12,6 +12,11 @@ final class RequestCorrelationId
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // O escopo permanece restrito à API, apesar do registro global.
+        if (! $request->is('api/*')) {
+            return $next($request);
+        }
+
         // Não confiar em identificadores fornecidos por clientes.
         $id = (string) Str::uuid();
         $request->attributes->set('request_id', $id);
