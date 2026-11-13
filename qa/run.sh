@@ -28,6 +28,10 @@ fi
 command -v docker >/dev/null || fail 'Docker Engine/Compose indisponível.'
 docker compose version >/dev/null || fail 'Docker Compose v2 indisponível.'
 
+# Regressões somente-leitura executadas antes de subir serviços.
+bash ops/selftest.sh
+bash ops/preflight-selftest.sh
+
 compose=(docker compose -f compose.qa.yaml)
 "${compose[@]}" config --quiet
 "${compose[@]}" up --wait -d mysql
