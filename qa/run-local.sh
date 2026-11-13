@@ -18,6 +18,18 @@ php -r 'exit(version_compare(PHP_VERSION, "8.3.0", ">=") ? 0 : 1);' ||
 [[ -f .env || -n "${APP_KEY:-}" ]] ||
   fail 'Configure um .env local com APP_KEY ou exporte APP_KEY antes de executar.'
 
+# Um único comando executa as regressões locais sem Docker ou conexão real.
+# Testes de backup usam somente fixtures/Docker simulado.
+printf 'QA LOCAL: verificando 10 gates, 13 proteções operacionais, 13 gates de produção e 13 guardas MySQL.\n'
+bash qa/selftest.sh
+bash ops/selftest.sh
+bash ops/preflight-selftest.sh
+php qa/mysql-local-safety.test.php
+
+# Falha de estilo interrompe o pipeline antes do PHPUnit.
+printf 'QA LOCAL: validando o padrão Laravel Pint antes dos testes funcionais.\n'
+vendor/bin/pint --test
+
 if [[ "$mode" == sqlite ]]; then
   php -r 'exit(extension_loaded("pdo_sqlite") ? 0 : 1);' ||
     fail 'Extensão pdo_sqlite ausente no PHP CLI.'
@@ -26,7 +38,6 @@ if [[ "$mode" == sqlite ]]; then
   APP_ENV=testing DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL='' \
     php artisan test --configuration phpunit.xml
 else
-  php qa/mysql-local-safety.test.php
   for name in QA_DB_NAME QA_DB_USERNAME QA_DB_PASSWORD; do
     [[ -n "${!name:-}" ]] || fail "$name obrigatório para MySQL local QA."
   done
@@ -42,5 +53,4 @@ else
   php artisan test --configuration phpunit.local-mysql.xml
 fi
 
-vendor/bin/pint --test
-printf 'QA LOCAL CONCLUÍDO. Smoke HTTP e Vitest devem ser executados separadamente.\n'
+printf 'QA LOCAL CONCLUÍDO: gates, Pint e PHPUnit. Smoke HTTP e Vitest seguem separados.\n'

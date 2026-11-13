@@ -158,3 +158,11 @@ Foi autorizado usar SQLite para a suíte automatizada e manter o MySQL como banc
 **Evidência fornecida pelo operador:** uma execução de `composer install` finalizou, `php artisan test` teve **59 testes aprovados / 329 assertions** e `vendor/bin/pint --test` passou em **63 arquivos**. Outra execução anterior teve 6 falhas relativas à invalidação de JWT e 13 problemas de estilo; é necessário monitorar regressões e repetir a suíte. Os resultados da execução final pertencem ao ambiente do usuário, não a uma execução de Composer feita neste executor.
 
 As correções de `qa/selftest.sh` (variáveis QA não herdadas), `ops/selftest.sh` (erro do mock exposto) e o novo runner local ainda precisam ser validados no Mac após o merge ou checkout do PR. Não afirmar homologação MySQL a partir da suíte SQLite.
+
+## Entrega de estabilização após execução real — macOS/Pint
+
+Relatório do operador: Composer OK, PHPUnit **59/59 (329 assertions)** e autotestes `qa/selftest.sh` **10/10**, `ops/selftest.sh` **13/13**, `ops/preflight-selftest.sh` **13/13**. O Pint bloqueou quatro arquivos novos de QA MySQL. O PR de estabilização reformata precisamente estes arquivos, com `php -l` **4/4** e `qa/mysql-local-safety.test.php` **13/13** executados localmente sobre fontes idênticas às da branch.
+
+`qa/run-local.sh` agrega os **49 gates (10+13+13+13)** e roda `vendor/bin/pint --test` **antes** do PHPUnit, para não gastar tempo com 59 testes se houver apenas erro de estilo. `QA_MODE=sqlite` segue padrão e não toca no MySQL operacional. Nem o Pint real com as alterações deste PR nem o runner completo foram executados ainda no Mac: exigir execução pós-merge antes de declarar QA integralmente verde.
+
+Documento: `docs/QA_MACOS_PINT_ESTABILIZACAO.md`. Indicador da entrega: **8/10 = 80,00%**, pendentes Pint real e runner completo no Mac. Índice global técnico segue **6/12 = 50,00%** de marcos concluídos.

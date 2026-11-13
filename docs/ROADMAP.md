@@ -153,3 +153,18 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Aprovar criptografia/retention, RPO/RTO e recuperação de desastres.
 
 **Progresso conjunto Macro 10: 17/22 = 77,27%. Total do roadmap técnico provisório: 6/12 = 50,00% de marcos concluídos.** Não contabilizar o marco 10 sem evidência operacional real. Não confundir com percentual de produto financeiro.
+
+## Entrega corretiva de QA local — falha Pint nos quatro arquivos MySQL
+
+- [x] Isolar 4 arquivos informados pelo operador.
+- [x] Aplicar formatação compatível com regras usuais Laravel Pint sem mudar semântica.
+- [x] Validar `php -l` nos 4 arquivos corrigidos: 4/4.
+- [x] Reexecutar os 13 casos PHP de isolamento MySQL: 13/13.
+- [x] Preservar SQLite `:memory:` como padrão e MySQL local apenas opt-in `QA_MODE=mysql`.
+- [x] Incluir os autotestes QA/ops/preflight no runner local: 10+13+13+13 = 49 gates.
+- [x] Rodar Pint antes de PHPUnit para fail-fast.
+- [x] Registrar 59 testes / 329 asserções, 36 autotestes Shell aprovados pelo operador e manual de repetição.
+- [ ] Executar `vendor/bin/pint --test` real sobre os arquivos corrigidos no Mac.
+- [ ] Executar `bash qa/run-local.sh` completo após a aprovação/merge.
+
+**Progresso desta entrega de estabilização: 8/10 = 80,00%. Índice global técnico provisório permanece 6/12 = 50,00%**, pois os marcos integrais de QA/integração e os requisitos financeiros ainda estão abertos.

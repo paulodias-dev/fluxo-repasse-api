@@ -96,3 +96,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - O MySQL local é **opcional** para teste de compatibilidade e só pode ser selecionado com `QA_MODE=mysql` e banco QA dedicado `*_qa`; nunca com banco produtivo.
 - Tests de integração SQLite não provam compatibilidade completa de migrations e SQL com MySQL. A aprovação de produção requer QA MySQL separado.
 - Não declarar sucesso de autotestes Bash, Vitest ou MySQL sem execução real no Mac.
+
+## Aceite QA local/Pint após logs do operador
+
+- Fonte de verdade de execução: Composer OK, PHPUnit SQLite 59/59 (329 assertions), autotestes Shell QA 10/10 + operações 13/13 + preflight 13/13 aprovados no Mac.
+- Pint original falhou em quatro arquivos `qa/mysql-local-*.php` e bootstrap; reformatados no PR corretivo. Não alegar `vendor/bin/pint --test` aprovado até o Mac executar.
+- `qa/run-local.sh` executa 49 gates independentes + Pint **antes** de PHPUnit; reexecutar no Mac para confirmar o pipeline.
+- SQLite em memória permanece padrão; MySQL opcional somente `QA_MODE=mysql` com schema separado `*_qa`. Nunca alterar banco da aplicação nem adicionar migrate:fresh.
+- Referência: `docs/QA_MACOS_PINT_ESTABILIZACAO.md`. Índice técnico global: 6/12 = 50%.
