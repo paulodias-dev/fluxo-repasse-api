@@ -131,3 +131,25 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Validar em navegadores, dispositivos móveis e auditoria acessibilidade.
 
 **Progresso macro 09 conjunto: 11/15 = 73,33%. Total do roadmap provisório: 6/12 = 50,00%.** Os marcos 07–09 permanecem parcialmente concluídos até QA real. Não confundir com percentual de operações de repasse financeiro.
+
+## Macroentrega 10 — Operação segura e preparação de deploy (PR #10)
+
+- [x] X-Request-ID exclusivo do servidor em respostas da API e tratamento de exceções.
+- [x] Telemetria resumida opt-in com nomes de rota, sem URL/token/IP/payload.
+- [x] Cinco testes feature de correlação escritos e PHP lint executado.
+- [x] Backup QA transacional e checksum SHA-256; gravação fora do repositório.
+- [x] Ensaio de restauração somente em novo schema de QA, com confirmação e proteção contra overwrite.
+- [x] Verificador de checksum/gzip e regras de privacidade dos arquivos.
+- [x] 13/13 testes operacionais Shell com Docker simulado executados.
+- [x] Pré-flight produção somente-leitura: TLS, cache JWT, CORS, debug, chaves e banco.
+- [x] 13/13 testes de pré-flight Shell executados.
+- [x] ErrorBoundary e dois testes Vitest escritos no APP.
+- [x] Gate de release PWA e 11/11 testes Node executados.
+- [x] OpenAPI 0.8, manuais, pacote de testes e docs de deploy atualizados.
+- [ ] Executar PHPUnit/MySQL e validar os novos cabeçalhos em ambiente real.
+- [ ] Executar `npm ci`, Vitest, build e gate em artefatos PWA reais.
+- [ ] Executar backup e restauração de MySQL QA em schema isolado.
+- [ ] Realizar implantação de staging, TLS, monitoramento, rollback e E2E.
+- [ ] Aprovar criptografia/retention, RPO/RTO e recuperação de desastres.
+
+**Progresso conjunto Macro 10: 17/22 = 77,27%. Total do roadmap técnico provisório: 6/12 = 50,00% de marcos concluídos.** Não contabilizar o marco 10 sem evidência operacional real. Não confundir com percentual de produto financeiro.

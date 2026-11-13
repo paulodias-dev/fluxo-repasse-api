@@ -4,13 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 final class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        // Prepara o RBAC sem criar contas ou senhas administrativas fixas.
         $permission = Permission::query()->updateOrCreate(
             ['key' => 'users.manage'],
             ['description' => 'Gerenciar usuários administrativos']
@@ -23,16 +23,7 @@ final class AdminUserSeeder extends Seeder
 
         $role->permissions()->syncWithoutDetaching([$permission->id]);
 
-        $user = User::query()->updateOrCreate(
-            ['email' => 'admin.repasse@fluxosistemas.com.br'],
-            [
-                'name' => 'Administrador do Repasse',
-                'password' => 'Tki&rn3233',
-                'email_verified_at' => now(),
-                'is_active' => true,
-            ]
-        );
-
-        $user->roles()->syncWithoutDetaching([$role->id]);
+        // Provisionar usuários via Artisan: repasse:user:create e
+        // repasse:access:bootstrap com confirmação, sem credenciais versionadas.
     }
 }

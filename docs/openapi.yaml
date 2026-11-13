@@ -1,12 +1,13 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.7.0
+  version: 0.8.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
     Respostas v1 aplicam Cache-Control no-store/private, Pragma no-cache, nosniff,
     Referrer-Policy no-referrer, X-Frame-Options DENY e CSP restritiva.
+    Toda resposta da API expõe X-Request-ID gerado pelo servidor, para correlação de erros sem dados privados.
     Não há endpoints financeiros neste estágio.
 servers:
   - url: /api/v1
@@ -22,6 +23,8 @@ paths:
       operationId: health
       responses:
         '200':
+          headers:
+            X-Request-ID: { $ref: '#/components/headers/RequestId' }
           description: Serviço ativo (não representa verificação da integridade do MySQL)
           content:
             application/json:
@@ -49,6 +52,8 @@ paths:
       operationId: readiness
       responses:
         '200':
+          headers:
+            X-Request-ID: { $ref: '#/components/headers/RequestId' }
           description: Dependências essenciais disponíveis
           content:
             application/json:
@@ -321,6 +326,10 @@ paths:
         '404': { description: Usuário não encontrado }
         '422': { $ref: '#/components/responses/ValidationError' }
 components:
+  headers:
+    RequestId:
+      description: UUID gerado pelo servidor a cada requisição. Não aceita valor fornecido pelo cliente.
+      schema: { type: string, format: uuid }
   securitySchemes:
     BearerAuth:
       type: http

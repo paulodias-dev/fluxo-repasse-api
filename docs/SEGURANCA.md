@@ -65,3 +65,18 @@ API aplica `Cache-Control: no-store, private`, `Pragma: no-cache`, `X-Content-Ty
 APP restringe caches Workbox ao shell estático, sem runtime caching. Se conexão cair, o JWT e a sessão da aba são descartados localmente; **não afirmar que o JWT foi revogado na API enquanto offline**. Retornar online exige novo login.
 
 Headers e código fonte não substituem verificação em runtime de browser/proxy, pentest ou avaliação LGPD. Testes de integração e navegador seguem pendentes.
+
+## Macro 10 — Segurança operacional e privacidade
+
+- O ID `X-Request-ID` é gerado no servidor por requisição; entradas de clientes não são aceitas como correlatores.
+- LOG_API_REQUEST_SUMMARY é opt-in e registra somente metadados técnicos fixos, sem query, IP, URL completa, Authorization, e-mail ou CPF.
+- O pré-flight de produção recusa debug ativo, TLS inadequado, cache local em blacklist JWT e CORS permissivo. É uma checagem estática, não valida infraestrutura TLS nem segredos por entropia.
+- Backup e restauração de QA ficam em `ops/`; o dump gzip é **não criptografado** e deve permanecer local, fora do Git/webroot, com acesso restrito. SHA-256 não atesta autenticidade.
+- Restauração só cria um novo schema `*_restore_qa` com confirmação explícita. Nunca usar dumps de terceiros, bancos de produção ou ação automática destrutiva.
+- Não há base para afirmar LGPD integral, backup produtivo, retenção aprovada ou RPO/RTO testados. Esses gates seguem pendentes.
+
+### Incidente preventivo — seeder com credencial versionada
+
+A main recebeu um `AdminUserSeeder` que criava uma conta técnica com senha em texto fixo. A macro 10 torna o seeder exclusivamente estrutural (papel/permissão). O fluxo interativo Artisan permanece para criar o primeiro usuário e conceder `users.manage`. Dois testes feature asseguram ausência de criação de usuários e idempotência, porém não foram executados.
+
+Se a credencial já foi usada, considerá-la comprometida: trocar senha, invalidar JWTs anteriores com incremento de `auth_version`, inspecionar auditoria de acessos e restringir uso do histórico Git. Remover o literal de novos commits não o apaga do histórico publicado.

@@ -1,11 +1,11 @@
-# Fluxo Repasse — Medição global provisória (Macroentrega 09)
+# Fluxo Repasse — Medição global provisória (Macroentrega 10)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
 ## Regra matemática estável
 - Denominador: **12 macromarcos definidos** abaixo, cada um com peso idêntico (1/12).
 - Integrado na `main` dos dois repositórios: **6 de 12 = 50,00%**.
-- A Macro 06 foi incorporada. A Macro 07 teve seus PRs #7 incorporados à main, mas o seu marco global **não é considerado concluído** sem instalação e suítes executadas; por isso o índice de marcos concluídos continua **6 de 12 = 50,00%**.
+- Os PRs #7, #8 e #9 estão incorporados à main, mas os respectivos marcos seguem parcialmente abertos por ausência de homologação em runtime; o índice de marcos concluídos permanece **6 de 12 = 50,00%**.
 - Esta porcentagem provisória inclui os marcos 11 e 12 apenas como **placeholders**, porque o escopo funcional do Gemini não foi disponibilizado. **Não afirmar que o negócio de repasses está 50% implementado.**
 - Homologação ponta a ponta: não concluída; documentar separadamente, nunca embutir esse status no percentual.
 
@@ -21,8 +21,8 @@
 | 06 | Readiness MySQL, diferenciação health/ready, regressões e testes nativos executados | Incorporado | PR #6 em ambos |
 | 07 | Lockfiles legítimos e instalação reproduzível npm/Composer | Parcial, PR #7 incorporado, QA pendente | Runner QA/Compose; ambos os lockfiles existentes e inspecionados; instalação real pendente |
 | 08 | PHPUnit, Pint, migrations/testes MySQL reais, Vitest e build executados | Parcial, PR #8 incorporado | PHPUnit MySQL isolado e 35 testes de proteção executados; integração real pendente |
-| 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Parcial, PR #9 em revisão | Política offline, 8 testes Node executados, a11y de base; E2E mobile pendente |
-| 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Pendente | Aprovação operacional |
+| 09 | PWA mobile real, acessibilidade, performance e atualização offline segura | Parcial, PR #9 incorporado | Política offline, 8 testes Node executados, a11y de base; E2E mobile pendente |
+| 10 | Deploy, backup/restore, observabilidade, privacidade e segurança homologados | Parcial, PR #10 em revisão | X-Request-ID, preflight, backup e restauração em QA simulados, gate de release PWA; execução real pendente |
 | 11 | Especificação **aprovada** das regras de repasse, papéis de negócio e integrações | Pendente de fonte | Não inventar processos |
 | 12 | Operações reais do produto, integrações financeiras e aceite E2E do negócio | Pendente de escopo | Não criar transações sem regras |
 
@@ -30,7 +30,7 @@
 
 `main = 6 ÷ 12 × 100 = 50,00%`
 
-`main + macro 09 em PR = 6 ÷ 12 × 100 = 50,00%` (marcos 07, 08 e 09 ainda incompletos; não contabilizar código parcial como marco integral)
+`main + macro 10 em PR = 6 ÷ 12 × 100 = 50,00%` (marcos 07–10 ainda incompletos; não contabilizar código parcial como marco integral)
 
 **Cuidado:** estes são números de marcos de mesmo peso e não refletem a complexidade desigual entre autenticação e operações financeiras. Assim que o escopo funcional for recuperado/aprovado, substituir este baseline por uma matriz de funcionalidades e pesos consensuais, com histórico auditável da mudança de denominador.
 
@@ -172,7 +172,7 @@ Concluir os gates reais dos marcos 07/08 com infraestrutura e Composer conectado
 
 **Macro 09: 11/15 = 73,33%** dos checkpoints, com quatro gates de execução real pendentes.
 
-**Evolução total provisória: 6/12 = 50,00%** dos macromarcos integralmente concluídos na `main` de ambos os repositórios. PRs #7/#8 foram incorporados, mas os seus critérios de QA não foram totalmente fechados. Macro #9 está em revisão e também não foi contabilizada como concluída. Esta métrica é de roadmap técnico com peso igual e não representa % real de operações financeiras.
+**Evolução total provisória: 6/12 = 50,00%** dos macromarcos integralmente concluídos na `main` de ambos os repositórios. PRs #7/#8 foram incorporados, mas os seus critérios de QA não foram totalmente fechados. Macro #9 já foi mesclada, mas a homologação permanece pendente, logo não foi contabilizada como marco concluído. Esta métrica é de roadmap técnico com peso igual e não representa % real de operações financeiras.
 
 ### Evidência desta entrega
 
@@ -185,4 +185,40 @@ Concluir os gates reais dos marcos 07/08 com infraestrutura e Composer conectado
 
 ## Próxima entrega
 
-Fechar os gates reais de QA de 07–09 (dependências já versionadas; execução ainda pendente), executar build PWA e inspecionar o service worker em navegadores reais. Depois, revisar deploy/backup/restore, observabilidade e segurança operacional do marco 10.
+Fechar os gates reais de QA de 07–10 (dependências versionadas, testes Laravel/Vitest e execução MySQL/React ainda pendentes), executar ensaio de backup/restauração em banco QA separado e inspecionar PWA gerado em navegadores. Para produção, formalizar criptografia de backup, retenção e RPO/RTO.
+
+## Macroentrega 10 — Operação segura, continuidade e release verificável
+
+### 17 checkpoints implementados/verificados
+
+1. [x] Middleware de correlação com X-Request-ID UUID gerado pelo servidor.
+2. [x] Telemetria de resumo opcional, sem URL, IP, credenciais ou payload.
+3. [x] Cabeçalho de correlação preservado também em respostas de exceção.
+4. [x] Cinco testes Laravel de request ID e logs escritos; não executados.
+5. [x] Sintaxe PHP dos novos arquivos operacionais validada.
+6. [x] Script de backup transacional MySQL exclusivamente QA.
+7. [x] Verificação independente de integridade gzip e SHA-256.
+8. [x] Ensaio de restauração somente em novo schema `*_restore_qa`, com confirmação.
+9. [x] Backup fora do repositório/webroot, com modo 0700/0600.
+10. [x] **13/13 autotestes de backup** executados com Docker simulado.
+11. [x] Gate somente leitura de configuração de produção (HTTPS, cache JWT, debug, CORS, banco).
+12. [x] **13/13 testes de pré-flight de produção** executados com fixtures.
+13. [x] ErrorBoundary React com fallback privado, dois testes Vitest escritos.
+14. [x] Verificador de release do PWA em `dist/` e origem HTTPS da API.
+15. [x] **11/11 testes de release Node** executados com artefatos temporários.
+16. [x] Correção de CORS para PATCH administrativo e exposição de X-Request-ID ao navegador; testes escritos.
+17. [x] OpenAPI 0.8, runbooks, integração com QA e documentação operacional publicados.
+
+### Cinco gates não homologados
+
+18. [ ] Executar PHPunit/MySQL/Composer/Pint e validar os novos endpoints/headers reais.
+19. [ ] Executar npm ci, Vitest, ESLint, build real e inspeção de service worker/Cache Storage.
+20. [ ] Executar backup e restauração de MySQL QA real, validar contagem e integridade dos dados.
+21. [ ] Implantar e testar em staging: HTTPS, CORS, blacklist JWT compartilhada, alertas, recuperação e rollback.
+22. [ ] Aprovar e testar backup criptografado, retenção, RPO/RTO e política de continuidade de produção.
+
+**Macro 10: 17/22 = 77,27%** dos checkpoints entregues. A evidência desta fase inclui **37/37 testes nativos executados e aprovados** (26 Shell com fixtures/mocks + 11 Node de builds simulados) e validações de sintaxe PHP/Bash/Node. Os novos testes Laravel e Vitest foram **escritos, mas não executados**.
+
+**Evolução total do roadmap técnico provisório: 6/12 = 50,00% de macromarcos integralmente concluídos**. Não elevar este índice apenas porque código parcial foi mesclado ou entregue em PR. A medição usa marcos de mesmo peso e **não** representa 50% das operações financeiras, cujo escopo funcional continua pendente de fonte aprovada.
+
+Documentos: `docs/MACRO_10_OPERACAO.md` nos dois repositórios, `ops/README.md` na API. No APP, `npm run qa:release:test` cobre o gate de publicação; na API, `ops/preflight-selftest.sh` e `ops/selftest.sh` cobrem bloqueios sem tocar em produção.

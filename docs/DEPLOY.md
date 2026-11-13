@@ -29,3 +29,15 @@ Migrations aditivas evitam destruir a tabela `users`. Voltar ao código macro 02
 Sondas de infraestrutura devem distinguir `GET /api/v1/health` (liveness, não verifica MySQL) e `GET /api/v1/ready` (readiness, verifica DB + tabelas). Utilize **/ready** para decidir se a instância pode receber tráfego autenticado; em falha retorna HTTP 503 e JSON mínimo sem detalhes do ambiente.
 
 A readiness não substitui monitoramento de cache compartilhado, backup ou auditoria; a confirmação de MySQL real depende da infraestrutura de produção. Recomenda-se monitorar também revogação JWT, latência e disponibilidade externa, após escopo operacional aprovado.
+
+## Macro 10 — Gate operacional e investigação de incidentes
+
+Antes de qualquer deploy, fornecer variáveis de produção via mecanismo de segredos e executar **manualmente** `bash ops/preflight-production.sh`. Ele recusa debug, APP_URL não HTTPS, CORS aberto, cache não compartilhado da blacklist JWT e conexão direcionada a banco QA. Não altera nada. Os testes em `bash ops/preflight-selftest.sh` cobrem 13 cenários simulados.
+
+A API devolve `X-Request-ID` único por requisição. Ativar `LOG_API_REQUEST_SUMMARY=true` somente depois de definir retenção e acesso: os registros resumidos não incluem IP, URL, query, JWT, senhas, CPF ou corpo. Esse controle **não** substitui APM/monitoramento com alertas.
+
+Para QA, executar `bash ops/selftest.sh` (13 verificações) e consultar `ops/README.md` para backup checksum e ensaio de restauração em schema `*_restore_qa` separado. A ferramenta não apaga banco, mas o dump **não é criptografado** e deve permanecer fora do repositório e webroot. Não utilizar esses scripts em produção; aprovar solução criptografada/retida e RPO/RTO antes do go-live.
+
+No APP, build produção deve passar por `npm run qa:release` após `npm run build` com URL de API HTTPS real. Nunca incluir chaves privadas em variáveis `VITE_*`. Validar cache e service worker no navegador.
+
+**Ainda não homologado:** Composer/PHPUnit, MySQL, Vitest, release real, TLS e restore. Os testes executados nesta fase utilizam fixtures e mocks.

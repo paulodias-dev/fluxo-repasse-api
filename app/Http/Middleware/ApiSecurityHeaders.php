@@ -19,6 +19,10 @@ final class ApiSecurityHeaders
     public static function secure(Response $response): Response
     {
         // Centralizada também para respostas de exceções renderizadas fora do pipeline.
+        $id = request()->attributes->get('request_id');
+        if (is_string($id) && $id !== '') {
+            $response->headers->set('X-Request-ID', $id);
+        }
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
