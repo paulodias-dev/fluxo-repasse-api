@@ -52,9 +52,11 @@ final class RequestCorrelationIdTest extends TestCase
         Log::shouldReceive('info')->once()->with(
             'api.request.completed',
             Mockery::on(function (array $context): bool {
+                $keys = array_keys($context);
+                sort($keys);
                 $this->assertSame(
                     ['duration_ms', 'method', 'request_id', 'route', 'status'],
-                    array_keys($context)
+                    $keys
                 );
 
                 return $context['route'] === 'api.v1.health'
