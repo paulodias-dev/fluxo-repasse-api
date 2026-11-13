@@ -29,7 +29,8 @@ docker compose -f compose.qa.yaml exec -T -e RESTORE_DB="$QA_RESTORE_DATABASE" m
 gzip -cd -- "$archive" | docker compose -f compose.qa.yaml exec -T -e RESTORE_DB="$QA_RESTORE_DATABASE" mysql sh -ec \
   'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root --host=127.0.0.1 "$RESTORE_DB"'
 
-docker compose -f compose.qa.yaml exec -T -e RESTORE_DB="$QA_RESTORE_DATABASE" mysql sh -ec \
-  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --user=root --host=127.0.0.1 --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = '\''$RESTORE_DB'\''"'
-printf 'Restauração de ensaio encerrada em banco separado: %s\n' "$QA_RESTORE_DATABASE"
+tables="$(docker compose -f compose.qa.yaml exec -T -e RESTORE_DB="$QA_RESTORE_DATABASE" mysql sh -ec \
+  'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --user=root --host=127.0.0.1 --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = '\''$RESTORE_DB'\''"' | tr -d '[:space:]')"
+[[ "$tables" =~ ^[0-9]+$ && "$tables" -gt 0 ]] || fail 'Ensaio não restaurou tabelas; banco separado foi preservado para diagnóstico.'
+printf 'Restauração de ensaio encerrada em banco separado: %s (%s tabelas).\n' "$QA_RESTORE_DATABASE" "$tables"
 printf 'O banco QA restaurado foi preservado para auditoria; não houve exclusão automática.\n'
