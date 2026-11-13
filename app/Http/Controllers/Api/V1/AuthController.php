@@ -17,9 +17,7 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 final class AuthController extends Controller
 {
-    public function __construct(private readonly AuthEventRecorder $events)
-    {
-    }
+    public function __construct(private readonly AuthEventRecorder $events) {}
 
     public function login(LoginRequest $request): JsonResponse
     {

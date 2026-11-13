@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('repasse-refresh', function (Request $request): Limit {
             $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+
             return Limit::perMinute(30)->by('refresh:'.$id);
         });
 
@@ -30,11 +31,13 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('repasse-admin-read', function (Request $request): Limit {
             $userId = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+
             return Limit::perMinute(90)->by('users-read:'.$userId);
         });
 
         RateLimiter::for('repasse-admin-write', function (Request $request): Limit {
             $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
+
             return Limit::perMinute(30)->by('users-write:'.$id);
         });
 

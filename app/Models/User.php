@@ -52,6 +52,7 @@ class User extends Authenticatable implements JWTSubject
             'auth_version' => 'integer',
         ];
     }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class);

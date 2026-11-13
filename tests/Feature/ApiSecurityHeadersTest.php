@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 final class ApiSecurityHeadersTest extends TestCase
@@ -16,7 +17,7 @@ final class ApiSecurityHeadersTest extends TestCase
         config()->set('jwt.secret', str_repeat('test-headers-secret-', 4));
     }
 
-    private function assertProtectedHeaders(\Illuminate\Testing\TestResponse $response): void
+    private function assertProtectedHeaders(TestResponse $response): void
     {
         $response->assertHeader('Cache-Control', 'no-store, private')
             ->assertHeader('Pragma', 'no-cache')

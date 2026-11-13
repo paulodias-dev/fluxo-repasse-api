@@ -1,11 +1,17 @@
 <?php
 
+use App\Http\Middleware\ApiSecurityHeaders;
+use App\Http\Middleware\EnsureCurrentSession;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\RequestCorrelationId;
+use App\Http\Middleware\RequireBearerToken;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,17 +20,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api(prepend: [\App\Http\Middleware\RequestCorrelationId::class]);
-        $middleware->api(append: [\App\Http\Middleware\ApiSecurityHeaders::class]);
-        $middleware->alias(['bearer.only' => \App\Http\Middleware\RequireBearerToken::class,
-            'session.current' => \App\Http\Middleware\EnsureCurrentSession::class,
-            'permission' => \App\Http\Middleware\EnsurePermission::class,
+        $middleware->api(prepend: [RequestCorrelationId::class]);
+        $middleware->api(append: [ApiSecurityHeaders::class]);
+        $middleware->alias(['bearer.only' => RequireBearerToken::class,
+            'session.current' => EnsureCurrentSession::class,
+            'permission' => EnsurePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response): \Symfony\Component\HttpFoundation\Response {
+        $exceptions->respond(function (Response $response): Response {
             if (request()->is('api/*')) {
-                return \App\Http\Middleware\ApiSecurityHeaders::secure($response);
+                return ApiSecurityHeaders::secure($response);
             }
 
             return $response;

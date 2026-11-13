@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -12,8 +12,9 @@ final class EnsureCurrentSession
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Auth::guard('api')->user();
-        $version = JWTAuth::parseToken()->getPayload()->get('av');
+        $payload = JWTAuth::parseToken()->getPayload();
+        $user = User::query()->find($payload->get('sub'));
+        $version = $payload->get('av');
 
         // Qualquer JWT anterior à migration (sem 'av') deve ser recusado.
         if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
