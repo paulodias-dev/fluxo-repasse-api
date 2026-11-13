@@ -12,7 +12,7 @@ archive="$1"
 [[ "${QA_RESTORE_CONFIRM:-}" == CREATE_NEW_QA_SCHEMA ]] || fail 'Confirmação explícita CREATE_NEW_QA_SCHEMA obrigatória.'
 [[ -n "${QA_APP_PATH:-}" && -d "$QA_APP_PATH" ]] || fail 'QA_APP_PATH inválido.'
 for name in QA_DB_PASSWORD QA_DB_ROOT_PASSWORD QA_APP_KEY QA_JWT_SECRET; do
-  [[ -n "${!name:-}" ]] || fail "$name ausente do ambiente.'
+  [[ -n "${!name:-}" ]] || fail "$name ausente do ambiente."
 done
 bash ops/verify-backup.sh "$archive" >/dev/null || fail 'Backup sem integridade confirmada.'
 command -v docker >/dev/null 2>&1 || fail 'Docker indisponível.'
