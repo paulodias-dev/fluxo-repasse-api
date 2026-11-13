@@ -21,7 +21,7 @@ backup_real="$(cd "$QA_BACKUP_DIR" && pwd -P)"
   fail 'Backup precisa ficar fora do repositório, nunca dentro de public/ ou do Git.'
 chmod 700 -- "$QA_BACKUP_DIR"
 [[ -d "$QA_BACKUP_DIR" && -w "$QA_BACKUP_DIR" ]] || fail 'Diretório não gravável.'
-tmp="$(mktemp "$QA_BACKUP_DIR/.repasse-XXXXXX.sql.gz")"
+tmp="$(mktemp "$QA_BACKUP_DIR/.repasse-XXXXXX")"
 trap 'rm -f -- "$tmp"' EXIT
 archive="$QA_BACKUP_DIR/fluxo-repasse-${QA_DB_NAME:-repasse_qa}-$(date -u +%Y%m%dT%H%M%SZ)-$$.sql.gz"
 [[ ! -e "$archive" && ! -e "$archive.sha256" ]] || fail 'Backup com mesmo nome já existe.'

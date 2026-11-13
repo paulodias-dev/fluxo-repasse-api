@@ -16,6 +16,7 @@ elif command -v sha256sum >/dev/null 2>&1; then
 else
   fail 'shasum ou sha256sum indisponível.'
 fi
-[[ "${actual,,}" == "${checksum,,}" ]] || fail 'Checksum divergente.'
+checksum="$(printf '%s' "$checksum" | tr 'A-F' 'a-f')"
+[[ "$actual" == "$checksum" ]] || fail 'Checksum divergente.'
 gzip -t -- "$archive" || fail 'Gzip danificado.'
 printf 'BACKUP ÍNTEGRO: checksum e gzip válidos (autenticidade não comprovada).\n'

@@ -64,8 +64,8 @@ MOCK
 chmod 700 "$work/bin/docker"
 expect_block 'diretório de backup dentro do repositório' env PATH="$work/bin:$PATH" QA_APP_PATH="$work/cloned-app" QA_BACKUP_DIR="$PWD" QA_DB_NAME=repasse_qa QA_DB_PASSWORD=qa QA_DB_ROOT_PASSWORD=qa QA_APP_KEY=base64:qa QA_JWT_SECRET=qa bash ops/backup-qa.sh
 expect_ok 'backup gerado pelo fluxo com Docker simulado' env PATH="$work/bin:$PATH" QA_APP_PATH="$work/cloned-app" QA_BACKUP_DIR="$work/backups" QA_DB_NAME=repasse_qa QA_DB_PASSWORD=qa QA_DB_ROOT_PASSWORD=qa QA_APP_KEY=base64:qa QA_JWT_SECRET=qa bash ops/backup-qa.sh
-mapfile -t archives < <(find "$work/backups" -maxdepth 1 -name '*.sql.gz' -type f)
-if [[ "${#archives[@]}" -eq 1 ]]; then
+archives=( "$work/backups/"*.sql.gz )
+if [[ "${#archives[@]}" -eq 1 && -f "${archives[0]}" ]]; then
   expect_ok 'artefato do fluxo possui gzip e SHA-256 válidos' bash ops/verify-backup.sh "${archives[0]}"
 else
   ((failed+=1)); printf 'FALHA: backup simulado não produziu um único arquivo\n' >&2
