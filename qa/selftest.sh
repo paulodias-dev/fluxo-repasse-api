@@ -14,7 +14,7 @@ check_block() {
   local expected="$1"; shift
   local output code
   set +e
-  output="$("$@" 2>&1)"
+  output="$(env -i PATH="$PATH" HOME="${HOME:-}" TMPDIR="${TMPDIR:-/tmp}" "$@" 2>&1)"
   code=$?
   set -e
   if [[ "$code" == 2 && "$output" == *"$expected"* ]]; then
