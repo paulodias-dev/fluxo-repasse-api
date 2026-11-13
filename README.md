@@ -139,3 +139,16 @@ Novo `ApiSecurityHeaders` no grupo API impõe `Cache-Control: no-store, private`
 O PWA parceiro descarta sessão local offline e restringe Workbox ao shell público. Sua política passou em **8/8 testes Node nativos executados**. Nenhum endpoint financeiro foi acrescentado.
 
 Detalhes: `docs/MACRO_09_SEGURANCA_PWA.md`. **Macro 09: 11/15 = 73,33%. Roadmap total técnico provisório: 6/12 = 50,00%** de macromarcos integralmente concluídos; homologação e escopo financeiro seguem pendentes.
+
+## Macroentrega 10 — Continuidade operacional (PR #10)
+
+- API com `X-Request-ID` gerado pelo servidor para correlacionar incidentes, sem confiar no cabeçalho fornecido pelo cliente.
+- `LOG_API_REQUEST_SUMMARY=false` por padrão; ao habilitar, gera log mínimo (ID, rota nomeada, método, status e duração), sem dados pessoais, JWT ou payload.
+- `ops/preflight-production.sh` bloqueia configurações inseguras de TLS, cache da blacklist JWT, CORS, debug e banco de QA.
+- `ops/backup-qa.sh` e `ops/restore-qa.sh` permitem backup e ensaio de recuperação **somente em QA**, mantendo dumps fora do Git.
+- **26/26 testes shell executados** (13 de backup + 13 de preflight), com fixtures e Docker simulado; **11/11 testes Node** do verificador de release do APP, total **37/37**. `php -l` em três novos arquivos PHP sem erro.
+- **Não executado:** MySQL real, PHPUnit, Composer, Vitest, build PWA, deploy ou recuperação real.
+
+Runbooks: `ops/README.md` e `docs/MACRO_10_OPERACAO.md`.
+
+**Macro 10: 17/22 checkpoints = 77,27%. Total provisório: 6/12 macromarcos = 50,00%.** São índices de engenharia, não conclusão das operações financeiras sem especificação aprovada.

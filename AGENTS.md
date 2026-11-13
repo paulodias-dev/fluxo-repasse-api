@@ -70,3 +70,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Ao ficar offline, a aplicação não deve exibir dados privados nem restaurar a sessão automaticamente; revogação remota não pode ser prometida sem conexão.
 - Testes desta macro: 8 Node PWA **executados**; 5 PHPUnit **escritos, não executados**; php -l em dois arquivos aprovado.
 - Métricas: macro 09 11/15 (73,33%); roadmap total 6/12 (50,00%) de marcos fechados; não equivale a conclusão funcional financeira.
+
+## Macro 10 — deploy sem atalhos
+
+- Use `X-Request-ID` gerado pelo servidor para suporte; não registrar payload, JWT, IP, query ou e-mail na telemetria opcional.
+- Pré-flight `ops/preflight-production.sh` é somente-leitura; não confundir com deploy realizado.
+- `ops/backup-qa.sh` e `ops/restore-qa.sh` são exclusivos do Compose QA e nunca substituem backup criptografado de produção.
+- Antes de liberar produção, exigir Composer/PHPUnit/MySQL, npm/Vitest/build, smoke com credenciais QA, restore real em schema separado e governança de retenção.
+- Evidências reais: 13 autotestes backup + 13 preflight + 11 release Node = 37 aprovados; testes PHP/React integrados apenas escritos.
+- Percentual macro 10: 17/22 (77,27%). Progresso global provisório: 6/12 (50,00%) de marcos fechados, não de funcionalidades financeiras.

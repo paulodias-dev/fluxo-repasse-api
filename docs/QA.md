@@ -118,3 +118,19 @@ O lock Composer existente ainda precisa passar por `composer validate --strict` 
 Aceite obrigatório: conferir Cache-Control/Pragma e demais headers em 200/401/403/422/503; inspecionar Cache Storage de PWA instalado com login real e verificar que não guarda nenhuma resposta autenticada. Confirmar comportamento em smartphone e WCAG via testes adequados.
 
 Ver `docs/MACRO_09_SEGURANCA_PWA.md` e `docs/PROGRESSO_GERAL.md`.
+
+## Evidência real — Macroentrega 10
+
+| Verificação | Status |
+|---|---|
+| `bash ops/selftest.sh` | **13/13 aprovados** com Docker simulado, sem MySQL |
+| `bash ops/preflight-selftest.sh` | **13/13 aprovados** com variáveis de teste |
+| `node --test scripts/verify-release.test.mjs` (APP) | **11/11 aprovados**, bundle temporário |
+| `php -l` middleware, config e teste feature de X-Request-ID | **3/3 sem erro** |
+| `bash -n` scripts operacionais e `node --check` do verificador | Sem erro |
+
+Arquivos efetivamente testados foram comparados aos blobs GitHub por tamanho e FNV-1a. Ao todo **37/37 testes nativos novos executados**, com fixtures/mocks, **não** com MySQL ou browser real.
+
+**Escritos mas não executados:** cinco testes Laravel de correlação e dois Vitest de fallback React. Tampouco foram executados Composer, migrations, PHPUnit/Pint, npm ci/build, restore real ou deploy.
+
+Ver `ops/README.md`, `docs/MACRO_10_OPERACAO.md` e `docs/PROGRESSO_GERAL.md`.
