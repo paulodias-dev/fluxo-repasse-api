@@ -4,8 +4,8 @@ set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
 fail() { printf 'QA LOCAL BLOQUEADO: %s\n' "$1" >&2; exit 2; }
-mode="${QA_MODE:-sqlite}"
-[[ "$mode" == sqlite || "$mode" == mysql ]] || fail 'QA_MODE: utilize sqlite ou mysql.'
+mode="${QA_MODE:-mysql}"
+[[ "$mode" == mysql ]] || fail 'Este runner local utiliza apenas MySQL; use QA_MODE=mysql.'
 command -v php >/dev/null || fail 'PHP CLI indisponível.'
 command -v composer >/dev/null || fail 'Composer indisponível.'
 php -r 'exit(version_compare(PHP_VERSION, "8.3.0", ">=") ? 0 : 1);' ||
@@ -20,26 +20,19 @@ php -r 'exit(version_compare(PHP_VERSION, "8.3.0", ">=") ? 0 : 1);' ||
 
 php qa/mysql-local-safety.test.php
 
-if [[ "$mode" == sqlite ]]; then
-  php -r 'exit(extension_loaded("pdo_sqlite") ? 0 : 1);' ||
-    fail 'Extensão PHP pdo_sqlite ausente.'
-  printf 'QA LOCAL: PHPUnit usando SQLite em memória; não acessa MySQL.\n'
-  php artisan test
-else
-  for name in QA_DB_NAME QA_DB_USERNAME QA_DB_PASSWORD; do
-    [[ -n "${!name:-}" ]] || fail "$name obrigatório em QA_MODE=mysql."
-  done
-  export APP_ENV=testing DB_CONNECTION=mysql DB_URL=''
-  export DB_HOST="${QA_DB_HOST:-127.0.0.1}"
-  export DB_PORT="${QA_DB_PORT:-3306}"
-  export DB_DATABASE="$QA_DB_NAME"
-  export DB_USERNAME="$QA_DB_USERNAME"
-  export DB_PASSWORD="$QA_DB_PASSWORD"
-  printf 'QA LOCAL: verificando conexão com schema exclusivamente de testes.\n'
-  php qa/mysql-local-check.php
-  printf 'QA LOCAL: executando PHPUnit no schema QA (RefreshDatabase pode recriar suas tabelas).\n'
-  php artisan test --configuration phpunit.local-mysql.xml
-fi
+for name in QA_DB_NAME QA_DB_USERNAME QA_DB_PASSWORD; do
+  [[ -n "${!name:-}" ]] || fail "$name obrigatório para MySQL local de QA."
+done
+export APP_ENV=testing DB_CONNECTION=mysql DB_URL=''
+export DB_HOST="${QA_DB_HOST:-127.0.0.1}"
+export DB_PORT="${QA_DB_PORT:-3306}"
+export DB_DATABASE="$QA_DB_NAME"
+export DB_USERNAME="$QA_DB_USERNAME"
+export DB_PASSWORD="$QA_DB_PASSWORD"
+printf 'QA LOCAL: verificando MySQL exclusivo de testes, sem criar banco.\n'
+php qa/mysql-local-check.php
+printf 'QA LOCAL: PHPUnit em MySQL QA; RefreshDatabase pode reconstruir tabelas somente neste schema.\n'
+php artisan test --configuration phpunit.local-mysql.xml
 
 vendor/bin/pint --test
 printf 'QA LOCAL CONCLUÍDO. Smoke HTTP e Vitest devem ser executados separadamente.\n'
