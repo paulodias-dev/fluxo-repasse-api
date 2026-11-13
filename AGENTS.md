@@ -113,3 +113,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Não declarar build/Vitest/QA real aprovados sem execução no Mac; 21/21 testes novos aprovados são com mocks/fixtures.
 - O banco MySQL da aplicação é preservado; não usar migrate:fresh ou operações de repasse não especificadas.
 - Progresso QA técnico 16/20 (80%); roadmap canônico 6/12 (50%) sem escopo financeiro aprovado.
+
+## Macro técnica 12 — testes de corrida de sessão
+
+- Não restabelecer sessão se resposta de login/refresh/senha pertencer a intenção invalidada por offline, 401, logout ou expiração.
+- `X-Request-ID` deve existir em 404/405/401/422 e preflight OPTIONS; não confiar em IDs fornecidos pelo cliente.
+- Middleware de correlação registrado globalmente age **somente** em `api/*`; não registrar request headers, query, JWT, senha ou IP.
+- QA executado nesta entrega: 7/7 testes Node do gate de sessão e 2/2 sintaxes PHP. Os 7 testes PHPUnit e 3 Vitest novos permanecem sem execução no Mac.
+- Contagem: entrega técnica 12 17/21 (80,95%) e roadmap canônico 6/12 (50,00%).

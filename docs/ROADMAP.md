@@ -184,3 +184,18 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Realizar QA manual mobile/offline/teclado no navegador.
 
 **Entrega técnica 11: 16/20 = 80%; roadmap canônico: 6/12 = 50%.** O marco 11 financeiro continua pendente de escopo validado.
+
+## Macroentrega técnica 12 — proteção contra corrida de sessões (PR #14 API)
+
+- [x] ID de correlação antes do roteamento em 404/405, mantendo escopo `api/*`.
+- [x] Cabeçalhos de segurança em CORS OPTIONS, erros 401/422 e rotas desconhecidas.
+- [x] Sete testes Laravel escritos, ainda não executados.
+- [x] APP com invalidação de login/refresh/senha atrasados, logout imediato e timer seguro.
+- [x] Sete testes Node nativos novos executados: 7/7 aprovados.
+- [x] Três testes Vitest React e regressão de CORS/404 escritos.
+- [ ] PHPUnit/Pint no Mac com os novos contratos.
+- [ ] npm ci/Vitest/ESLint/build PWA real no Mac.
+- [ ] Smoke CORS/404 em API Laravel/MySQL local.
+- [ ] Navegador/mobile: offline, logout lento, sessão expirada e PWA instalado.
+
+**Entrega técnica 12: 17/21 = 80,95%. Total roadmap canônico provisório: 6/12 = 50,00%**, sem afirmar conclusão financeira.

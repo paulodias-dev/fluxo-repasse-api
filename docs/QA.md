@@ -174,3 +174,11 @@ Documento: `docs/QA_MACOS_PINT_ESTABILIZACAO.md`. Indicador da entrega: **8/10 =
 O APP agora fornece pipeline `npm run qa:local` (preflight, testes Node, ESLint, Vitest, build e análise de `dist`), sem Docker. Opt-in `QA_INTEGRATION=1` testa API local/CORS PATCH/readiness (GET/OPTIONS) e smoke público. **21 novos testes Node executados e aprovados** com fixtures; testes de navegador e build não foram executados aqui.
 
 Detalhes: `docs/MACRO_11_QA_REACT_LOCAL.md`; relatórios de execução do frontend `.qa-results/qa-local.json` (sem segredos). Índices: técnica 11 **16/20 = 80%**, canônico **6/12 = 50%**.
+
+## Macro técnica 12 — proteção de sessão e erros HTTP
+
+**Executado neste executor:** 7/7 testes nativos Node de `sessionGate.mjs` (Node 22.16.0); `php -l` no middleware `RequestCorrelationId.php` e no novo `ApiErrorCorrelationTest.php` (PHP 8.4.24, 2/2). Arquivos comparados aos publicados no GitHub por tamanho e FNV-1a.
+
+**Escritos mas NÃO executados:** 7 testes Laravel de 404/405/401/422/preflight OPTIONS e 3 Vitest React de corrida offline/login/refresh/logout. O smoke CORS do APP ganhou 404; seus testes modificados não foram executados aqui.
+
+**Aceite Mac:** `QA_MODE=sqlite bash qa/run-local.sh` na API, `npm ci && npm run qa:local` no APP, e `QA_INTEGRATION=1 npm run qa:local` com Laravel/MySQL local em execução. Depois validar offline/reconexão/PWA no navegador. Documento `docs/MACRO_12_SESSAO_CORRELACAO.md`.
