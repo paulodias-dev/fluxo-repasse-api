@@ -140,3 +140,9 @@ bash qa/run-local.sh
 ```
 
 O runner força teste SQLite `:memory:`, não usa Docker nem toca na base MySQL do aplicativo. O PHPUnit já recebeu `force="true"` nas variáveis essenciais. Para testar compatibilidade MySQL separadamente: `QA_MODE=mysql bash qa/run-local.sh`, usando exclusivamente `QA_DB_*` de um banco `*_qa` descartável; veja `qa/README_LOCAL_MYSQL.md`. Evitar `migrate:fresh` sobre bancos existentes.
+
+## QA API + APP local sem Docker
+
+No Mac, a API passou 59 testes PHPUnit (329 asserções), 49 proteções e Pint em 67 arquivos na última execução informada. Após o PR da correção do aviso, repetir `QA_MODE=sqlite bash qa/run-local.sh` (MySQL operacional preservado).
+
+No repositório APP: `npm ci`, `npm run qa:local`. Com Laravel rodando em `http://127.0.0.1:8000`, `QA_INTEGRATION=1 npm run qa:local` valida prontidão, CORS, autenticação ausente e request IDs via GET/OPTIONS. Nenhum Docker necessário. Ver `docs/MACRO_11_QA_REACT_LOCAL.md`.
