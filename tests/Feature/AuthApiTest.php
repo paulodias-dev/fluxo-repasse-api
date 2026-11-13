@@ -25,7 +25,7 @@ final class AuthApiTest extends TestCase
             'email' => $user->email,
             'password' => 'Strong-Passphrase-123!',
         ])->assertOk()->assertJsonStructure(['access_token', 'token_type', 'expires_in'])
-            ->assertHeader('Cache-Control', 'no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
 
         $this->withToken($response->json('access_token'))
             ->getJson('/api/v1/auth/me')

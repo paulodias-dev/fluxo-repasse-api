@@ -114,3 +114,20 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Executar smoke autenticado e QA PWA em navegador real.
 
 **Métrica da macro 08 conjunta:** 15/18 = **83,33%**, 35 testes de isolamento/contrato executados. **Índice global de macromarcos concluídos:** 6/12 = **50,00%**; não contabilizar marcos parciais 07/08. `docs/PROGRESSO_GERAL.md` é a fonte canônica. O percentual financeiro não pode ser aferido sem escopo aprovado.
+
+## Macroentrega 09 — Segurança de cache HTTP e offline (PR #9)
+
+- [x] Middleware global API com cabeçalhos anti-cache e defesa de respostas JSON.
+- [x] Handler de exceções aplica os mesmos cabeçalhos a respostas negadas.
+- [x] Cinco testes Laravel de headers escritos; cinco testes legados adequados à mudança de contrato.
+- [x] Dois arquivos PHP novos passaram em validação `php -l`.
+- [x] OpenAPI versão 0.7 e documentação de privacidade.
+- [x] Workbox do APP sem runtime cache, fallback só em rotas públicas existentes.
+- [x] Oito testes Node do PWA executados, 8/8 aprovados.
+- [x] APP oculta área privada em perda de rede e implementa melhoria de acessibilidade.
+- [ ] Executar PHPUnit em Laravel/MySQL para headers e regressões.
+- [ ] Executar Vitest de tela offline/reativação de login.
+- [ ] Executar build PWA/inspeção do service worker gerado.
+- [ ] Validar em navegadores, dispositivos móveis e auditoria acessibilidade.
+
+**Progresso macro 09 conjunto: 11/15 = 73,33%. Total do roadmap provisório: 6/12 = 50,00%.** Os marcos 07–09 permanecem parcialmente concluídos até QA real. Não confundir com percentual de operações de repasse financeiro.

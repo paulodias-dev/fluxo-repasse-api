@@ -108,3 +108,13 @@ A configuração MySQL própria executa o bootstrap fail-closed e não usa SQLit
 **Não executados nesta plataforma:** `composer install`, `php artisan test --configuration phpunit.mysql.xml`, Pint, MySQL real, npm ci, Vitest/build, smoke conectado e E2E mobile. `composer.lock` presente, 113 pacotes inspecionados; Composer/Docker/registry indisponíveis para execução. Testes isolados não constituem homologação.
 
 O lock Composer existente ainda precisa passar por `composer validate --strict` e instalação. Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para condições e `docs/PROGRESSO_GERAL.md` para percentuais.
+
+## Macro 09 — Política de respostas privadas
+
+**Executado:** `php -l` no `ApiSecurityHeaders.php` e `ApiSecurityHeadersTest.php` (2/2 sem erros), e `node --test src/pwa/cachePolicy.test.mjs` no APP (8/8 aprovados, Node 22.16.0). Os arquivos executados foram comparados à branch via comprimento e hash FNV-1a.
+
+**Escrito mas NÃO executado:** `php artisan test --configuration phpunit.mysql.xml --filter=ApiSecurityHeadersTest` (5 cenários), mais 3 testes Vitest no APP de sessão offline/login pendente/acessibilidade. Composer/MySQL e npm ci/Vitest/build indisponíveis aqui.
+
+Aceite obrigatório: conferir Cache-Control/Pragma e demais headers em 200/401/403/422/503; inspecionar Cache Storage de PWA instalado com login real e verificar que não guarda nenhuma resposta autenticada. Confirmar comportamento em smartphone e WCAG via testes adequados.
+
+Ver `docs/MACRO_09_SEGURANCA_PWA.md` e `docs/PROGRESSO_GERAL.md`.

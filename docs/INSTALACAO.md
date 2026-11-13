@@ -111,3 +111,15 @@ Depois de validar os locks existentes e configurar segredos próprios do QA, exe
 Para `QA_LEVEL=full`, provisionar via Artisan **duas contas distintas**: administrador com `users.manage` e conta comum sem papéis. Definir `QA_USER_EMAIL`, `QA_USER_PASSWORD`, `QA_BASIC_USER_EMAIL`, `QA_BASIC_USER_PASSWORD`, `QA_REQUIRE_AUTH=1` e `QA_REQUIRE_ADMIN=1`. A falta de um perfil bloqueia o runner antes de contatar Docker. Veja `qa/README.md`.
 
 A infraestrutura completa continua **sem teste real** neste executor; 35 testes locais de proteção foram executados, não PHPUnit/MySQL.
+
+## Verificação Macro 09 — API + PWA
+
+Após configurar QA isolado conforme `qa/README.md`, com lockfiles já versionados e dependências instaladas:
+
+```bash
+php artisan test --configuration phpunit.mysql.xml --filter=ApiSecurityHeadersTest
+php artisan test --configuration phpunit.mysql.xml
+vendor/bin/pint --test
+```
+
+No APP: `npm run qa:pwa:policy`, `npm test`, `npm run build`; inspecionar service worker instalado, Cache Storage e modos offline/reconexão. Até essas etapas, não declarar homologação. Os novos testes Node fonte executados passaram em 8/8, mas PHPUnit/MySQL/Vitest/build não foram executados aqui.

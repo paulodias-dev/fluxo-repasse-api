@@ -82,7 +82,7 @@ final class AdminUserAuditTest extends TestCase
             ->assertJsonPath('events.data.0.event_type', 'account_email_changed')
             ->assertJsonMissingPath('events.data.0.ip_hash')
             ->assertJsonMissingPath('events.data.0.password')
-            ->assertHeader('Cache-Control', 'no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_filter_by_type_and_date_range(): void

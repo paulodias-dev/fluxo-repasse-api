@@ -57,3 +57,11 @@ O único privilégio implementado é `users.manage`, destinado a administrar con
 O runner limita a API aos contêineres QA e força checagem de readiness antes do smoke. O modo completo exige administrador e usuário comum **distintos**. `qa:rbac` não possui endpoints de escrita: realiza login, perfil, leitura negada (403) e logout. O histórico de acessos registrará eventos normais, sem dados financeiros.
 
 Essas proteções **não** substituem revisão de infraestrutura, LGPD, auditoria ou testes reais de isolamento. Nenhuma senha ou conexão de produção deve ser usada nesse processo.
+
+## Macro 09 — Isolamento HTTP e service worker
+
+API aplica `Cache-Control: no-store, private`, `Pragma: no-cache`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` e CSP para JSON, inclusive em respostas de exceção. Aplicação dos headers é compartilhada entre middleware e exception handler para evitar diferenças entre 200 e 401/403.
+
+APP restringe caches Workbox ao shell estático, sem runtime caching. Se conexão cair, o JWT e a sessão da aba são descartados localmente; **não afirmar que o JWT foi revogado na API enquanto offline**. Retornar online exige novo login.
+
+Headers e código fonte não substituem verificação em runtime de browser/proxy, pentest ou avaliação LGPD. Testes de integração e navegador seguem pendentes.
