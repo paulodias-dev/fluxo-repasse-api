@@ -62,6 +62,7 @@ case "$*" in
 esac
 MOCK
 chmod 700 "$work/bin/docker"
+expect_block 'diretório de backup dentro do repositório' env PATH="$work/bin:$PATH" QA_APP_PATH="$work/cloned-app" QA_BACKUP_DIR="$PWD" QA_DB_NAME=repasse_qa QA_DB_PASSWORD=qa QA_DB_ROOT_PASSWORD=qa QA_APP_KEY=base64:qa QA_JWT_SECRET=qa bash ops/backup-qa.sh
 expect_ok 'backup gerado pelo fluxo com Docker simulado' env PATH="$work/bin:$PATH" QA_APP_PATH="$work/cloned-app" QA_BACKUP_DIR="$work/backups" QA_DB_NAME=repasse_qa QA_DB_PASSWORD=qa QA_DB_ROOT_PASSWORD=qa QA_APP_KEY=base64:qa QA_JWT_SECRET=qa bash ops/backup-qa.sh
 mapfile -t archives < <(find "$work/backups" -maxdepth 1 -name '*.sql.gz' -type f)
 if [[ "${#archives[@]}" -eq 1 ]]; then
@@ -71,4 +72,4 @@ else
 fi
 
 printf 'Selftest operacional: %d testes aprovados, %d falhas. Não executou MySQL real.\n' "$passed" "$failed"
-[[ "$failed" -eq 0 && "$passed" -eq 12 ]]
+[[ "$failed" -eq 0 && "$passed" -eq 13 ]]
