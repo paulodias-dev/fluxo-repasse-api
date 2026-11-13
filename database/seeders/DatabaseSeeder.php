@@ -8,6 +8,6 @@ final class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Intencionalmente vazio: nenhum usuário ou dado financeiro fictício em seed.
+        $this->call(AdminUserSeeder::class);
     }
 }
