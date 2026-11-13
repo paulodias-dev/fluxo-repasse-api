@@ -1,11 +1,20 @@
 <?php
+
 declare(strict_types=1);
+
 require_once __DIR__.'/mysql-local-safety.php';
+
 $valid = [
-    'APP_ENV' => 'testing', 'DB_CONNECTION' => 'mysql', 'DB_HOST' => '127.0.0.1',
-    'DB_PORT' => '3306', 'DB_DATABASE' => 'fluxo_repasse_qa',
-    'DB_USERNAME' => 'fluxo_repasse_qa', 'DB_PASSWORD' => 'apenas-fixture', 'DB_URL' => '',
+    'APP_ENV' => 'testing',
+    'DB_CONNECTION' => 'mysql',
+    'DB_HOST' => '127.0.0.1',
+    'DB_PORT' => '3306',
+    'DB_DATABASE' => 'fluxo_repasse_qa',
+    'DB_USERNAME' => 'fluxo_repasse_qa',
+    'DB_PASSWORD' => 'apenas-fixture',
+    'DB_URL' => '',
 ];
+
 $cases = [
     'ambiente seguro' => [$valid, true],
     'produção bloqueada' => [array_replace($valid, ['APP_ENV' => 'production']), false],
@@ -21,9 +30,12 @@ $cases = [
     'senha vazia bloqueada' => [array_replace($valid, ['DB_PASSWORD' => '']), false],
     'DB_URL externa bloqueada' => [array_replace($valid, ['DB_URL' => 'mysql://prod/db']), false],
 ];
+
 $failures = 0;
+
 foreach ($cases as $name => [$input, $expected]) {
     $actual = localMysqlQaErrors($input) === [];
+
     if ($actual !== $expected) {
         fwrite(STDERR, "FALHA: {$name}\n");
         $failures++;
@@ -31,5 +43,7 @@ foreach ($cases as $name => [$input, $expected]) {
         echo "OK: {$name}\n";
     }
 }
-echo sprintf("QA MySQL local: %d/%d aprovações.\n", count($cases) - $failures, count($cases));
+
+echo sprintf('QA MySQL local: %d/%d aprovações.'."\n", count($cases) - $failures, count($cases));
+
 exit($failures === 0 ? 0 : 1);
