@@ -179,3 +179,11 @@ bash qa/run-local.sh  # PHPUnit via SQLite :memory: e Pint --test
 O `phpunit.xml` força `APP_ENV=testing`, `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` e `DB_URL` vazio mesmo que o terminal tenha variáveis MySQL exportadas. O runner não usa Docker nem modifica o banco MySQL da aplicação. Opcionalmente, `QA_MODE=mysql bash qa/run-local.sh` valida um banco **dedicado e descartável** `*_qa` com controles extras antes de rodar testes. Não apontar PHPUnit para um banco MySQL com dados a preservar.
 
 Foram corrigidas também a herança indesejada de variáveis no `qa/selftest.sh` e a diagnóstica/compatibilidade dos scripts de autoteste operacional no macOS. Ver `qa/README_LOCAL_MYSQL.md` para procedimentos.
+
+## Entrega QA macOS — correção do Laravel Pint
+
+Os resultados reais de homologação no MacBook mostraram **59 testes PHPUnit / 329 asserções aprovados** e **10/10 + 13/13 + 13/13 autotestes Shell aprovados**, mas o `pint --test` apontou quatro arquivos de segurança do MySQL local. Eles foram reformatados sem alterar as regras de acesso e verificados com `php -l` (4/4) e com os 13 testes nativos PHP da política (13/13).
+
+O comando `bash qa/run-local.sh` agora executa **49 gates preventivos** (10+13+13+13), depois `vendor/bin/pint --test` e somente então PHPUnit SQLite em memória. O MySQL da aplicação permanece inalterado. `QA_MODE=mysql` continua uma opção **explícita** que exige banco descartável `*_qa`.
+
+O Pint real e o runner completo **ainda precisam ser reexecutados no Mac após este PR**. [Procedimento de aceite](docs/QA_MACOS_PINT_ESTABILIZACAO.md).
