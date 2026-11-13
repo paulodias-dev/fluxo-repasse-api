@@ -1,13 +1,14 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.8.0
+  version: 0.9.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
     Respostas v1 aplicam Cache-Control no-store/private, Pragma no-cache, nosniff,
     Referrer-Policy no-referrer, X-Frame-Options DENY e CSP restritiva.
     Toda resposta da API expõe X-Request-ID gerado pelo servidor, para correlação de erros sem dados privados.
+    Cadastro de pessoas e empresas é apenas um diretório sem valores ou transferências.
     Não há endpoints financeiros neste estágio.
 servers:
   - url: /api/v1
@@ -15,6 +16,7 @@ tags:
   - name: Conectividade
   - name: Autenticação
   - name: Administração de usuários
+  - name: Pessoas e empresas
 paths:
   /health:
     get:
@@ -181,6 +183,95 @@ paths:
                     example: Sessão encerrada.
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /parties:
+    get:
+      tags: [Pessoas e empresas]
+      summary: Listar cadastros protegidos por parties.manage
+      operationId: listParties
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: query, name: search, schema: { type: string, maxLength: 100 } }
+        - { in: query, name: type, schema: { type: string, enum: [all, person, company] } }
+        - { in: query, name: status, schema: { type: string, enum: [all, active, inactive] } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Página de cadastros, sem cache e sem dados bancários }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Pessoas e empresas]
+      summary: Criar cadastro de pessoa ou empresa
+      operationId: createParty
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StoreParty' }
+      responses:
+        '201': { description: Cadastro criado com evento de auditoria }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /parties/{party}:
+    parameters:
+      - { in: path, name: party, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [Pessoas e empresas]
+      summary: Consultar cadastro
+      operationId: showParty
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Cadastro privado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Cadastro não encontrado }
+    patch:
+      tags: [Pessoas e empresas]
+      summary: Editar dados de identificação e contato
+      operationId: updateParty
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateParty' }
+      responses:
+        '200': { description: Cadastro atualizado e indicador changed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /parties/{party}/status:
+    patch:
+      tags: [Pessoas e empresas]
+      summary: Ativar ou desativar cadastro sem excluir dados
+      operationId: changePartyStatus
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: path, name: party, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        '200': { description: Status alterado, evento preservado }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /parties/{party}/events:
+    get:
+      tags: [Pessoas e empresas]
+      summary: Histórico paginado de alterações do cadastro
+      operationId: listPartyEvents
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { in: path, name: party, required: true, schema: { type: integer, minimum: 1 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Histórico mínimo, com tipo do evento e ID do operador }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/users:
     get:
       tags: [Administração de usuários]
@@ -342,6 +433,36 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    PartyRecord:
+      type: object
+      required: [id, type, name, is_active]
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [person, company] }
+        name: { type: string, maxLength: 180 }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, nullable: true }
+        notes: { type: string, nullable: true, description: Somente para operadores autorizados }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    StoreParty:
+      type: object
+      required: [type, name]
+      properties:
+        type: { type: string, enum: [person, company] }
+        name: { type: string, minLength: 2, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 254, nullable: true }
+        phone: { type: string, maxLength: 40, nullable: true }
+        notes: { type: string, maxLength: 2000, nullable: true }
+    UpdateParty:
+      type: object
+      properties:
+        type: { type: string, enum: [person, company] }
+        name: { type: string, minLength: 2, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 254, nullable: true }
+        phone: { type: string, maxLength: 40, nullable: true }
+        notes: { type: string, maxLength: 2000, nullable: true }
     Readiness:
       type: object
       required: [status, service, version]
