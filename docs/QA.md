@@ -148,3 +148,13 @@ Correções na branch `fix/qa-native-macos`: `env -i` no selftest de QA, saída 
 **Executado no executor de desenvolvimento:** `php qa/mysql-local-safety.test.php` em cópia local do código — **13/13 casos aprovados**, `php -l` da política e teste sem erro, PHP 8.4.24. **Ainda não executado no Mac do usuário:** novo runner, PHPUnit/MySQL, backups ou novos autotestes Bash. Não afirmar esses resultados antes da execução.
 
 Em banco QA já populado, o runner interrompe antes do PHPUnit, a menos que `QA_ALLOW_TEST_SCHEMA_REBUILD=YES` seja dado explicitamente para dados descartáveis. Nenhum `migrate:fresh` foi introduzido. Detalhes em `qa/README_LOCAL_MYSQL.md`.
+
+## Atualização QA MacBook — SQLite aprovado como banco dos testes
+
+Foi autorizado usar SQLite para a suíte automatizada e manter o MySQL como banco da aplicação. O `phpunit.xml` agora usa `force="true"` para `APP_ENV=testing`, `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, `DB_URL` vazio e `CACHE_STORE=array`. Assim, mesmo quando há variáveis MySQL na sessão, a suíte padrão não utiliza o banco operacional.
+
+`bash qa/run-local.sh` executa PHPunit com SQLite em memória e Pint, sem Docker. `QA_MODE=mysql bash qa/run-local.sh` é opcional, **somente** para um schema MySQL QA exclusivo e descartável `*_qa`, com verificações preventivas de host, usuário e schema.
+
+**Evidência fornecida pelo operador:** uma execução de `composer install` finalizou, `php artisan test` teve **59 testes aprovados / 329 assertions** e `vendor/bin/pint --test` passou em **63 arquivos**. Outra execução anterior teve 6 falhas relativas à invalidação de JWT e 13 problemas de estilo; é necessário monitorar regressões e repetir a suíte. Os resultados da execução final pertencem ao ambiente do usuário, não a uma execução de Composer feita neste executor.
+
+As correções de `qa/selftest.sh` (variáveis QA não herdadas), `ops/selftest.sh` (erro do mock exposto) e o novo runner local ainda precisam ser validados no Mac após o merge ou checkout do PR. Não afirmar homologação MySQL a partir da suíte SQLite.

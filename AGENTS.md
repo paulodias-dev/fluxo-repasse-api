@@ -88,3 +88,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Nunca armazenar senhas de teste no Git nem sugerir `migrate:fresh` sobre bases existentes.
 - `qa/selftest.sh` não deve herdar variáveis do shell. `ops/selftest.sh` deve mostrar a falha simulada quando ocorrer.
 - Evidência: 13/13 testes PHP da política MySQL local executados em cópia do código; integração real no Mac está pendente.
+
+## Padrão de QA do MacBook autorizado: SQLite em memória
+
+- Em ambiente nativo macOS, o comando principal é `bash qa/run-local.sh` com `QA_MODE=sqlite` implícito, PHPUnit em SQLite :memory: e Pint. A aplicação continua configurada em MySQL.
+- O `phpunit.xml` deve forçar `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` e `DB_URL` vazio; não depender de variáveis herdadas.
+- O MySQL local é **opcional** para teste de compatibilidade e só pode ser selecionado com `QA_MODE=mysql` e banco QA dedicado `*_qa`; nunca com banco produtivo.
+- Tests de integração SQLite não provam compatibilidade completa de migrations e SQL com MySQL. A aprovação de produção requer QA MySQL separado.
+- Não declarar sucesso de autotestes Bash, Vitest ou MySQL sem execução real no Mac.

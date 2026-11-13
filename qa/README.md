@@ -123,3 +123,9 @@ Para MacBook com MySQL local, **não usar os comandos Docker acima**. O runner �
 O comando `qa/run.sh` continua existindo para quem **optar** por Docker e não deve ser executado no ambiente nativo. Consulte [qa/README_LOCAL_MYSQL.md](README_LOCAL_MYSQL.md) para criação do banco, variáveis sem senha em histórico, execução e bloqueio seguro de bases já populadas.
 
 A correção de `qa/selftest.sh` executa testes em ambiente isolado e não herda `QA_DB_PASSWORD` do terminal. Os scripts `ops/selftest.sh` mostram o erro real do backup simulado no macOS, sem acessar banco.
+
+## Execução sem Docker em macOS/Linux — padrão SQLite de testes
+
+O comando preferencial neste ambiente é `bash qa/run-local.sh`, que executa `php artisan test --configuration phpunit.xml` usando **SQLite em memória** e depois `vendor/bin/pint --test`. Isso **não troca o banco MySQL da aplicação**. Se desejar homologar um MySQL exclusivo de QA, usar explicitamente `QA_MODE=mysql bash qa/run-local.sh` com `QA_DB_*` e banco `*_qa` descartável.
+
+O runner `qa/run.sh` é específico para Docker; não usá-lo no Mac sem Docker. As correções de `qa/selftest.sh` e `ops/selftest.sh` isolam o ambiente de teste e melhoram o diagnóstico de falhas do mock de backup. Detalhes em `qa/README_LOCAL_MYSQL.md`.

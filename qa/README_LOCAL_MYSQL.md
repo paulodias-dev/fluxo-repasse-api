@@ -1,6 +1,21 @@
-# Homologação local no macOS — PHP + MySQL, sem Docker
+# Homologação local no macOS — SQLite de testes e MySQL opcional, sem Docker
 
-Este é o fluxo **oficial para desenvolvimento/homologação local com MySQL**. **Não** usar `qa/run.sh`: ele é um executor separado, específico para Docker Compose. Também não executar `phpunit.mysql.xml` no Mac, pois seu guard foi criado para o host interno `mysql` do Compose.
+O fluxo padrão é **SQLite em memória para testes automatizados**. Este guia também documenta o modo opcional MySQL real. **Não** usar `qa/run.sh`: ele é um executor separado, específico para Docker Compose. Também não executar `phpunit.mysql.xml` no Mac, pois seu guard foi criado para o host interno `mysql` do Compose.
+
+## Início rápido — SQLite em memória (preferencial)
+
+Os testes automatizados locais estão autorizados a usar **SQLite**, mesmo quando a aplicação opera com **MySQL**. Não é preciso criar banco MySQL para executar os testes básicos:
+
+```bash
+composer install
+bash qa/run-local.sh
+```
+
+A configuração `phpunit.xml` força `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` e `DB_URL` vazio. Os testes Laravel usam banco descartável e não alteram a configuração do MySQL da aplicação.
+
+## Alternativa opcional — MySQL de QA local
+
+O restante deste documento se aplica **somente** se for necessário homologar MySQL real. Para ativar o modo, utilizar `QA_MODE=mysql bash qa/run-local.sh`, nunca apenas `bash qa/run-local.sh`. Banco exclusivo `*_qa` obrigatório. Não usar bases com dados a preservar.
 
 ## 1. Pré-requisitos
 
@@ -63,7 +78,7 @@ bash qa/selftest.sh
 bash ops/selftest.sh
 bash ops/preflight-selftest.sh
 
-bash qa/run-local.sh
+QA_MODE=mysql bash qa/run-local.sh
 ```
 
 O runner:
@@ -79,7 +94,7 @@ Após uma primeira execução, o banco QA poderá conter tabelas. **Somente depo
 
 ```bash
 export QA_ALLOW_TEST_SCHEMA_REBUILD=YES
-bash qa/run-local.sh
+QA_MODE=mysql bash qa/run-local.sh
 ```
 
 A variável de autorização não é necessária para um schema QA vazio. Não use essa autorização para banco com dados que devam ser preservados. **Não execute `migrate:fresh`**.

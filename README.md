@@ -166,3 +166,16 @@ Primeiro `composer install`, configurar uma conta e um banco MySQL exclusivos pa
 Os autotestes Bash também foram isolados das variáveis do terminal, e os testes de backup passaram a mostrar a falha real caso haja incompatibilidade com BSD/macOS.
 
 Guia completo: [qa/README_LOCAL_MYSQL.md](qa/README_LOCAL_MYSQL.md). Não aplicar esses comandos sobre o banco de desenvolvimento principal ou produção.
+
+## QA local no macOS: SQLite de teste por padrão
+
+Com PHP e Composer no MacBook, os testes automatizados usam SQLite **em memória**, enquanto a aplicação pode continuar usando MySQL normalmente.
+
+```bash
+composer install
+bash qa/run-local.sh  # PHPUnit via SQLite :memory: e Pint --test
+```
+
+O `phpunit.xml` força `APP_ENV=testing`, `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` e `DB_URL` vazio mesmo que o terminal tenha variáveis MySQL exportadas. O runner não usa Docker nem modifica o banco MySQL da aplicação. Opcionalmente, `QA_MODE=mysql bash qa/run-local.sh` valida um banco **dedicado e descartável** `*_qa` com controles extras antes de rodar testes. Não apontar PHPUnit para um banco MySQL com dados a preservar.
+
+Foram corrigidas também a herança indesejada de variáveis no `qa/selftest.sh` e a diagnóstica/compatibilidade dos scripts de autoteste operacional no macOS. Ver `qa/README_LOCAL_MYSQL.md` para procedimentos.
