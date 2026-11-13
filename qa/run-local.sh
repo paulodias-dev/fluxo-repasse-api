@@ -36,7 +36,7 @@ if [[ "$mode" == sqlite ]]; then
   # Força banco descartável em memória, ignorando DB_* exportadas para MySQL.
   printf 'QA LOCAL: PHPUnit com SQLite em memória, sem acessar MySQL.\n'
   APP_ENV=testing DB_CONNECTION=sqlite DB_DATABASE=:memory: DB_URL='' \
-    php artisan test --configuration phpunit.xml
+    php artisan test
 else
   for name in QA_DB_NAME QA_DB_USERNAME QA_DB_PASSWORD; do
     [[ -n "${!name:-}" ]] || fail "$name obrigatório para MySQL local QA."
@@ -50,7 +50,7 @@ else
   printf 'QA LOCAL: verificando MySQL exclusivo de testes, sem criar banco.\n'
   php qa/mysql-local-check.php
   printf 'QA LOCAL: PHPUnit com MySQL QA, RefreshDatabase pode recriar tabelas nesse schema.\n'
-  php artisan test --configuration phpunit.local-mysql.xml
+  vendor/bin/phpunit --configuration phpunit.local-mysql.xml
 fi
 
 printf 'QA LOCAL CONCLUÍDO: gates, Pint e PHPUnit. Smoke HTTP e Vitest seguem separados.\n'

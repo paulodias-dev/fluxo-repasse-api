@@ -104,3 +104,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - `qa/run-local.sh` executa 49 gates independentes + Pint **antes** de PHPUnit; reexecutar no Mac para confirmar o pipeline.
 - SQLite em memória permanece padrão; MySQL opcional somente `QA_MODE=mysql` com schema separado `*_qa`. Nunca alterar banco da aplicação nem adicionar migrate:fresh.
 - Referência: `docs/QA_MACOS_PINT_ESTABILIZACAO.md`. Índice técnico global: 6/12 = 50%.
+
+## Entrega técnica 11 — QA React Mac sem Docker
+
+- API SQLite PHPUnit no Mac: 59 testes/329 assertions, Pint 67 arquivos, 49 autotestes aprovados conforme log do operador.
+- Corrigir aviso duplicado via `php artisan test` sem flag; no modo MySQL QA opcional, invocar PHPUnit direto com arquivo próprio.
+- APP: `npm run qa:local` agrega preflight, testes nativos, ESLint, Vitest, build e inspeção estática de PWA; `QA_INTEGRATION=1` é opt-in para API local em loopback.
+- Não declarar build/Vitest/QA real aprovados sem execução no Mac; 21/21 testes novos aprovados são com mocks/fixtures.
+- O banco MySQL da aplicação é preservado; não usar migrate:fresh ou operações de repasse não especificadas.
+- Progresso QA técnico 16/20 (80%); roadmap canônico 6/12 (50%) sem escopo financeiro aprovado.

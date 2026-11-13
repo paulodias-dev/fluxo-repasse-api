@@ -187,3 +187,11 @@ Os resultados reais de homologação no MacBook mostraram **59 testes PHPUnit / 
 O comando `bash qa/run-local.sh` agora executa **49 gates preventivos** (10+13+13+13), depois `vendor/bin/pint --test` e somente então PHPUnit SQLite em memória. O MySQL da aplicação permanece inalterado. `QA_MODE=mysql` continua uma opção **explícita** que exige banco descartável `*_qa`.
 
 O Pint real e o runner completo **ainda precisam ser reexecutados no Mac após este PR**. [Procedimento de aceite](docs/QA_MACOS_PINT_ESTABILIZACAO.md).
+
+## Entrega técnica QA React — macOS sem Docker
+
+O log real do Mac confirmou: **59 testes PHPUnit, 329 asserções, Pint em 67 arquivos e 49 checks preventivos aprovados**. Removido o aviso de `--configuration` duplicado: SQLite padrão usa `php artisan test` sem argumentos de configuração; MySQL QA opcional usa `vendor/bin/phpunit --configuration phpunit.local-mysql.xml`.
+
+Para a API, `QA_MODE=sqlite bash qa/run-local.sh` continua usando SQLite apenas no PHPUnit, sem alterar o MySQL da aplicação. Para validar o APP, use `npm ci && npm run qa:local` no repositório React. A integração real, opcional, exige Laravel local e `QA_INTEGRATION=1 npm run qa:local`.
+
+**21/21 testes novos Node executados** com mocks/fixtures; ainda falta executar Vitest, ESLint, build e smoke HTTP reais no Mac. Guia: `docs/MACRO_11_QA_REACT_LOCAL.md`. Entrega técnica 11 **16/20 = 80%**; roadmap canônico **6/12 = 50%**.

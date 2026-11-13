@@ -166,3 +166,11 @@ Relatório do operador: Composer OK, PHPUnit **59/59 (329 assertions)** e autote
 `qa/run-local.sh` agrega os **49 gates (10+13+13+13)** e roda `vendor/bin/pint --test` **antes** do PHPUnit, para não gastar tempo com 59 testes se houver apenas erro de estilo. `QA_MODE=sqlite` segue padrão e não toca no MySQL operacional. Nem o Pint real com as alterações deste PR nem o runner completo foram executados ainda no Mac: exigir execução pós-merge antes de declarar QA integralmente verde.
 
 Documento: `docs/QA_MACOS_PINT_ESTABILIZACAO.md`. Indicador da entrega: **8/10 = 80,00%**, pendentes Pint real e runner completo no Mac. Índice global técnico segue **6/12 = 50,00%** de marcos concluídos.
+
+## Entrega QA React 11 — log de aceite API e pendências do APP
+
+**Resultado real fornecido pelo usuário:** Composer OK; Pint 67/67 arquivos; 49/49 autotestes; PHPUnit **59/59 testes (329 assertions)** SQLite. Aviso isolado de `--configuration` duplicado corrigido em `qa/run-local.sh` (ainda não reexecutado no Mac).
+
+O APP agora fornece pipeline `npm run qa:local` (preflight, testes Node, ESLint, Vitest, build e análise de `dist`), sem Docker. Opt-in `QA_INTEGRATION=1` testa API local/CORS PATCH/readiness (GET/OPTIONS) e smoke público. **21 novos testes Node executados e aprovados** com fixtures; testes de navegador e build não foram executados aqui.
+
+Detalhes: `docs/MACRO_11_QA_REACT_LOCAL.md`; relatórios de execução do frontend `.qa-results/qa-local.json` (sem segredos). Índices: técnica 11 **16/20 = 80%**, canônico **6/12 = 50%**.

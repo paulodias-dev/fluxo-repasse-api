@@ -168,3 +168,19 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Executar `bash qa/run-local.sh` completo após a aprovação/merge.
 
 **Progresso desta entrega de estabilização: 8/10 = 80,00%. Índice global técnico provisório permanece 6/12 = 50,00%**, pois os marcos integrais de QA/integração e os requisitos financeiros ainda estão abertos.
+
+## Entrega técnica 11 — homologação local React/QA (não equivale ao marco financeiro 11)
+
+- [x] Leitura dos logs Mac: 59 PHPUnit, 329 assertions, 49 gates e Pint 67 arquivos.
+- [x] Remover `--configuration` duplicado do PHPUnit SQLite e preservar MySQL QA opcional.
+- [x] APP com runner único `qa:local` em macOS sem Docker.
+- [x] Geração de relatório local de fases sem credenciais.
+- [x] Testes nativos novos: **21/21 executados** com mocks/fixtures.
+- [x] Smoke HTTP local/CORS PATCH/readiness opt-in sem mutações.
+- [x] Política HTTPS de release de produção mantida.
+- [ ] Instalar/rodar npm ci, ESLint e Vitest reais no Mac.
+- [ ] Gerar/inspecionar build PWA real.
+- [ ] Verificar CORS/headers no Laravel/MySQL em execução e runner sem aviso.
+- [ ] Realizar QA manual mobile/offline/teclado no navegador.
+
+**Entrega técnica 11: 16/20 = 80%; roadmap canônico: 6/12 = 50%.** O marco 11 financeiro continua pendente de escopo validado.
