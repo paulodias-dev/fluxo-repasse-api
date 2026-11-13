@@ -199,3 +199,13 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 - [ ] Navegador/mobile: offline, logout lento, sessão expirada e PWA instalado.
 
 **Entrega técnica 12: 17/21 = 80,95%. Total roadmap canônico provisório: 6/12 = 50,00%**, sem afirmar conclusão financeira.
+
+## Macro 13 — Cadastro de Pessoas e Empresas
+
+**Entrega funcional, não infraestrutura de testes.** Implementados cadastro, edição, filtros e paginação, status sem exclusão, histórico/auditoria persistente, RBAC `parties.manage`, API e interface mobile-first. Migração aditiva e OpenAPI 0.9 na API. O APP só renderiza registros vindos do banco.
+
+**Pendente de homologação no Mac:** migrations/seed em MySQL autorizado, testes essenciais Laravel/React e navegação manual. **Macro 13: 10/12 = 83,33%** de checkpoints de implementação/preparação.
+
+**Prioridade a partir de agora:** módulos de negócio por macroentrega substancial. Backlog condicional: vínculos entre participantes, configuração de regras e eventos de repasse, lançamento/validação, aprovação e liquidação, conciliação, relatórios. **Não implementar regras de cálculo ou transferências sem escopo aprovado**.
+
+O percentual global financeiro **não é aferível** sem o escopo original, e a antiga métrica 6/12 = 50% representa apenas marcos técnicos.

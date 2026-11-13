@@ -201,3 +201,11 @@ Para a API, `QA_MODE=sqlite bash qa/run-local.sh` continua usando SQLite apenas 
 A API agora gera `X-Request-ID` também em erros 404/405 de URL ou método inexistente. O middleware é registrado globalmente mas **atua somente em `api/*`**, e protege também preflight OPTIONS com `Cache-Control: no-store, private`. Não há modificações financeiras nem migrations. Foram escritos 7 testes Laravel para 404/405/401/422/OPTIONS, ainda não executados.
 
 No APP pareado, respostas atrasadas de login/refresh/senha não podem restaurar sessões após logout/offline; 7 testes Node da proteção de geração executados e aprovados. Guia: `docs/MACRO_12_SESSAO_CORRELACAO.md`. Macro técnica 12 **17/21 (80,95%)**; roadmap canônico **6/12 (50,00%)** de marcos concluídos.
+
+## Módulo funcional: Pessoas e Empresas (Macro 13)
+
+Agora existe um módulo real de **Pessoas e Empresas**, integrado ao painel, com armazenamento MySQL, cadastro, edição, filtros, status ativo/inativo, histórico de alterações e acesso protegido pela permissão `parties.manage`. Não cria dados fictícios, contas bancárias ou valores.
+
+**Instalação dev local após revisão do PR:** `php artisan migrate` e `php artisan db:seed --class=AdminUserSeeder` na API (com backup); `npm ci && npm run dev` no APP. Uma sessão administrativa nova verá a aba de cadastro. Não usar `migrate:fresh`.
+
+Ver `docs/MACRO_13_CADASTROS_PESSOAS_EMPRESAS.md`. Próximas entregas serão módulos funcionais. As regras financeiras originais ainda precisam ser recuperadas antes de movimentar dinheiro.
