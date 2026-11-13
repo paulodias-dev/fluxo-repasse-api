@@ -50,3 +50,9 @@ Introduzir controles de operação que possam ser revisados e testados sem acess
 
 - **Macroentrega 10: 17 de 22 checkpoints = 77,27%.** Cinco gates de homologação/operacionalização permanecem pendentes.
 - **Evolução total do roadmap técnico provisório: 6 de 12 macromarcos fechados = 50,00%.** Os PRs #7–#9 já foram incorporados, mas os critérios de homologação dos marcos 07–10 continuam abertos. O indicador não corresponde à implementação funcional de repasses financeiros.
+
+## Correção adicional de segurança: seeder administrativo
+
+Durante a Macro 10, a main recebeu um `AdminUserSeeder` com credenciais administrativas fixas no código. O PR #10 remove a criação automática dessa conta e preserva somente o preparo idempotente de papel `platform_admin` e permissão `users.manage`. Os comandos interativos existentes `php artisan repasse:user:create` e `php artisan repasse:access:bootstrap email-do-usuario` continuam sendo o fluxo autorizado, sem senha versionada.
+
+**Se o seeder antigo já foi executado:** tratar a credencial como exposta, redefinir a senha, revogar todas as sessões JWT anteriores pelo fluxo autorizado e investigar eventos de auditoria. A correção não apaga a credencial do histórico Git e não altera bancos em execução. Dois testes Laravel de regressão do seeder foram escritos, mas não executados aqui.
