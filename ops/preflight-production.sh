@@ -14,8 +14,10 @@ done
    "${APP_URL:-}" != *'?'* && "${APP_URL:-}" != *'#'* &&
    "${APP_URL:-}" != *'localhost'* && "${APP_URL:-}" != *'127.0.0.1'* ]] ||
   errors+=('APP_URL deve usar HTTPS público sem credenciais ou query.')
-[[ "${APP_KEY:-}" == base64:* && ${#APP_KEY} -ge 50 ]] || errors+=('APP_KEY deve ser chave Laravel base64 forte.')
-[[ ${#JWT_SECRET} -ge 32 ]] || errors+=('JWT_SECRET deve ter ao menos 32 caracteres.')
+key="${APP_KEY:-}"
+secret="${JWT_SECRET:-}"
+[[ "$key" == base64:* && ${#key} -ge 50 ]] || errors+=('APP_KEY deve ser chave Laravel base64 forte.')
+[[ ${#secret} -ge 32 ]] || errors+=('JWT_SECRET deve ter ao menos 32 caracteres.')
 [[ "${JWT_BLACKLIST_ENABLED:-}" == true ]] || errors+=('JWT_BLACKLIST_ENABLED deve ser true.')
 [[ "${DB_CONNECTION:-}" == mysql ]] || errors+=('DB_CONNECTION deve ser mysql.')
 [[ "${DB_DATABASE:-}" != *_qa && -n "${DB_DATABASE:-}" ]] || errors+=('DB_DATABASE de produção não pode ser banco QA.')
