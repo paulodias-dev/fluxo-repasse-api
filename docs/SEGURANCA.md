@@ -74,3 +74,9 @@ Headers e código fonte não substituem verificação em runtime de browser/prox
 - Backup e restauração de QA ficam em `ops/`; o dump gzip é **não criptografado** e deve permanecer local, fora do Git/webroot, com acesso restrito. SHA-256 não atesta autenticidade.
 - Restauração só cria um novo schema `*_restore_qa` com confirmação explícita. Nunca usar dumps de terceiros, bancos de produção ou ação automática destrutiva.
 - Não há base para afirmar LGPD integral, backup produtivo, retenção aprovada ou RPO/RTO testados. Esses gates seguem pendentes.
+
+### Incidente preventivo — seeder com credencial versionada
+
+A main recebeu um `AdminUserSeeder` que criava uma conta técnica com senha em texto fixo. A macro 10 torna o seeder exclusivamente estrutural (papel/permissão). O fluxo interativo Artisan permanece para criar o primeiro usuário e conceder `users.manage`. Dois testes feature asseguram ausência de criação de usuários e idempotência, porém não foram executados.
+
+Se a credencial já foi usada, considerá-la comprometida: trocar senha, invalidar JWTs anteriores com incremento de `auth_version`, inspecionar auditoria de acessos e restringir uso do histórico Git. Remover o literal de novos commits não o apaga do histórico publicado.

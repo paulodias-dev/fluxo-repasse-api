@@ -152,3 +152,7 @@ Detalhes: `docs/MACRO_09_SEGURANCA_PWA.md`. **Macro 09: 11/15 = 73,33%. Roadmap 
 Runbooks: `ops/README.md` e `docs/MACRO_10_OPERACAO.md`.
 
 **Macro 10: 17/22 checkpoints = 77,27%. Total provisório: 6/12 macromarcos = 50,00%.** São índices de engenharia, não conclusão das operações financeiras sem especificação aprovada.
+
+### Correção crítica de credenciais fixas no seeder
+
+Uma alteração incorporada à main durante a macro criou uma conta administrativa com senha estática no `AdminUserSeeder`. Este PR remove essa criação: o seeder apenas prepara papel/permissão e a conta deve ser provisionada via `repasse:user:create` e `repasse:access:bootstrap`. **Caso o seeder antigo tenha sido executado, redefina imediatamente a senha e revogue tokens existentes.** A credencial anteriormente versionada continua acessível no histórico Git.

@@ -134,3 +134,7 @@ Arquivos efetivamente testados foram comparados aos blobs GitHub por tamanho e F
 **Escritos mas não executados:** cinco testes Laravel de correlação e dois Vitest de fallback React. Tampouco foram executados Composer, migrations, PHPUnit/Pint, npm ci/build, restore real ou deploy.
 
 Ver `ops/README.md`, `docs/MACRO_10_OPERACAO.md` e `docs/PROGRESSO_GERAL.md`.
+
+### Regressões adicionais do seeder (API)
+
+`tests/Feature/AdminSeederSecurityTest.php` contém dois testes escritos, **não executados**: `AdminUserSeeder` não cria usuário/credencial e é idempotente. `CorsOperationsTest.php` contém outros dois testes escritos para PATCH em CORS e exposição de `X-Request-ID`. Após Composer/MySQL, executá-los antes do merge/produção.
