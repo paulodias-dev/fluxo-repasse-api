@@ -11,14 +11,12 @@ use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 final class AdminUserController extends Controller
 {
-    public function __construct(private readonly AuthEventRecorder $events)
-    {
-    }
+    public function __construct(private readonly AuthEventRecorder $events) {}
 
     public function index(Request $request): JsonResponse
     {
