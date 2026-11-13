@@ -138,3 +138,13 @@ Ver `ops/README.md`, `docs/MACRO_10_OPERACAO.md` e `docs/PROGRESSO_GERAL.md`.
 ### Regressões adicionais do seeder (API)
 
 `tests/Feature/AdminSeederSecurityTest.php` contém dois testes escritos, **não executados**: `AdminUserSeeder` não cria usuário/credencial e é idempotente. `CorsOperationsTest.php` contém outros dois testes escritos para PATCH em CORS e exposição de `X-Request-ID`. Após Composer/MySQL, executá-los antes do merge/produção.
+
+## Correção QA macOS/MySQL — sem Docker
+
+O usuário executou `qa/selftest.sh` (9/10), `ops/selftest.sh` (11/13) e `ops/preflight-selftest.sh` (13/13) em macOS com PHP e MySQL locais. O primeiro teste não isolava variáveis exportadas e o segundo ocultava a saída da falha ao simular Docker.
+
+Correções na branch `fix/qa-native-macos`: `env -i` no selftest de QA, saída de erro explícita no autoteste de backup, revisão de opções incompatíveis de utilitários BSD, novos `qa/run-local.sh` e `phpunit.local-mysql.xml` para MySQL local, preflight PDO com schema exclusivo `*_qa` e conta dedicada não root.
+
+**Executado no executor de desenvolvimento:** `php qa/mysql-local-safety.test.php` em cópia local do código — **13/13 casos aprovados**, `php -l` da política e teste sem erro, PHP 8.4.24. **Ainda não executado no Mac do usuário:** novo runner, PHPUnit/MySQL, backups ou novos autotestes Bash. Não afirmar esses resultados antes da execução.
+
+Em banco QA já populado, o runner interrompe antes do PHPUnit, a menos que `QA_ALLOW_TEST_SCHEMA_REBUILD=YES` seja dado explicitamente para dados descartáveis. Nenhum `migrate:fresh` foi introduzido. Detalhes em `qa/README_LOCAL_MYSQL.md`.

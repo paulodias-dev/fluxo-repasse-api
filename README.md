@@ -156,3 +156,13 @@ Runbooks: `ops/README.md` e `docs/MACRO_10_OPERACAO.md`.
 ### Correção crítica de credenciais fixas no seeder
 
 Uma alteração incorporada à main durante a macro criou uma conta administrativa com senha estática no `AdminUserSeeder`. Este PR remove essa criação: o seeder apenas prepara papel/permissão e a conta deve ser provisionada via `repasse:user:create` e `repasse:access:bootstrap`. **Caso o seeder antigo tenha sido executado, redefina imediatamente a senha e revogue tokens existentes.** A credencial anteriormente versionada continua acessível no histórico Git.
+
+## Testes locais no MacBook — MySQL sem Docker
+
+O caminho suportado para desenvolvimento com PHP + MySQL nativos é **`bash qa/run-local.sh`**, com banco próprio de QA terminando em `_qa`. Ele executa PHPUnit **somente em MySQL**, sem SQLite e sem Docker. Não usar `qa/run.sh` neste ambiente (é o runner do Compose).
+
+Primeiro `composer install`, configurar uma conta e um banco MySQL exclusivos para testes, e exportar `QA_DB_NAME`, `QA_DB_USERNAME`, `QA_DB_PASSWORD`, `QA_DB_HOST`, `QA_DB_PORT`. O runner exige usuário que não seja `root/admin`, host loopback e recusa schema com tabelas sem autorização explícita `QA_ALLOW_TEST_SCHEMA_REBUILD=YES`. Os testes Laravel com `RefreshDatabase` podem recriar tabelas **dentro do schema QA**.
+
+Os autotestes Bash também foram isolados das variáveis do terminal, e os testes de backup passaram a mostrar a falha real caso haja incompatibilidade com BSD/macOS.
+
+Guia completo: [qa/README_LOCAL_MYSQL.md](qa/README_LOCAL_MYSQL.md). Não aplicar esses comandos sobre o banco de desenvolvimento principal ou produção.

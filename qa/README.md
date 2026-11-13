@@ -115,3 +115,11 @@ Antes do smoke, o runner aguarda `/ready` com até 30 tentativas controladas usa
 Para provisionar conta comum QA, use o cadastro Artisan existente **sem** conceder `platform_admin`; não reaproveite uma conta produtiva. Credenciais não devem ser versionadas, exibidas em logs ou enviadas neste chat.
 
 Verificação local com PHP/Node/Bash: **35/35 testes passaram**. O Compose real não pôde ser executado aqui; o `composer.lock` já está na main e requer `composer validate`/instalação real. Ver `docs/MACRO_08_QA_MYSQL_RBAC.md` para matriz de aceite.
+
+## Alternativa sem Docker — PHP/MySQL instalado no macOS
+
+Para MacBook com MySQL local, **não usar os comandos Docker acima**. O runner é `bash qa/run-local.sh` e a configuração PHPUnit é `phpunit.local-mysql.xml`. O runner exige banco exclusivo `*_qa`, usuário MySQL dedicado e porta/host locais, faz preflight PDO somente de leitura e então PHPUnit/MySQL + Pint.
+
+O comando `qa/run.sh` continua existindo para quem **optar** por Docker e não deve ser executado no ambiente nativo. Consulte [qa/README_LOCAL_MYSQL.md](README_LOCAL_MYSQL.md) para criação do banco, variáveis sem senha em histórico, execução e bloqueio seguro de bases já populadas.
+
+A correção de `qa/selftest.sh` executa testes em ambiente isolado e não herda `QA_DB_PASSWORD` do terminal. Os scripts `ops/selftest.sh` mostram o erro real do backup simulado no macOS, sem acessar banco.

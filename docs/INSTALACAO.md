@@ -123,3 +123,9 @@ vendor/bin/pint --test
 ```
 
 No APP: `npm run qa:pwa:policy`, `npm test`, `npm run build`; inspecionar service worker instalado, Cache Storage e modos offline/reconexão. Até essas etapas, não declarar homologação. Os novos testes Node fonte executados passaram em 8/8, mas PHPUnit/MySQL/Vitest/build não foram executados aqui.
+
+## Opção preferencial para este ambiente — MySQL local no macOS
+
+Com PHP/Composer/MySQL instalados diretamente no Mac, utilizar **`bash qa/run-local.sh`**. Ele não exige Docker nem SQLite. Criar um schema de teste `*_qa`, com usuário MySQL exclusivo diferente de root/admin, e exportar `QA_DB_NAME`, `QA_DB_USERNAME`, `QA_DB_PASSWORD`, `QA_DB_HOST` e `QA_DB_PORT`. Não editar o `.env` principal de desenvolvimento para apontar a outro banco; o runner define variáveis de conexão apenas durante a execução.
+
+O antigo `qa/run.sh` é específico para Compose. O `phpunit.mysql.xml` anterior também foi criado para o host interno Docker `mysql`; **não** usá-lo em teste nativo. A configuração correta agora é `phpunit.local-mysql.xml` com guardas de loopback e banco exclusivo. Não executar `migrate:fresh`. Guia: `qa/README_LOCAL_MYSQL.md`.
