@@ -20,10 +20,10 @@ final class RequestCorrelationIdTest extends TestCase
 
     public function test_client_cannot_force_correlator_id(): void
     {
-        $response = $this->withHeaders(['X-Request-ID' => "private-token\r\nInjected: yes"])
+        $response = $this->withHeaders(['X-Request-ID' => "client-supplied-request-id"])
             ->getJson('/api/v1/health')->assertOk();
 
-        $this->assertNotSame("private-token\r\nInjected: yes", $response->headers->get('X-Request-ID'));
+        $this->assertNotSame("client-supplied-request-id", $response->headers->get('X-Request-ID'));
         $this->assertNotEmpty($response->headers->get('X-Request-ID'));
     }
 
