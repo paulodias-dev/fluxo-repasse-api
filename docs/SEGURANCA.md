@@ -80,3 +80,11 @@ Headers e código fonte não substituem verificação em runtime de browser/prox
 A main recebeu um `AdminUserSeeder` que criava uma conta técnica com senha em texto fixo. A macro 10 torna o seeder exclusivamente estrutural (papel/permissão). O fluxo interativo Artisan permanece para criar o primeiro usuário e conceder `users.manage`. Dois testes feature asseguram ausência de criação de usuários e idempotência, porém não foram executados.
 
 Se a credencial já foi usada, considerá-la comprometida: trocar senha, invalidar JWTs anteriores com incremento de `auth_version`, inspecionar auditoria de acessos e restringir uso do histórico Git. Remover o literal de novos commits não o apaga do histórico publicado.
+
+## Macro técnica 12 — correlação segura até nas respostas de erro
+
+`RequestCorrelationId` agora entra no pipeline **antes da resolução da rota**, mas só gera IDs e telemetria para `api/*`. Em 404/405 e OPTIONS, `X-Request-ID` deve conter UUID novo do servidor, não o ID não confiável fornecido pelo cliente. Os cabeçalhos `no-store/private`, `nosniff` e `Referrer-Policy` se aplicam também ao preflight e às respostas de erro.
+
+APP: gerações monotônicas impedem que login/refresh/senha atrasados reabram sessão privada; logout oculta dados antes do retorno remoto. Perda da sessão local **não garante revogação remota de JWT enquanto offline**. Não persistir tokens no cache.
+
+Os novos testes Laravel/Vitest precisam da homologação real. Ver `docs/MACRO_12_SESSAO_CORRELACAO.md`.

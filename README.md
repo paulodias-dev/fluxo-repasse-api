@@ -195,3 +195,9 @@ O log real do Mac confirmou: **59 testes PHPUnit, 329 asserções, Pint em 67 ar
 Para a API, `QA_MODE=sqlite bash qa/run-local.sh` continua usando SQLite apenas no PHPUnit, sem alterar o MySQL da aplicação. Para validar o APP, use `npm ci && npm run qa:local` no repositório React. A integração real, opcional, exige Laravel local e `QA_INTEGRATION=1 npm run qa:local`.
 
 **21/21 testes novos Node executados** com mocks/fixtures; ainda falta executar Vitest, ESLint, build e smoke HTTP reais no Mac. Guia: `docs/MACRO_11_QA_REACT_LOCAL.md`. Entrega técnica 11 **16/20 = 80%**; roadmap canônico **6/12 = 50%**.
+
+## Macroentrega técnica 12 — headers de erro e IDs antes do roteamento
+
+A API agora gera `X-Request-ID` também em erros 404/405 de URL ou método inexistente. O middleware é registrado globalmente mas **atua somente em `api/*`**, e protege também preflight OPTIONS com `Cache-Control: no-store, private`. Não há modificações financeiras nem migrations. Foram escritos 7 testes Laravel para 404/405/401/422/OPTIONS, ainda não executados.
+
+No APP pareado, respostas atrasadas de login/refresh/senha não podem restaurar sessões após logout/offline; 7 testes Node da proteção de geração executados e aprovados. Guia: `docs/MACRO_12_SESSAO_CORRELACAO.md`. Macro técnica 12 **17/21 (80,95%)**; roadmap canônico **6/12 (50,00%)** de marcos concluídos.
