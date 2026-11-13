@@ -79,3 +79,20 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Antes de liberar produção, exigir Composer/PHPUnit/MySQL, npm/Vitest/build, smoke com credenciais QA, restore real em schema separado e governança de retenção.
 - Evidências reais: 13 autotestes backup + 13 preflight + 11 release Node = 37 aprovados; testes PHP/React integrados apenas escritos.
 - Percentual macro 10: 17/22 (77,27%). Progresso global provisório: 6/12 (50,00%) de marcos fechados, não de funcionalidades financeiras.
+
+## Correção QA nativo no macOS
+
+- Para ambiente do usuário PHP + MySQL local, **sem Docker e sem SQLite**, usar `qa/run-local.sh` e `phpunit.local-mysql.xml`. `qa/run.sh` permanece exclusivo do Compose.
+- Bloquear bancos sem sufixo `_qa`, hosts não loopback, senha vazia, usuário root/admin e DB_URL. Validar conexão PDO e presença de tabelas antes do PHPUnit.
+- Testes com RefreshDatabase podem recriar dados no schema de testes. Permitir schema populado apenas com `QA_ALLOW_TEST_SCHEMA_REBUILD=YES` após confirmação humana de descartabilidade.
+- Nunca armazenar senhas de teste no Git nem sugerir `migrate:fresh` sobre bases existentes.
+- `qa/selftest.sh` não deve herdar variáveis do shell. `ops/selftest.sh` deve mostrar a falha simulada quando ocorrer.
+- Evidência: 13/13 testes PHP da política MySQL local executados em cópia do código; integração real no Mac está pendente.
+
+## Padrão de QA do MacBook autorizado: SQLite em memória
+
+- Em ambiente nativo macOS, o comando principal é `bash qa/run-local.sh` com `QA_MODE=sqlite` implícito, PHPUnit em SQLite :memory: e Pint. A aplicação continua configurada em MySQL.
+- O `phpunit.xml` deve forçar `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` e `DB_URL` vazio; não depender de variáveis herdadas.
+- O MySQL local é **opcional** para teste de compatibilidade e só pode ser selecionado com `QA_MODE=mysql` e banco QA dedicado `*_qa`; nunca com banco produtivo.
+- Tests de integração SQLite não provam compatibilidade completa de migrations e SQL com MySQL. A aprovação de produção requer QA MySQL separado.
+- Não declarar sucesso de autotestes Bash, Vitest ou MySQL sem execução real no Mac.

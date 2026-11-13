@@ -7,7 +7,7 @@ archive="$1"
 [[ -f "$archive" && ! -L "$archive" && -s "$archive" ]] || fail 'Arquivo ausente, vazio ou symlink.'
 [[ "$archive" == *.sql.gz ]] || fail 'Extensão esperada: .sql.gz.'
 [[ -f "$archive.sha256" && ! -L "$archive.sha256" ]] || fail 'Checksum ausente ou symlink.'
-checksum="$(cat -- "$archive.sha256")"
+checksum="$(cat "$archive.sha256")"
 [[ "$checksum" =~ ^[a-fA-F0-9]{64}$ ]] || fail 'SHA-256 inválido.'
 if command -v shasum >/dev/null 2>&1; then
   actual="$(shasum -a 256 -- "$archive" | awk '{print $1}')"
@@ -18,5 +18,5 @@ else
 fi
 checksum="$(printf '%s' "$checksum" | tr 'A-F' 'a-f')"
 [[ "$actual" == "$checksum" ]] || fail 'Checksum divergente.'
-gzip -t -- "$archive" || fail 'Gzip danificado.'
+gzip -t "$archive" || fail 'Gzip danificado.'
 printf 'BACKUP ÍNTEGRO: checksum e gzip válidos (autenticidade não comprovada).\n'

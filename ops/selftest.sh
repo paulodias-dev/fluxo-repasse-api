@@ -9,10 +9,11 @@ failed=0
 
 expect_ok() {
   local label="$1"; shift
-  if "$@" > "$work/out" 2>&1; then
+  if env -i PATH="$PATH" HOME="${HOME:-}" TMPDIR="${TMPDIR:-/tmp}" "$@" > "$work/out" 2>&1; then
     ((passed+=1)); printf 'OK: %s\n' "$label"
   else
     ((failed+=1)); printf 'FALHA: %s\n' "$label" >&2
+    sed -n '1,12p' "$work/out" >&2
   fi
 }
 expect_block() {
