@@ -1,4 +1,4 @@
-# Fluxo Repasse — Medição global provisória (entrega técnica de QA React 11)
+# Fluxo Repasse — Medição global provisória (entrega técnica de segurança 12)
 
 > Documento compartilhado pelos repositórios API e APP. Esta medição é um **índice de marcos do roadmap**, não uma estimativa comprovada de esforço, custo, valor de negócio, homologação ou conclusão das operações financeiras.
 
@@ -264,3 +264,36 @@ Documentos: `docs/MACRO_10_OPERACAO.md` nos dois repositórios, `ops/README.md` 
 **Entrega técnica 11 = 16/20 = 80,00%** de checkpoints de implementação/QA isolado, com quatro gates reais pendentes. **Total canônico = 6/12 = 50,00%** de marcos integralmente encerrados. O marco 11 canônico refere-se a **especificação financeira aprovada**, ainda pendente; esta entrega técnica não demonstra 80% de implantação financeira.
 
 Documentos: `docs/MACRO_11_QA_REACT_LOCAL.md` na API e no APP.
+
+## Entrega técnica 12 — segurança de sessão, 404/405 e correlação de erros
+
+**Escopo de implementação (17 checkpoints):**
+1. [x] Revisão dos fluxos assíncronos de login, refresh, logout e alteração de senha.
+2. [x] Geração monotônica para invalidar intenções de autenticação atrasadas.
+3. [x] Sete testes nativos Node para geração, offline, logout e 401 executados.
+4. [x] Login em etapas verifica geração antes do perfil e antes de restaurar sessão.
+5. [x] Renovação de JWT impede retorno de sessão após invalidação.
+6. [x] Alteração de senha impede commits atrasados ou após 401.
+7. [x] Logout oculta área privada antes de confirmar revogação remota.
+8. [x] Feedback tardio de logout não sobrescreve estado de sessão posterior.
+9. [x] Evento offline invalida respostas antes de reconexão.
+10. [x] Temporizador de sessão antiga não invalida sessão nova.
+11. [x] Três cenários Vitest React de corrida adicionados (ainda não executados).
+12. [x] API correlaciona 404/405 antes do roteamento.
+13. [x] Middleware global mantém escopo somente em `api/*`.
+14. [x] Erros 401/422 e rotas inexistentes mantêm headers privados/UUID em contrato.
+15. [x] Preflight OPTIONS CORS recebe no-store e X-Request-ID.
+16. [x] Smoke APP passa a exigir 404 com UUID/no-store e testa contrato simulado.
+17. [x] Scripts QA e documentação operacional sincronizados nos dois repositórios.
+
+**Gates ainda pendentes:**
+18. [ ] PHPUnit/Pint da API completos no Mac, incluindo 7 novos testes Laravel.
+19. [ ] npm ci/ESLint/Vitest/build PWA reais no Mac, incluindo 3 novos testes React.
+20. [ ] Smoke HTTP com Laravel/MySQL local real e verificação de 404/CORS/OPTIONS.
+21. [ ] E2E navegador/mobile, offline/reconexão, expiração, logout e PWA instalado.
+
+**Macroentrega técnica 12: 17/21 = 80,95%.** Evidência efetiva: **7/7 testes Node executados com código idêntico ao GitHub**, `php -l` em middleware e teste feature (2/2). Os testes Laravel e Vitest de integração foram escritos, **não executados** aqui.
+
+**Roadmap canônico permanece 6/12 = 50,00% de macromarcos totalmente encerrados**, sem percentual confiável de implementação financeira: especificação funcional ainda carece de validação. A entrega técnica 12 é uma melhoria de segurança e QA, não a conclusão do marco canônico 12.
+
+**Próxima entrega:** homologar QA real no Mac e corrigir falhas observadas, incluindo temporização do navegador/PWA e regressões CORS/404 antes de liberar produção.
