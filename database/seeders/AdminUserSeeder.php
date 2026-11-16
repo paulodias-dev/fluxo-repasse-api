@@ -26,12 +26,17 @@ final class AdminUserSeeder extends Seeder
             ['description' => 'Gerenciar papéis e atribuições de acesso']
         );
 
+        $casePermission = Permission::query()->updateOrCreate(
+            ['key' => 'cases.manage'],
+            ['description' => 'Gerenciar dossiês documentais de repasse, sem movimentação financeira']
+        );
+
         $role = Role::query()->updateOrCreate(
             ['slug' => 'platform_admin'],
             ['name' => 'Administrador técnico']
         );
 
-        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id]);
+        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id]);
 
         // Provisionar usuários via Artisan: repasse:user:create e
         // repasse:access:bootstrap com confirmação, sem credenciais versionadas.
