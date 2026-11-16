@@ -39,6 +39,7 @@ final class RepasseCaseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->rejectUnknown($request, ['title', 'description']);
         $data = $request->validate([
             'title' => ['required', 'string', 'min:2', 'max:180'],
             'description' => ['nullable', 'string', 'max:3000'],
@@ -63,6 +64,7 @@ final class RepasseCaseController extends Controller
 
     public function update(Request $request, int $case): JsonResponse
     {
+        $this->rejectUnknown($request, ['title', 'description', 'status']);
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'min:2', 'max:180'],
             'description' => ['sometimes', 'nullable', 'string', 'max:3000'],
@@ -101,6 +103,7 @@ final class RepasseCaseController extends Controller
 
     public function attach(Request $request, int $case): JsonResponse
     {
+        $this->rejectUnknown($request, ['party_id', 'description']);
         $data = $request->validate([
             'party_id' => ['required', 'integer', Rule::exists('parties', 'id')],
             'description' => ['nullable', 'string', 'max:180'],
@@ -175,6 +178,16 @@ final class RepasseCaseController extends Controller
             'status' => $case->status, 'created_at' => $case->created_at,
             'updated_at' => $case->updated_at, 'parties' => $parties,
         ];
+    }
+
+    private function rejectUnknown(Request $request, array $allowed): void
+    {
+        $unknown = array_diff(array_keys($request->all()), $allowed);
+        if ($unknown !== []) {
+            throw ValidationException::withMessages(
+                array_fill_keys($unknown, 'Campo não permitido neste módulo.')
+            );
+        }
     }
 
     private function record(int $case, Request $request, string $event): void
