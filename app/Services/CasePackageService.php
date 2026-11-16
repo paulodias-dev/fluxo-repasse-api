@@ -357,7 +357,7 @@ final class CasePackageService
         $file = tempnam(sys_get_temp_dir(), 'repasse_pkg_');
         if ($file === false) abort(503, 'Não foi possível preparar o arquivo temporário.');
         $zip = new ZipArchive();
-        if ($zip->open($file, ZipArchive::OVERWRITE) !== true) {
+        if ($zip->open($file, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             @unlink($file);
             abort(503, 'Não foi possível abrir o ZIP.');
         }
@@ -383,6 +383,7 @@ final class CasePackageService
                 }
             }
             if (! $zip->close()) abort(503, 'Falha ao finalizar ZIP.');
+            // ZipArchive may read source files lazily at close(); verify again afterwards.
             if (! $this->verify($caseId, $packageId)['available_for_download']) {
                 abort(409, 'Um arquivo mudou durante a preparação do pacote.');
             }
