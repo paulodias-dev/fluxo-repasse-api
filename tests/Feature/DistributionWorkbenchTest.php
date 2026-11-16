@@ -233,6 +233,7 @@ final class DistributionWorkbenchTest extends TestCase
         )->assertCreated()->json('batch.id');
         $this->withToken($token)->get("/api/v1/finance/distribution-batches/{$batch}/export")
             ->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
-        $this->get("/api/v1/finance/distribution-batches/{$batch}/export")->assertUnauthorized();
+        $this->withHeaders(['Authorization' => ''])
+            ->get("/api/v1/finance/distribution-batches/{$batch}/export")->assertUnauthorized();
     }
 }
