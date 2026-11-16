@@ -136,6 +136,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}/documentary/overview', [VehicleAccountabilityController::class, 'index'])
             ->middleware(['permission:scenarios.manage', 'throttle:repasse-admin-read'])
             ->name('api.v1.cases.documentary.overview');
+        Route::get('/{case}/documentary/export', [VehicleAccountabilityController::class, 'export'])
+            ->middleware(['permission:scenarios.manage', 'throttle:repasse-admin-read'])
+            ->name('api.v1.cases.documentary.export');
 
         // Pacotes de prestação de contas e conferência: snapshots não executáveis.
         // Ler exige dossiês + cenários; criar exige uma terceira permissão específica.
