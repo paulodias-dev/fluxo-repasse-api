@@ -204,7 +204,31 @@ final class CasePackagesTest extends TestCase
         $this->assertDatabaseCount('repasse_case_packages', 1);
     }
 
-    public function test_archived_case_preserves_download_but_rejects_new_package(): void
+    public function test_archived_evidence_must_not_be_reexposed_by_an_old_package_zip(): void
+    {
+        $jwt = $this->token();
+        $ids = $this->fixtures($jwt);
+        $base = "/api/v1/repasse-cases/{$ids['case']}/packages";
+        $input = $this->data($ids);
+        $hash = $this->withToken($jwt)->postJson("$base/preview", $input)
+            ->assertOk()->json('data.manifest_sha256');
+        $package = $this->withToken($jwt)->postJson($base, $input + [
+            'request_key' => (string) Str::uuid(), 'expected_manifest_sha256' => $hash,
+        ])->assertCreated()->json('data.id');
+        $this->withToken($jwt)->patchJson(
+            "/api/v1/repasse-cases/{$ids['case']}/evidence/{$ids['file']}/archive", []
+        )->assertOk();
+        $this->withToken($jwt)->getJson("$base/$package")->assertOk()
+            ->assertJsonPath('data.manifest.evidence.0.name', 'comprovante.pdf');
+        $this->withToken($jwt)->getJson("$base/$package/integrity")
+            ->assertOk()->assertJsonPath('data.available_for_download', false)
+            ->assertJsonPath('data.evidence_integrity', false);
+        if (class_exists(ZipArchive::class)) {
+            $this->withToken($jwt)->get("$base/$package/download")->assertConflict();
+        }
+    }
+
+    public function test_archived_case_preserves_historical_zip_but_rejects_new_package(): void
     {
         $jwt = $this->token();
         $ids = $this->fixtures($jwt);
