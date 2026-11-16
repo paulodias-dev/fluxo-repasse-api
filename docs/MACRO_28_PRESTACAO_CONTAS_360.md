@@ -10,8 +10,8 @@ Esta etapa une o processo completo de cenários hipotéticos, revisões document
 5. Cenário conferido na revisão atual pode iniciar o pacote com cenário + parecer pré-selecionados. Anexos ainda são selecionados manualmente e a prévia SHA-256 + confirmação continuam obrigatórias.
 6. Reuso do módulo de pacote: comparação, versões, integridade dos anexos privados, download ZIP, registros de autoria e hash. Nenhum pagamento, comissão ou liquidação.
 7. Frontend: uma aba Prestação de contas 360 na ficha já existente, em lugar de duas abas separadas; links para os editores globais de simulações, modelos, lotes e pareceres.
-8. Testes feature novos (7): RBAC 401/403, cenário vazio, conferência por operador independente, revisão obsoleta, arquivamento, pacote real com escopo por veículo, filtros e paginação.
-9. OpenAPI 1.8 e documentação de etapas atualizadas.
+8. Testes feature novos (9): RBAC 401/403, cenário vazio, conferência por operador independente, revisão obsoleta, arquivamento, pacote real com escopo por veículo, filtros e paginação.
+9. Exportação CSV filtrada com proteção anti-fórmula e 2 regressões adicionais de integridade monetária e idempotência. OpenAPI 1.8 e documentação de etapas atualizadas.
 
 ## Segurança e limites
 Não introduz tabelas, migrations nem armazenamento novo. A consulta agrupa cenários, revisões e alocações por ID antes dos cálculos para evitar multiplicação de centavos. A interface nunca substitui a autorização do backend. Permissão packages.manage é obrigatória para gravar pacote. Os campos financial_authorization e payment_enabled são false.
