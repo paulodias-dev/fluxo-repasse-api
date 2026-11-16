@@ -329,3 +329,10 @@ A direção de trabalho mudou por solicitação expressa do responsável: **prio
 O roadmap antigo de 12 marcos (6 concluídos = 50%) não é baseline adequada para estimar um produto financeiro completo. O índice **permanece histórico**, não deve ser incrementado artificialmente.
 
 Macro 18: 7 frentes de implementação de cenários planejados, 7 frentes codificadas em PRs API/APP, testes focalizados escritos. Homologação Laravel/MySQL, Vitest, lint/build, smoke browser e aprovação das regras financeiras **pendentes**. Não declarar percentual global de execução financeira sem escopo aprovado e pesos realistas.
+
+
+## Macro 19 — Status de produto (modelos configuráveis e lotes)
+
+Código API + APP: 8 frentes operacionais entregues em PRs não draft, envolvendo modelos, cálculo em centavos, prévia, histórico, lote atômico/idempotente, CSV e UI. Testes dedicados escritos; execução em ambiente Laravel/MySQL e React/Vite PENDENTE. A macro 18 já foi incorporada à main.
+
+Não traduzir o índice técnico histórico 6/12 = 50% em conclusão financeira; é uma métrica antiga de marcos desiguais. Não aumentar arbitrariamente o percentual global enquanto faltarem requisitos reais de pagamento e organização. O progresso desta macro é 8/8 implementações de código, 0 de 1 gate de homologação comprovado.
