@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
+use App\Http\Controllers\Api\V1\PartyLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -39,6 +40,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.update');
         Route::patch('/{party}/status', [PartyController::class, 'status'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.status');
+        Route::get('/{party}/links', [PartyLinkController::class, 'index'])->name('api.v1.parties.links.index');
+        Route::post('/{party}/links', [PartyLinkController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.links.store');
+        Route::patch('/{party}/links/{link}', [PartyLinkController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.links.update');
         Route::get('/{party}/events', PartyEventController::class)
             ->middleware('throttle:repasse-admin-read')->name('api.v1.parties.events');
     });
