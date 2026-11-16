@@ -55,6 +55,16 @@ final class ScenarioReviewService
             }
             $scenario = DB::table('repasse_scenarios')->where('id', $scenarioId)
                 ->lockForUpdate()->firstOrFail();
+            // A concurrent retry may have inserted the key while this request
+            // waited for the scenario lock. Use a locking/current read here.
+            $afterLock = DB::table('repasse_scenario_reviews')
+                ->where('request_key', $requestKey)->lockForUpdate()->first();
+            if ($afterLock) {
+                if (! hash_equals($afterLock->payload_digest, $digest) || (int) $afterLock->requested_by !== $actor) {
+                    abort(409, 'Chave de solicitação já utilizada em outra revisão.');
+                }
+                return ['id' => (int) $afterLock->id, 'created' => false];
+            }
             $case = DB::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
             if ($scenario->archived_at !== null || $case->status !== 'draft') {
                 throw ValidationException::withMessages(['scenario_id' => 'O cenário e o dossiê precisam estar abertos.']);
