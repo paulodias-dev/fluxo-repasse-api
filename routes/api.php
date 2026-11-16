@@ -190,6 +190,8 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.finance.reviews.decide');
         Route::get('/reviews/{review}/events', [ScenarioReviewController::class, 'events'])
             ->name('api.v1.finance.reviews.events');
+        Route::get('/reviews/{review}/snapshot', [ScenarioReviewController::class, 'snapshot'])
+            ->name('api.v1.finance.reviews.snapshot');
         Route::get('/reviews/{review}/integrity', [ScenarioReviewController::class, 'integrity'])
             ->name('api.v1.finance.reviews.integrity');
         Route::get('/reviews/{review}/export', [ScenarioReviewController::class, 'export'])
