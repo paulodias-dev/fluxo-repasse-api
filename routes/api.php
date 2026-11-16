@@ -4,6 +4,9 @@ use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CaseEvidenceController;
+use App\Http\Controllers\Api\V1\CaseWorkController;
+use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
@@ -66,6 +69,39 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.detach');
         Route::get('/{case}/events', [RepasseCaseController::class, 'events'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.events');
+        Route::get('/{case}/tasks', [CaseWorkController::class, 'tasks'])->name('api.v1.cases.tasks');
+        Route::post('/{case}/tasks', [CaseWorkController::class, 'createTask'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.store');
+        Route::patch('/{case}/tasks/{task}', [CaseWorkController::class, 'updateTask'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.update');
+        Route::get('/{case}/checklist', [CaseWorkController::class, 'checklist'])->name('api.v1.cases.checklist');
+        Route::post('/{case}/checklist', [CaseWorkController::class, 'addChecklist'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.checklist.store');
+        Route::patch('/{case}/checklist/{item}', [CaseWorkController::class, 'updateChecklist'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.checklist.update');
+        Route::get('/{case}/notes', [CaseWorkController::class, 'notes'])->name('api.v1.cases.notes');
+        Route::post('/{case}/notes', [CaseWorkController::class, 'addNote'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.notes.store');
+        Route::get('/{case}/evidence', [CaseEvidenceController::class, 'index'])->name('api.v1.cases.evidence');
+        Route::post('/{case}/evidence', [CaseEvidenceController::class, 'upload'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.store');
+        Route::get('/{case}/evidence/{evidence}/download', [CaseEvidenceController::class, 'download'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.evidence.download');
+        Route::patch('/{case}/evidence/{evidence}/archive', [CaseEvidenceController::class, 'archive'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.archive');
+    });
+
+    Route::prefix('operations')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:cases.manage',
+    ])->group(function (): void {
+        Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
+            ->name('api.v1.operations.dashboard');
+        Route::get('/assignees', [OperationsCenterController::class, 'assignees'])
+            ->name('api.v1.operations.assignees');
+        Route::get('/tasks', [OperationsCenterController::class, 'tasks'])
+            ->name('api.v1.operations.tasks');
+        Route::get('/export', [OperationsCenterController::class, 'export'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.export');
     });
 
     Route::prefix('admin/access')->middleware([

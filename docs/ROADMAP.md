@@ -209,3 +209,19 @@ Regras de cálculo, repasses, comissões e obrigações fiscais seguem NÃO ESPE
 **Prioridade a partir de agora:** módulos de negócio por macroentrega substancial. Backlog condicional: vínculos entre participantes, configuração de regras e eventos de repasse, lançamento/validação, aprovação e liquidação, conciliação, relatórios. **Não implementar regras de cálculo ou transferências sem escopo aprovado**.
 
 O percentual global financeiro **não é aferível** sem o escopo original, e a antiga métrica 6/12 = 50% representa apenas marcos técnicos.
+
+
+## Macroentrega 17 — CENTRAL OPERACIONAL (entrega grande e integrada)
+
+**Seis frentes de negócio administrativo em um único par de PRs**: painel operacional, fila global de tarefas e prazos, tarefas atribuíveis dentro do dossiê, checklist editável, notas permanentes, documentos privados + exportação CSV.
+
+- [x] Código API para as quatro tabelas, endpoints com `cases.manage`, registro de eventos e arquivo privado.
+- [x] Painel React com indicadores reais e filtros de trabalho.
+- [x] Tarefas, checklist, notas, documentos, paginação e navegação direta para o dossiê.
+- [x] OpenAPI e documentação do bloco; testes focalizados escritos.
+- [ ] Executar PHPUnit e lint/build/Vitest, migrar MySQL autorizado e realizar smoke único integrado.
+- [ ] Homologação final de backups, restore e dispositivos reais.
+
+**Regra de medição:** frentes de código da macro 17 = 6/6 entregues em branch; não usar 6/6 como percentual de conclusão financeira. Baseline de produto depende da definição de regras de repasse, ainda não recuperadas.
+
+Próximo pacote substancial: motor financeiro + aprovações + trilha monetária + liquidação/conciliação, condicionado à aprovação das regras de origem/destino, cálculo, repasses, cancelamentos e gateways. Não voltar a entregar macros isoladas de QA.
