@@ -202,6 +202,25 @@ final class VehicleAccountabilityWorkflowTest extends TestCase
             ->assertJsonPath('data.summary.packages_total', 0);
     }
 
+    public function test_documentary_csv_preserves_filter_and_blocks_spreadsheet_formulas(): void
+    {
+        [, $jwt] = $this->login(['cases.manage', 'scenarios.manage']);
+        $case = $this->vehicle($jwt);
+        $this->scenario($jwt, $case, '=HYPERLINK("http://bad.test")');
+        $this->scenario($jwt, $case, 'Outro cenário regular');
+        $base = "/api/v1/repasse-cases/{$case}/documentary";
+
+        $csv = $this->withToken($jwt)->get("$base/export?search=HYPERLINK")
+            ->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->streamedContent();
+
+        $this->assertStringContainsString("'=HYPERLINK", $csv);
+        $this->assertStringNotContainsString('Outro cenário regular', $csv);
+        $this->assertStringContainsString('SEM LIQUIDAÇÃO', $csv);
+        $this->withToken($jwt)->getJson("$base/export?review_state=paid")
+            ->assertUnprocessable()->assertJsonValidationErrors('review_state');
+    }
+
     public function test_validation_search_escape_and_stable_pagination(): void
     {
         [, $jwt] = $this->login(['cases.manage', 'scenarios.manage']);
