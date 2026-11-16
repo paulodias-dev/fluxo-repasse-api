@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,23 @@ final class OperationsCenterController extends Controller
 
         return response()->json(['stats' => $stats, 'recent_cases' => $recent,
             'upcoming_tasks' => $due, 'as_of' => now()->toIso8601String()])
+            ->header('Cache-Control', 'no-store');
+    }
+
+    public function assignees(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'search' => ['sometimes', 'string', 'max:100'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $query = User::query()->where('is_active', true)
+            ->whereHas('roles.permissions', fn ($q) => $q->where('key', 'cases.manage'))
+            ->select(['id', 'name'])->orderBy('name')->orderBy('id');
+        if (trim($data['search'] ?? '') !== '') {
+            $term = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($data['search']));
+            $query->where('name', 'like', '%'.$term.'%');
+        }
+        return response()->json($query->paginate(30))
             ->header('Cache-Control', 'no-store');
     }
 
