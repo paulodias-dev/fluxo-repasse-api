@@ -89,7 +89,9 @@ final class OperationalAcceptance
         foreach (self::TABLES as $name => $tables) {
             $missing = [];
             foreach ($tables as $table) {
-                if (! Schema::hasTable($table)) $missing[] = $table;
+                if (! Schema::hasTable($table)) {
+                    $missing[] = $table;
+                }
             }
             $data['table_groups'][$name] = [
                 'ready' => $missing === [], 'missing_tables' => $missing,
@@ -108,7 +110,9 @@ final class OperationalAcceptance
             $missing = array_values(array_filter($columns,
                 static fn (string $column): bool => ! Schema::hasColumn($table, $column)
             ));
-            if ($missing !== []) $data['missing_columns'][$table] = $missing;
+            if ($missing !== []) {
+                $data['missing_columns'][$table] = $missing;
+            }
         }
         $checks[] = ['id' => 'required_columns',
             'ok' => $data['missing_columns'] === []];
