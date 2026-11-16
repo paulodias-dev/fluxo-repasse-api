@@ -318,3 +318,20 @@ Incidente da tela /dashboard: conta autenticada com um grant users.manage e apen
 A macro prioriza **desbloquear o uso de funcionalidades já implementadas**, não criar mais um módulo invisível. A nova migration só funciona depois de atualizar a API e executar php artisan migrate com backup e novo login.
 
 **Evolução local:** nove frentes concluídas em código; nenhuma porcentagem global de implementação financeira é inferida.
+
+
+## Macroentrega 24 — Integração financeira operacional ao veículo 360 (PR pendente de publicação)
+
+- [x] Busca de veículos aprimorada por título, placa, chassi, marca, modelo e procedência, sem alterar os contratos de integração anteriores.
+- [x] Suíte de integração ponta a ponta da API escrita: veículo, participantes, cenário, modelo de distribuição, prévia, lote, parecer e pacote documental.
+- [x] Segurança revisada no teste: a permissão `cases.manage` sozinha não autoriza cenários, revisões ou pacotes.
+- [x] Rotas REST financeiras anteriores preservadas; não foram criadas transações bancárias nem novas permissões financeiras.
+- [x] React conectado ao novo layout com editor de cenários, modelos e lotes, pareceres, pacotes por veículo, exportação e histórico.
+- [ ] PHPUnit, Pint, migrations de homologação, build React, lint e testes end-to-end executados no ambiente real.
+- [ ] Homologação dos fluxos em contas com papéis diferentes, incluindo dispositivos móveis e permissões parciais.
+
+**Escopo:** cinco frentes funcionais: cenários, modelos, lotes, revisões e pacotes. A macro não representa pagamentos reais e não completa o produto financeiro sem regras de negócio aprovadas.
+
+**Compatibilidade:** os conceitos técnicos `repasse_cases` e `scenarios` continuam no backend; no novo frontend, a entidade principal é apresentada como **Veículo**. Não há alteração destrutiva de migrations nesta macro.
+
+**Métrica global:** percentual de conclusão do produto ainda não aferível com segurança; não reutilizar os 50% históricos como medição das operações de veículos e repasses.
