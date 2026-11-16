@@ -285,6 +285,26 @@ final class ScenarioReviewService
         ];
     }
 
+    public function snapshot(int $reviewId, ScenarioPlanner $planner): array
+    {
+        $review = $this->show($reviewId);
+        // Read the exact immutable scenario VERSION requested, never the current edited draft.
+        // ScenarioPlanner::versionDetail independently verifies its SHA-256 before returning.
+        $version = $planner->versionDetail($review['scenario_id'], $review['scenario_revision']);
+        $snapshot = $version['snapshot'];
+        return [
+            'review_id' => $reviewId,
+            'scenario_id' => $review['scenario_id'],
+            'scenario_revision' => $review['scenario_revision'],
+            'scenario_sha256' => $version['sha256'],
+            'is_stale' => $review['is_stale'],
+            'snapshot' => $snapshot,
+            'source' => 'immutable_scenario_version',
+            'financial_authorization' => false,
+            'payment_enabled' => false,
+        ];
+    }
+
     public function verify(int $reviewId): array
     {
         $this->show($reviewId);
