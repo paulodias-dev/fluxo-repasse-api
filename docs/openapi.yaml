@@ -890,6 +890,32 @@ paths:
         '404': { description: Veículo, lançamento ou comprovante não localizado }
         '409': { description: Comprovante inválido ou integridade divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/documentary/export:
+    get:
+      operationId: vehicleDocumentaryExportCsv
+      tags: [Prestação de contas documental]
+      summary: Exportar status documental do veículo em CSV filtrado e sem cache
+      description: |
+        Requer JWT, session.current, cases.manage E scenarios.manage.
+        Compartilha a mesma projeção de estados da consulta overview, exporta
+        todos os cenários que atendam aos filtros em páginas internas e protege
+        células textuais contra injeção de fórmulas. Sem autorização bancária.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, draft, archived], default: all } }
+        - { name: review_state, in: query, schema: { type: string, enum: [all, not_requested, pending, reviewed, changes_requested, withdrawn, stale, archived], default: all } }
+      responses:
+        '200':
+          description: CSV documental filtrado, em centavos, sem dados bancários
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /repasse-cases/{case}/documentary/overview:
     get:
       operationId: vehicleDocumentaryOverview
