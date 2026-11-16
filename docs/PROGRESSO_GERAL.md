@@ -336,3 +336,12 @@ Macro 18: 7 frentes de implementação de cenários planejados, 7 frentes codifi
 Código API + APP: 8 frentes operacionais entregues em PRs não draft, envolvendo modelos, cálculo em centavos, prévia, histórico, lote atômico/idempotente, CSV e UI. Testes dedicados escritos; execução em ambiente Laravel/MySQL e React/Vite PENDENTE. A macro 18 já foi incorporada à main.
 
 Não traduzir o índice técnico histórico 6/12 = 50% em conclusão financeira; é uma métrica antiga de marcos desiguais. Não aumentar arbitrariamente o percentual global enquanto faltarem requisitos reais de pagamento e organização. O progresso desta macro é 8/8 implementações de código, 0 de 1 gate de homologação comprovado.
+
+
+## Macro 20 — governança de propostas
+
+Foram codificadas nove frentes de revisão documental (solicitação, fila, indicadores, RBAC/revisor, parecer, obsolescência, comentários/retirada, snapshots e auditoria, CSV + UI integrada). Os testes específicos são parte dos PRs, mas ainda não houve comprovação de execução Laravel/MySQL/Vitest/build ou homologação.
+
+O índice histórico 6/12=50% permanece apenas como informação do roadmap técnico original, não deve ser atualizado automaticamente. Percentual global do produto financeiro permanece NÃO MENSURÁVEL sem escopo formal e pesos funcionais aprovados.
+
+**IMPORTANTE:** reviewed é parecer documental, não autorização monetária, lançamento financeiro, obrigação a pagar ou saldo.
