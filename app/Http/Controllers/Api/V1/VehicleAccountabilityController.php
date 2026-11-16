@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Operational read model for the existing documentary workflow.
@@ -35,51 +36,7 @@ final class VehicleAccountabilityController extends Controller
             ->select('id', 'title', 'status', 'plate', 'brand', 'model', 'updated_at')
             ->firstOrFail();
 
-        // Each scenario receives at most one latest review and one allocation
-        // aggregate. Filtering occurs OUTSIDE this projection so the same
-        // review-state logic is used for KPIs and paginated table rows.
-        $latestReview = DB::table('repasse_scenario_reviews')
-            ->select('scenario_id')->selectRaw('MAX(id) AS latest_id')
-            ->groupBy('scenario_id');
-        $allocations = DB::table('repasse_scenario_allocations')
-            ->select('repasse_scenario_id')->selectRaw('COUNT(*) AS allocation_count')
-            ->selectRaw('COALESCE(SUM(amount_cents), 0) AS allocated_cents')
-            ->groupBy('repasse_scenario_id');
-
-        $state = "CASE
-            WHEN s.archived_at IS NOT NULL OR c.status <> 'draft' THEN 'archived'
-            WHEN r.id IS NULL THEN 'not_requested'
-            WHEN r.scenario_revision <> s.revision OR r.scenario_digest <> s.current_digest THEN 'stale'
-            WHEN r.status = 'pending' THEN 'pending'
-            WHEN r.status = 'reviewed' THEN 'reviewed'
-            WHEN r.status = 'changes_requested' THEN 'changes_requested'
-            WHEN r.status = 'withdrawn' THEN 'withdrawn'
-            ELSE 'not_requested' END";
-
-        $base = DB::table('repasse_scenarios as s')
-            ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
-            ->leftJoinSub($latestReview, 'last_review', static function ($join): void {
-                $join->on('last_review.scenario_id', '=', 's.id');
-            })
-            ->leftJoin('repasse_scenario_reviews as r', 'r.id', '=', 'last_review.latest_id')
-            ->leftJoin('users as u', 'u.id', '=', 'r.assigned_to')
-            ->leftJoinSub($allocations, 'alloc', static function ($join): void {
-                $join->on('alloc.repasse_scenario_id', '=', 's.id');
-            })
-            ->where('s.repasse_case_id', $case)
-            ->select([
-                's.id', 's.title', 's.revision', 's.gross_amount_cents',
-                's.archived_at', 's.updated_at', 's.created_by',
-                'r.id as last_review_id', 'r.status as last_review_status',
-                'r.revision as last_review_revision',
-                'r.scenario_revision as reviewed_scenario_revision',
-                'r.assigned_to as reviewer_id', 'u.name as reviewer_name',
-                'r.due_on as review_due_on', 'r.created_at as review_created_at',
-            ])
-            ->selectRaw('COALESCE(alloc.allocation_count, 0) AS allocation_count')
-            ->selectRaw('COALESCE(alloc.allocated_cents, 0) AS allocated_cents')
-            ->selectRaw('CAST(s.gross_amount_cents AS DECIMAL(25, 0)) - COALESCE(alloc.allocated_cents, 0) AS difference_cents')
-            ->selectRaw("{$state} AS review_state");
+        $base = $this->portfolio($case);
 
         $whole = DB::query()->fromSub($base, 'portfolio');
         $totalsRow = (clone $whole)->selectRaw("
@@ -97,19 +54,7 @@ final class VehicleAccountabilityController extends Controller
         $totals = [];
         foreach ((array) $totalsRow as $key => $value) $totals[$key] = (int) $value;
 
-        $table = DB::query()->fromSub($base, 'portfolio');
-        if (($input['status'] ?? 'all') === 'draft') {
-            $table->whereNull('portfolio.archived_at');
-        } elseif (($input['status'] ?? 'all') === 'archived') {
-            $table->whereNotNull('portfolio.archived_at');
-        }
-        if (($input['review_state'] ?? 'all') !== 'all') {
-            $table->where('portfolio.review_state', $input['review_state']);
-        }
-        if (trim($input['search'] ?? '') !== '') {
-            $term = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], trim($input['search']));
-            $table->where('portfolio.title', 'like', '%'.$term.'%');
-        }
+        $table = $this->filtered($base, $input);
 
         $page = $table->orderByDesc('portfolio.updated_at')->orderByDesc('portfolio.id')
             ->paginate(20);
@@ -159,5 +104,126 @@ final class VehicleAccountabilityController extends Controller
                 'payment_enabled' => false,
             ],
         ])->header('Cache-Control', 'no-store, private');
+    }
+
+    /**
+     * All views, exports and counters use the SAME documentary state
+     * projection. Latest review is fixed by MAX(id), not by a random join.
+     */
+    private function portfolio(int $case): Builder
+    {
+        // Each scenario receives at most one latest review and one allocation
+        // aggregate. Filtering occurs OUTSIDE this projection so the same
+        // review-state logic is used for KPIs and paginated table rows.
+        $latestReview = DB::table('repasse_scenario_reviews')
+            ->select('scenario_id')->selectRaw('MAX(id) AS latest_id')
+            ->groupBy('scenario_id');
+        $allocations = DB::table('repasse_scenario_allocations')
+            ->select('repasse_scenario_id')->selectRaw('COUNT(*) AS allocation_count')
+            ->selectRaw('COALESCE(SUM(amount_cents), 0) AS allocated_cents')
+            ->groupBy('repasse_scenario_id');
+
+        $state = "CASE
+            WHEN s.archived_at IS NOT NULL OR c.status <> 'draft' THEN 'archived'
+            WHEN r.id IS NULL THEN 'not_requested'
+            WHEN r.scenario_revision <> s.revision OR r.scenario_digest <> s.current_digest THEN 'stale'
+            WHEN r.status = 'pending' THEN 'pending'
+            WHEN r.status = 'reviewed' THEN 'reviewed'
+            WHEN r.status = 'changes_requested' THEN 'changes_requested'
+            WHEN r.status = 'withdrawn' THEN 'withdrawn'
+            ELSE 'not_requested' END";
+
+        return DB::table('repasse_scenarios as s')
+            ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
+            ->leftJoinSub($latestReview, 'last_review', static function ($join): void {
+                $join->on('last_review.scenario_id', '=', 's.id');
+            })
+            ->leftJoin('repasse_scenario_reviews as r', 'r.id', '=', 'last_review.latest_id')
+            ->leftJoin('users as u', 'u.id', '=', 'r.assigned_to')
+            ->leftJoinSub($allocations, 'alloc', static function ($join): void {
+                $join->on('alloc.repasse_scenario_id', '=', 's.id');
+            })
+            ->where('s.repasse_case_id', $case)
+            ->select([
+                's.id', 's.title', 's.revision', 's.gross_amount_cents',
+                's.archived_at', 's.updated_at', 's.created_by',
+                'r.id as last_review_id', 'r.status as last_review_status',
+                'r.revision as last_review_revision',
+                'r.scenario_revision as reviewed_scenario_revision',
+                'r.assigned_to as reviewer_id', 'u.name as reviewer_name',
+                'r.due_on as review_due_on', 'r.created_at as review_created_at',
+            ])
+            ->selectRaw('COALESCE(alloc.allocation_count, 0) AS allocation_count')
+            ->selectRaw('COALESCE(alloc.allocated_cents, 0) AS allocated_cents')
+            ->selectRaw('CAST(s.gross_amount_cents AS DECIMAL(25, 0)) - COALESCE(alloc.allocated_cents, 0) AS difference_cents')
+            ->selectRaw("{$state} AS review_state");
+
+    }
+
+    private function filtered(Builder $base, array $input): Builder
+    {
+        $table = DB::query()->fromSub($base, 'portfolio');
+        if (($input['status'] ?? 'all') === 'draft') {
+            $table->whereNull('portfolio.archived_at');
+        } elseif (($input['status'] ?? 'all') === 'archived') {
+            $table->whereNotNull('portfolio.archived_at');
+        }
+        if (($input['review_state'] ?? 'all') !== 'all') {
+            $table->where('portfolio.review_state', $input['review_state']);
+        }
+        if (trim($input['search'] ?? '') !== '') {
+            $term = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], trim($input['search']));
+            $table->where('portfolio.title', 'like', '%'.$term.'%');
+        }
+
+        return $table;
+    }
+
+    public function export(Request $request, int $case): StreamedResponse
+    {
+        $input = $request->validate([
+            'search' => ['sometimes', 'string', 'max:100'],
+            'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
+            'review_state' => ['sometimes', Rule::in(self::REVIEW_STATES)],
+        ]);
+        DB::table('repasse_cases')->where('id', $case)->firstOrFail();
+        $query = $this->filtered($this->portfolio($case), $input);
+
+        return response()->streamDownload(function () use ($query): void {
+            $out = fopen('php://output', 'wb');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'Veículo: cenário ID', 'Título', 'Revisão atual',
+                'Total previsto em centavos', 'Alocado em centavos',
+                'Diferença em centavos', 'Destinatários', 'Estado documental',
+                'Parecer ID', 'Revisão do parecer', 'Revisor', 'Prazo',
+                'Nota: não autoriza pagamentos',
+            ], ';');
+            $query->chunkById(200, function ($rows) use ($out): void {
+                foreach ($rows as $row) {
+                    fputcsv($out, [
+                        $row->id, $this->safe((string) $row->title),
+                        $row->revision, $row->gross_amount_cents,
+                        $row->allocated_cents, $row->difference_cents,
+                        $row->allocation_count, $row->review_state,
+                        $row->last_review_id, $row->reviewed_scenario_revision,
+                        $this->safe($row->reviewer_name), $row->review_due_on,
+                        'SIMULAÇÃO DOCUMENTAL - SEM LIQUIDAÇÃO',
+                    ], ';');
+                }
+            }, 'portfolio.id', 'id');
+            fclose($out);
+        }, "veiculo-{$case}-prestacao-documental.csv", [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    private function safe(?string $value): string
+    {
+        $clean = ltrim(str_replace(["\r", "\n", "\t"], ' ', $value ?? ''));
+
+        return preg_match('/^[=+@\-]/u', $clean) ? "'".$clean : $clean;
     }
 }
