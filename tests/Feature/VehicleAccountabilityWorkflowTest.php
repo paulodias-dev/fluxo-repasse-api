@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -119,6 +120,65 @@ final class VehicleAccountabilityWorkflowTest extends TestCase
             ->assertJsonPath('data.summary.reviewed', 1)
             ->assertJsonPath('data.payment_enabled', false);
         $this->assertNotEquals($author->id, $reviewer->id);
+    }
+
+    public function test_latest_of_two_reviews_and_multiple_allocations_do_not_double_count_a_scenario(): void
+    {
+        [, $authorToken] = $this->login(['cases.manage', 'scenarios.manage']);
+        [$reviewer, $reviewerToken] = $this->login([
+            'cases.manage', 'scenarios.manage', 'scenario_reviews.manage',
+        ]);
+        $vehicle = $this->vehicle($authorToken);
+        $recipientA = Party::query()->create(['type' => 'person', 'name' => 'Participante A']);
+        $recipientB = Party::query()->create(['type' => 'company', 'name' => 'Participante B']);
+        foreach ([$recipientA, $recipientB] as $party) {
+            $this->withToken($authorToken)->postJson("/api/v1/repasse-cases/{$vehicle}/parties", [
+                'party_id' => $party->id,
+            ])->assertCreated();
+        }
+        $scenario = $this->withToken($authorToken)->postJson('/api/v1/finance/scenarios', [
+            'case_id' => $vehicle, 'client_reference' => (string) Str::uuid(),
+            'title' => 'Rateio documental com duas partes',
+            'description' => null, 'source_party_id' => null,
+            'gross_amount_cents' => 10000,
+            'allocations' => [
+                ['party_id' => $recipientA->id, 'amount_cents' => 6000],
+                ['party_id' => $recipientB->id, 'amount_cents' => 4000],
+            ],
+        ])->assertCreated()->json('data.id');
+
+        $request = [
+            'scenario_revision' => 1,
+            'request_note' => 'Solicito conferência de documentos vinculados.',
+            'assigned_to' => $reviewer->id,
+        ];
+        $first = $this->withToken($authorToken)->postJson(
+            "/api/v1/finance/scenarios/{$scenario}/reviews",
+            $request + ['request_key' => (string) Str::uuid()]
+        )->assertCreated()->json('data.id');
+        $this->withToken($reviewerToken)->postJson("/api/v1/finance/reviews/{$first}/decide", [
+            'revision' => 1, 'decision' => 'changes_requested',
+            'note' => 'Necessário complementar documentos do veículo.',
+        ])->assertOk();
+        $latest = $this->withToken($authorToken)->postJson(
+            "/api/v1/finance/scenarios/{$scenario}/reviews",
+            $request + ['request_key' => (string) Str::uuid()]
+        )->assertCreated()->json('data.id');
+
+        $this->withToken($authorToken)->getJson(
+            "/api/v1/repasse-cases/{$vehicle}/documentary/overview"
+        )->assertOk()
+            ->assertJsonPath('data.summary.scenarios_total', 1)
+            ->assertJsonPath('data.summary.pending', 1)
+            ->assertJsonPath('data.summary.changes_requested', 0)
+            ->assertJsonPath('data.summary.scenarios_balanced', 1)
+            ->assertJsonPath('data.scenarios.data.0.id', $scenario)
+            ->assertJsonPath('data.scenarios.data.0.last_review_id', $latest)
+            ->assertJsonPath('data.scenarios.data.0.allocation_count', 2)
+            ->assertJsonPath('data.scenarios.data.0.gross_amount_cents', 10000)
+            ->assertJsonPath('data.scenarios.data.0.allocated_cents', 10000)
+            ->assertJsonPath('data.scenarios.data.0.difference_cents', 0)
+            ->assertJsonCount(1, 'data.scenarios.data');
     }
 
     public function test_scenario_revision_makes_previous_review_stale_without_losing_history(): void
