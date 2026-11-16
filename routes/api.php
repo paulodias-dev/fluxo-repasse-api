@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
 use App\Http\Controllers\Api\V1\RepasseScenarioController;
+use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
@@ -163,6 +164,37 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.finance.distributions.batches.show');
         Route::get('/distribution-batches/{batch}/export', [DistributionWorkbenchController::class, 'exportBatch'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.distributions.batches.export');
+
+        // Pareceres DOCUMENTAIS: nenhuma decisão autoriza execução financeira.
+        Route::get('/reviews/summary', [ScenarioReviewController::class, 'summary'])
+            ->name('api.v1.finance.reviews.summary');
+        Route::get('/reviews/reviewers', [ScenarioReviewController::class, 'reviewers'])
+            ->name('api.v1.finance.reviews.reviewers');
+        Route::get('/reviews', [ScenarioReviewController::class, 'index'])
+            ->name('api.v1.finance.reviews.index');
+        Route::get('/scenarios/{scenario}/reviews', [ScenarioReviewController::class, 'forScenario'])
+            ->name('api.v1.finance.reviews.scenario');
+        Route::post('/scenarios/{scenario}/reviews', [ScenarioReviewController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.reviews.store');
+        Route::get('/reviews/{review}', [ScenarioReviewController::class, 'show'])
+            ->name('api.v1.finance.reviews.show');
+        Route::post('/reviews/{review}/comment', [ScenarioReviewController::class, 'comment'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.reviews.comment');
+        Route::post('/reviews/{review}/withdraw', [ScenarioReviewController::class, 'withdraw'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.reviews.withdraw');
+        Route::post('/reviews/{review}/assign', [ScenarioReviewController::class, 'assign'])
+            ->middleware(['permission:scenario_reviews.manage', 'throttle:repasse-admin-write'])
+            ->name('api.v1.finance.reviews.assign');
+        Route::post('/reviews/{review}/decide', [ScenarioReviewController::class, 'decide'])
+            ->middleware(['permission:scenario_reviews.manage', 'throttle:repasse-admin-write'])
+            ->name('api.v1.finance.reviews.decide');
+        Route::get('/reviews/{review}/events', [ScenarioReviewController::class, 'events'])
+            ->name('api.v1.finance.reviews.events');
+        Route::get('/reviews/{review}/integrity', [ScenarioReviewController::class, 'integrity'])
+            ->name('api.v1.finance.reviews.integrity');
+        Route::get('/reviews/{review}/export', [ScenarioReviewController::class, 'export'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.reviews.export');
+
 
     });
 
