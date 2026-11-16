@@ -18,6 +18,7 @@ final class AdminSeederSecurityTest extends TestCase
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseHas('roles', ['slug' => 'platform_admin']);
         $this->assertDatabaseHas('permissions', ['key' => 'users.manage']);
+        $this->assertDatabaseHas('permissions', ['key' => 'parties.manage']);
         $this->assertTrue(Role::query()->where('slug', 'platform_admin')->firstOrFail()
             ->permissions()->where('key', 'users.manage')->exists());
     }
@@ -29,6 +30,6 @@ final class AdminSeederSecurityTest extends TestCase
 
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('roles', 1);
-        $this->assertDatabaseCount('permissions', 1);
+        $this->assertDatabaseCount('permissions', 2);
     }
 }

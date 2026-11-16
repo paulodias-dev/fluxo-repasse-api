@@ -297,3 +297,28 @@ Documentos: `docs/MACRO_11_QA_REACT_LOCAL.md` na API e no APP.
 **Roadmap canônico permanece 6/12 = 50,00% de macromarcos totalmente encerrados**, sem percentual confiável de implementação financeira: especificação funcional ainda carece de validação. A entrega técnica 12 é uma melhoria de segurança e QA, não a conclusão do marco canônico 12.
 
 **Próxima entrega:** homologar QA real no Mac e corrigir falhas observadas, incluindo temporização do navegador/PWA e regressões CORS/404 antes de liberar produção.
+
+## Macroentrega funcional 13 — Pessoas e Empresas (módulo, não QA)
+
+A direção de trabalho mudou por solicitação expressa do responsável: **priorizar a entrega de módulos reais de negócio e interromper macroentregas repetitivas de QA**.
+
+- [x] Migração aditiva de `parties` e `party_events` com integridade referencial.
+- [x] Modelo de pessoa/empresa com dados básicos e observações internas.
+- [x] API de listagem, filtros, paginação e detalhamento.
+- [x] API de cadastro e edição com validação e normalização.
+- [x] Desativação/reativação sem exclusão física.
+- [x] Auditoria do cadastro na mesma transação de gravação.
+- [x] Permissão `parties.manage` integrada ao RBAC e seeder idempotente, sem criação de contas.
+- [x] Tela React mobile-first integrada à navegação real, formulários, filtros e histórico.
+- [x] Contrato OpenAPI 0.9 e documentação de implantação sem Docker.
+- [x] Testes funcionais essenciais **escritos** (8 backend + 4 UI), sem ciclos adicionais de infraestrutura.
+- [ ] Executar migrations/seed e homologar o CRUD em MySQL local autorizado.
+- [ ] Executar testes essenciais PHPUnit/Vitest/build no Mac e confirmar UI.
+
+**Macro funcional 13: 10/12 checkpoints de código/preparação = 83,33%, duas validações reais pendentes.** A contagem é de trabalho desta macro, não de módulos financeiros concluídos.
+
+**Módulos de negócio existentes agora:** 1) Usuários e acesso administrativo (base técnica); 2) Pessoas e Empresas (cadastro operacional). **Operações financeiras ativas: nenhuma** — regras de favorecidos/pagadores, repasses, taxas, cálculos, aprovação, bancos e tenants não foram aprovadas ou recuperadas da fonte original.
+
+**Percentual real de conclusão do produto:** ainda **não mensurável**, porque o documento de requisitos financeiros do Gemini não pôde ser acessado. O histórico `6/12 = 50%` refere-se exclusivamente ao roadmap técnico antigo e **não deve ser apresentado como 50% de conclusão do produto**.
+
+**Próximas macroentregas devem ser módulos**, não QA: relações entre cadastros, configurações do processo financeiro, geração/aprovação de repasses, histórico financeiro, conciliação e relatórios, **somente conforme regras de negócio confirmadas**. Não implementar monetização/transferência nem multi-tenant presumido.

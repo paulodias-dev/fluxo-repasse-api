@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
+use App\Http\Controllers\Api\V1\PartyController;
+use App\Http\Controllers\Api\V1\PartyEventController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -25,6 +27,22 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');
         });
     });
+    // Cadastro base de pessoas/empresas, sem conta bancária, valores ou regras de repasse.
+    Route::prefix('parties')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:parties.manage',
+    ])->group(function (): void {
+        Route::get('/', [PartyController::class, 'index'])->name('api.v1.parties.index');
+        Route::post('/', [PartyController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.store');
+        Route::get('/{party}', [PartyController::class, 'show'])->name('api.v1.parties.show');
+        Route::patch('/{party}', [PartyController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.update');
+        Route::patch('/{party}/status', [PartyController::class, 'status'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.status');
+        Route::get('/{party}/events', PartyEventController::class)
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.parties.events');
+    });
+
     Route::prefix('admin')->middleware([
         'bearer.only', 'auth:api', 'session.current', 'permission:users.manage',
     ])->group(function (): void {
