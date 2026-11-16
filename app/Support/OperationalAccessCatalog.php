@@ -23,7 +23,7 @@ final class OperationalAccessCatalog
         'parties' => ['name' => 'Pessoas e empresas', 'requires' => ['parties.manage']],
         'access' => ['name' => 'Papéis e acessos', 'requires' => ['roles.manage']],
         'operations' => ['name' => 'Central operacional', 'requires' => ['cases.manage']],
-        'cases' => ['name' => 'Dossiês de repasse', 'requires' => ['cases.manage']],
+        'cases' => ['name' => 'Veículos — ambiente 360', 'requires' => ['cases.manage']],
         'scenarios' => ['name' => 'Cenários de repasse', 'requires' => ['cases.manage', 'scenarios.manage']],
         'reviews' => ['name' => 'Revisões documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
         'packages' => ['name' => 'Pacotes documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
