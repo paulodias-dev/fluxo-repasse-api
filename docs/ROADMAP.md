@@ -368,3 +368,20 @@ Uma etapa de negócio de ponta a ponta em API+React Metronic, sem voltar à frag
 Documentos: docs/MACRO_27_FINANCEIRO_VEICULO_360.md e docs/ETAPAS_FUNCIONAIS.md.
 
 **Progresso local:** 8/8 frentes codificadas. Sem % global artificial. A execução de repasses monetários reais segue bloqueada até aprovação das regras financeiras e isolamentos necessários.
+
+## Macroentrega 28 — ETAPA 4 INTEGRADA: Prestação de contas documental 360
+
+Marco de negócio entregue como UM bloco integrado em API e React (não micro-PRs):
+- [x] Carteira documental por veículo: nova consulta GET /repasse-cases/{case}/documentary/overview e relatório CSV filtrado, sob cases.manage + scenarios.manage.
+- [x] Cenários, revisões e pacotes em uma etapa única, com contagens globais e busca/paginação de 20 itens.
+- [x] Revisão atual/obsoleta determinada por versão+SHA; sinalização de arquivado, diferenças em centavos e documentos/pendências.
+- [x] Solicitar parecer com prazo e revisor opcional, atribuir, comentar e decidir com segregação existente entre criador/solicitante/revisor.
+- [x] Cenário conferido gera atalho para pacote com cenário+parecer pré-selecionados; prévia SHA-256, seleção de anexos e confirmação explícita continuam obrigatórias.
+- [x] Hash/ZIP, comparação e validação de integridade reaproveitados do módulo oficial, sem armazenamento paralelo.
+- [x] Ficha do Veículo 360 com uma aba Prestação de contas 360, preservando o layout adquirido e as telas detalhadas existentes.
+- [x] CSV anti-fórmula e sem cache; OpenAPI 1.8; 8 testes feature direcionados escritos, documentação e roteiro de aceite.
+- [ ] Executar PHPUnit/MySQL, Pint, build/lint React e smoke de duas contas desktop/mobile — etapa ainda NÃO homologada.
+
+Não cria migration, gateway ou permissão financeira; packages.manage continua obrigatória para emitir pacotes. Nem revisão 'reviewed' nem pacote verificado liberam transferências. A etapa 5 depende de regras financeiras aprovadas; a etapa 6 pode prosseguir com QA operacional das quatro primeiras.
+
+**Métrica:** etapas 1–4 têm código desenvolvido; etapas 1–4 ainda requerem evidência de homologação. Etapas 5 e 6 não estão concluídas. NÃO extrapolar porcentagem total do produto a partir de quantidade de etapas.
