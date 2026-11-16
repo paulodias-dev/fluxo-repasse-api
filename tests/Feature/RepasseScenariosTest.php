@@ -219,7 +219,7 @@ final class RepasseScenariosTest extends TestCase
             $this->draft($case, $source, $recipient))->assertCreated()->json('data.id');
         $this->withToken($token)->get("/api/v1/finance/scenarios/{$id}/export")
             ->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->assertHeader('Cache-Control', 'private, no-store');
+            ->assertHeader('Cache-Control', 'no-store, private');
         $this->get("/api/v1/finance/scenarios/{$id}/export")->assertUnauthorized();
     }
 }
