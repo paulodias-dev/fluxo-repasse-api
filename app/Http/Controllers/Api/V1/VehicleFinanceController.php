@@ -77,6 +77,21 @@ final class VehicleFinanceController extends Controller
             ->header('Cache-Control', 'no-store, private');
     }
 
+    public function events(Request $request, int $case, int $entry): JsonResponse
+    {
+        $this->operations->ensureExists($case);
+        $this->workspace->entry($case, $entry);
+        $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
+
+        return response()->json(DB::table('repasse_case_financial_events as e')
+            ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
+            ->where('e.repasse_case_id', $case)->where('e.entry_id', $entry)
+            ->select('e.id', 'e.event_type', 'e.details', 'e.actor_user_id',
+                'u.name as actor_name', 'e.created_at')
+            ->orderByDesc('e.id')->paginate(30))
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     public function summary(int $case): JsonResponse
     {
         $vehicle = $this->operations->ensureExists($case);
