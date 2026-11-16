@@ -27,7 +27,14 @@ final class RepasseCaseController extends Controller
         }
         if (trim($filters['search'] ?? '') !== '') {
             $term = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($filters['search']));
-            $query->where('title', 'like', '%'.$term.'%');
+            $query->where(function ($search) use ($term): void {
+                $search->where('title', 'like', '%'.$term.'%')
+                    ->orWhere('plate', 'like', '%'.$term.'%')
+                    ->orWhere('chassis', 'like', '%'.$term.'%')
+                    ->orWhere('brand', 'like', '%'.$term.'%')
+                    ->orWhere('model', 'like', '%'.$term.'%')
+                    ->orWhere('purchase_location', 'like', '%'.$term.'%');
+            });
         }
         return response()->json($query->orderByDesc('id')->paginate(15))
             ->header('Cache-Control', 'no-store');
