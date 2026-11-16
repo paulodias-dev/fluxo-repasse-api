@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.6.0
+  version: 1.7.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -478,6 +478,417 @@ paths:
                 $ref: '#/components/schemas/VehiclePortfolioResponse'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/summary:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceSummary
+      summary: Resumo gerencial do veículo
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/categories:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceCategories
+      summary: Listar categorias globais (single-org)
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: kind, in: query, schema: { type: string, enum: [all, expense, income] } }
+        - { name: include_inactive, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceCategoryCreate
+      summary: Criar categoria de despesa ou receita
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceCategoryInput' }
+      responses:
+        '201':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/categories/{category}:
+    patch:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceCategoryUpdate
+      summary: Renomear ou ativar/desativar categoria
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: category, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceCategoryUpdate' }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntries
+      summary: Filtrar e paginar lançamentos gerenciais
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: kind, in: query, schema: { type: string, enum: [all, expense, income] } }
+        - { name: status, in: query, schema: { type: string, enum: [all, planned, realized] } }
+        - { name: category_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: include_voided, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryCreate
+      summary: Criar lançamento com categoria livre ou cadastrada
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceEntryInput' }
+      responses:
+        '201':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryDetails
+      summary: Consultar lançamento, comprovantes e auditoria
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/events:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryAudit
+      summary: Histórico completo paginado dos eventos do lançamento financeiro
+      description: |
+        JWT vigente e cases.manage. Resposta paginada de 30 eventos em ordem
+        cronológica decrescente, inclusive depois de arquivar o veículo.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Eventos completos em páginas, sem truncamento silencioso
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou lançamento não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/replace:
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryReplace
+      summary: Retificar lançamento em transação com estorno e vínculo histórico
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceReplacementInput' }
+      responses:
+        '201':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/void:
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryVoid
+      summary: Estornar lançamento preservando o histórico
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceVoidInput' }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/documents:
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceDocumentAttach
+      summary: Enviar ou vincular comprovante privado ao lançamento
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/VehicleFinanceDocumentAttach' }
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleFinanceExistingDocumentLink' }
+      responses:
+        '201':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '200': { description: Documento já associado ao mesmo lançamento; operação idempotente }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/documents/{evidence}:
+    delete:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceDocumentDetach
+      summary: Desvincular comprovante sem excluir o arquivo original
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: evidence, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/documents/{evidence}/download:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceDocumentDownload
+      summary: Baixar comprovante original íntegro e não arquivado
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: evidence, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Arquivo privado com SHA-256 validado
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/report:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceReport
+      summary: Demonstrativos por categoria e competência, em centavos
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: kind, in: query, schema: { type: string, enum: [all, expense, income] } }
+        - { name: status, in: query, schema: { type: string, enum: [all, planned, realized] } }
+        - { name: category_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: include_voided, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta autenticada sem efeito bancário
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/export:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceExportCsv
+      summary: Exportar lançamentos gerenciais filtrados em CSV privado
+      description: |
+        Requer bearer JWT vigente, session.current e cases.manage. Operações
+        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
+        sem executar pagamento, cobrança, transferência ou liquidação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: kind, in: query, schema: { type: string, enum: [all, expense, income] } }
+        - { name: status, in: query, schema: { type: string, enum: [all, planned, realized] } }
+        - { name: category_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: include_voided, in: query, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: CSV gerencial sem cache
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, lançamento ou comprovante não localizado }
+        '409': { description: Comprovante inválido ou integridade divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
   /operations/dashboard:
     get:
@@ -2013,6 +2424,55 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    VehicleFinanceCategoryInput:
+      type: object
+      additionalProperties: false
+      required: [kind, name]
+      properties:
+        kind: { type: string, enum: [expense, income] }
+        name: { type: string, minLength: 2, maxLength: 80 }
+    VehicleFinanceCategoryUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        is_active: { type: boolean }
+    VehicleFinanceEntryInput:
+      type: object
+      additionalProperties: false
+      required: [kind, status, description, amount_cents]
+      description: "Exige category ou category_id. category_id deve apontar para categoria ativa da mesma natureza."
+      properties:
+        kind: { type: string, enum: [expense, income] }
+        status: { type: string, enum: [planned, realized] }
+        category_id: { type: integer, nullable: true, minimum: 1 }
+        category: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: string, minLength: 2, maxLength: 255 }
+        amount_cents: { type: integer, format: int64, minimum: 1, maximum: 999999999999 }
+        effective_on: { type: string, format: date, nullable: true }
+    VehicleFinanceReplacementInput:
+      allOf:
+        - $ref: '#/components/schemas/VehicleFinanceEntryInput'
+        - type: object
+          required: [reason]
+          properties:
+            reason: { type: string, minLength: 5, maxLength: 500 }
+    VehicleFinanceVoidInput:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, maxLength: 500, nullable: true }
+    VehicleFinanceDocumentAttach:
+      type: object
+      required: [file]
+      properties:
+        file: { type: string, format: binary, description: "PDF/JPEG/PNG/WebP até 10 MiB" }
+    VehicleFinanceExistingDocumentLink:
+      type: object
+      additionalProperties: false
+      required: [evidence_id]
+      properties:
+        evidence_id: { type: integer, minimum: 1, description: "Documento ativo do mesmo veículo, ainda não vinculado a outro lançamento" }
     CasePackagePreview:
       type: object
       additionalProperties: false

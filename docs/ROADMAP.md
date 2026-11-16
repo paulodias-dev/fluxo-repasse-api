@@ -351,3 +351,20 @@ Status do código: **8 frentes implementadas em branches API/React; homologaçã
 - [ ] Executar testes PHPUnit/MySQL, Pint, build, lint e smoke autenticado desktop/mobile nos ambientes reais.
 
 **Sem novas migrations ou lógica bancária**. O indicador histórico de 6/12 marcos técnicos da fundação não mede conclusão funcional do negócio financeiro e não deve ser elevado artificialmente. Consultar docs/MACRO_26_CENTRAL_FROTA_360.md.
+
+## Macroentrega 27 — ETAPA COMPLETA: FINANCEIRO GERENCIAL DO VEÍCULO 360
+
+Uma etapa de negócio de ponta a ponta em API+React Metronic, sem voltar à fragmentação:
+- [x] Categorias configuráveis com ativação/desativação e snapshot do nome histórico.
+- [x] Lançamentos gerenciais em centavos, filtros e paginação, preservando contratos legados.
+- [x] Retificação transacional, justificativa, trilha original/substituta e estorno auditável.
+- [x] Comprovante privado associado atomicamente ao lançamento, vínculo de anexo existente, download SHA-256 e proteção contra arquivo arquivado / outro veículo.
+- [x] Linha de auditoria por lançamento (autor, data e transição), sem fabricar histórico anterior.
+- [x] Demonstrativos por categoria e competência, filtros e CSV seguro anti-fórmula.
+- [x] Interface Financeiro 360 integral na aba já existente da ficha do veículo, sem duplicar layout.
+- [x] Migration aditiva, controllers e serviço centralizado, 15 rotas documentadas no OpenAPI 1.7 e 9 novos testes feature.
+- [ ] Executar migrações MySQL + PHPUnit/Pint + build/lint React + smoke real mobile/desktop; **não homologado ainda**.
+
+Documentos: docs/MACRO_27_FINANCEIRO_VEICULO_360.md e docs/ETAPAS_FUNCIONAIS.md.
+
+**Progresso local:** 8/8 frentes codificadas. Sem % global artificial. A execução de repasses monetários reais segue bloqueada até aprovação das regras financeiras e isolamentos necessários.

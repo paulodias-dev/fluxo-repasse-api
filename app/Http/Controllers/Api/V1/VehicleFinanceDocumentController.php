@@ -1,0 +1,197 @@
+<?php
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Services\CaseOperations;
+use App\Services\VehicleFinanceWorkspace;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
+
+final class VehicleFinanceDocumentController extends Controller
+{
+    public function __construct(
+        private readonly CaseOperations $operations,
+        private readonly VehicleFinanceWorkspace $finance,
+    ) {}
+
+    public function attach(Request $request, int $case, int $entry): JsonResponse
+    {
+        $this->operations->restrict($request, ['file', 'evidence_id']);
+        $data = $request->validate([
+            'file' => ['required_without:evidence_id', 'prohibited_with:evidence_id',
+                'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp'],
+            'evidence_id' => ['required_without:file', 'prohibited_with:file', 'integer', 'min:1'],
+        ]);
+
+        $file = $data['file'] ?? null;
+        $path = null;
+        $original = null;
+        $mime = null;
+        $sha = null;
+        $extension = null;
+        if ($file) {
+            $original = str_replace('\\', '/', $file->getClientOriginalName());
+            $original = mb_substr(trim(preg_replace(
+                '/[\x00-\x1F\x7F]/u', '', basename($original)
+            )), 0, 180);
+            if ($original === '') $original = 'comprovante';
+            $mime = $file->getMimeType();
+            $extension = match ($mime) {
+                'application/pdf' => 'pdf',
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                default => null,
+            };
+            if (! $extension) {
+                throw ValidationException::withMessages(['file' => 'Formato de comprovante não permitido.']);
+            }
+            $sha = hash_file('sha256', $file->getRealPath());
+            $path = "repasse-evidence/{$case}/".Str::uuid().'.'.$extension;
+        }
+
+        try {
+            $created = DB::transaction(function () use (
+                $request, $case, $entry, $data, $file, $path, $original, $mime, $sha
+            ): bool {
+                $this->operations->editable($case);
+                $item = DB::table('repasse_case_financial_entries')
+                    ->where('repasse_case_id', $case)->where('id', $entry)
+                    ->lockForUpdate()->firstOrFail();
+                if ($item->voided_at !== null) {
+                    throw ValidationException::withMessages([
+                        'entry' => 'Não é possível anexar comprovantes a lançamento estornado.',
+                    ]);
+                }
+
+                if ($file) {
+                    $resource = fopen($file->getRealPath(), 'rb');
+                    try {
+                        if (! Storage::disk('local')->put($path, $resource)) {
+                            throw ValidationException::withMessages([
+                                'file' => 'Não foi possível armazenar o comprovante.',
+                            ]);
+                        }
+                    } finally {
+                        if (is_resource($resource)) fclose($resource);
+                    }
+                    $evidence = DB::table('repasse_case_evidence')->insertGetId([
+                        'repasse_case_id' => $case, 'original_name' => $original,
+                        'storage_path' => $path, 'mime' => $mime,
+                        'size_bytes' => $file->getSize(), 'sha256' => $sha,
+                        'uploaded_by' => $request->user('api')->getAuthIdentifier(),
+                        'created_at' => now(), 'updated_at' => now(),
+                    ]);
+                } else {
+                    $evidence = (int) $data['evidence_id'];
+                    $document = DB::table('repasse_case_evidence')
+                        ->where('id', $evidence)->where('repasse_case_id', $case)
+                        ->lockForUpdate()->first();
+                    if (! $document || $document->archived_at !== null) {
+                        throw ValidationException::withMessages([
+                            'evidence_id' => 'Documento não localizado ou arquivado neste veículo.',
+                        ]);
+                    }
+                    $existing = DB::table('repasse_case_financial_documents')
+                        ->where('evidence_id', $evidence)->first();
+                    if ($existing) {
+                        if ((int) $existing->entry_id === $entry &&
+                            (int) $existing->repasse_case_id === $case) return false;
+                        throw ValidationException::withMessages([
+                            'evidence_id' => 'Documento já vinculado a outro lançamento.',
+                        ]);
+                    }
+                }
+
+                DB::table('repasse_case_financial_documents')->insert([
+                    'repasse_case_id' => $case, 'entry_id' => $entry,
+                    'evidence_id' => $evidence,
+                    'linked_by' => $request->user('api')->getAuthIdentifier(),
+                    'created_at' => now(),
+                ]);
+                $this->finance->event($case, $entry, $request, 'document_attached', [
+                    'evidence_id' => $evidence, 'uploaded' => (bool) $file,
+                ]);
+                $this->operations->event($case, $request, 'vehicle_fin_document_attached');
+
+                return true;
+            });
+        } catch (UniqueConstraintViolationException) {
+            if ($path) Storage::disk('local')->delete($path);
+            throw ValidationException::withMessages([
+                'evidence_id' => 'Documento já vinculado. Atualize a lista.',
+            ]);
+        } catch (Throwable $exception) {
+            if ($path) Storage::disk('local')->delete($path);
+            throw $exception;
+        }
+
+        return response()->json([
+            'data' => $this->finance->withDocuments($case, $entry),
+            'created' => $created,
+        ], $created ? 201 : 200)->header('Cache-Control', 'no-store, private');
+    }
+
+    public function detach(Request $request, int $case, int $entry, int $evidence): JsonResponse
+    {
+        $this->operations->restrict($request, []);
+        DB::transaction(function () use ($request, $case, $entry, $evidence): void {
+            $this->operations->editable($case);
+            $record = DB::table('repasse_case_financial_entries')
+                ->where('repasse_case_id', $case)->where('id', $entry)
+                ->lockForUpdate()->firstOrFail();
+            if ($record->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'entry' => 'O lançamento estornado não pode ser alterado.',
+                ]);
+            }
+            $link = DB::table('repasse_case_financial_documents')
+                ->where('repasse_case_id', $case)->where('entry_id', $entry)
+                ->where('evidence_id', $evidence)->lockForUpdate()->firstOrFail();
+            DB::table('repasse_case_financial_documents')->where('id', $link->id)->delete();
+            $this->finance->event($case, $entry, $request, 'document_detached', [
+                'evidence_id' => $evidence,
+            ]);
+            $this->operations->event($case, $request, 'vehicle_fin_document_detached');
+        });
+
+        // Original document and its hash remain in the vehicle private library.
+        return response()->json(['data' => $this->finance->withDocuments($case, $entry)])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function download(int $case, int $entry, int $evidence): StreamedResponse
+    {
+        $this->operations->ensureExists($case);
+        $this->finance->entry($case, $entry);
+        $document = DB::table('repasse_case_financial_documents as l')
+            ->join('repasse_case_evidence as e', 'e.id', '=', 'l.evidence_id')
+            ->where('l.repasse_case_id', $case)->where('l.entry_id', $entry)
+            ->where('l.evidence_id', $evidence)->whereNull('e.archived_at')
+            ->select('e.storage_path', 'e.original_name', 'e.sha256')->firstOrFail();
+        $storage = Storage::disk('local');
+        if (! $storage->exists($document->storage_path)) abort(404);
+
+        $realPath = $storage->path($document->storage_path);
+        if (! is_file($realPath) || ! hash_equals($document->sha256, hash_file('sha256', $realPath))) {
+            abort(409, 'Integridade do comprovante divergente.');
+        }
+
+        $name = Str::ascii($document->original_name);
+        $name = preg_replace('/[^A-Za-z0-9._ -]/', '_', $name);
+
+        return $storage->download($document->storage_path, $name ?: 'comprovante', [
+            'Content-Type' => 'application/octet-stream',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+}
