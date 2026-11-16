@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SetUserStatusRequest;
 use App\Http\Requests\Api\V1\StoreUserRequest;
 use App\Http\Requests\Api\V1\UpdateUserRequest;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
@@ -49,9 +50,44 @@ final class AdminUserController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = DB::transaction(function () use ($request): User {
-            $user = User::query()->create($request->validated());
-            $this->events->record('account_created', $request, $user, $request->user('api'));
+        $data = $request->validated();
+        $roleIds = $data['role_ids'] ?? [];
+        $assigningRoles = array_key_exists('role_ids', $data);
+        $actor = $request->user('api');
+
+        if ($assigningRoles && ! $actor->hasPermission('roles.manage')) {
+            return response()->json(['message' => 'Sem permissão para definir os papéis do usuário.'], 403)
+                ->header('Cache-Control', 'no-store');
+        }
+
+        $user = DB::transaction(function () use ($request, $data, $roleIds, $assigningRoles, $actor): User {
+            if ($assigningRoles) {
+                $roles = Role::query()->whereIn('id', $roleIds)->with('permissions')->get();
+                $allowed = $actor->grantedPermissions();
+
+                if ($roles->count() !== count($roleIds) ||
+                    $roles->contains(fn (Role $role) => $role->slug === 'platform_admin' ||
+                        $role->permissions->pluck('key')->diff($allowed)->isNotEmpty())) {
+                    throw ValidationException::withMessages([
+                        'role_ids' => ['Não é permitido atribuir um ou mais dos papéis selecionados.'],
+                    ]);
+                }
+            }
+
+            $user = User::query()->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+            ]);
+
+            if ($assigningRoles && count($roleIds) > 0) {
+                $user->roles()->sync($roleIds);
+            }
+
+            $this->events->record('account_created', $request, $user, $actor);
+            if ($assigningRoles && count($roleIds) > 0) {
+                $this->events->record('account_roles_changed', $request, $user, $actor);
+            }
 
             return $user;
         });
