@@ -65,17 +65,18 @@ final class VehiclePortfolioController extends Controller
             COALESCE(f.realized_income, 0) AS income_realized_cents,
             COALESCE(f.planned_income, 0) AS income_planned_cents,
             CASE WHEN c.purchase_amount_cents IS NULL THEN NULL
-                ELSE c.purchase_amount_cents + COALESCE(f.realized_expenses, 0)
+                ELSE CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                    + COALESCE(f.realized_expenses, 0)
                 END AS current_cost_cents,
             CASE WHEN c.purchase_amount_cents IS NULL THEN NULL
-                ELSE c.purchase_amount_cents + COALESCE(f.realized_expenses, 0)
-                    + COALESCE(f.planned_expenses, 0)
+                ELSE CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                    + COALESCE(f.realized_expenses, 0) + COALESCE(f.planned_expenses, 0)
                 END AS projected_cost_cents,
             CASE WHEN c.purchase_amount_cents IS NULL OR c.sale_amount_cents IS NULL THEN NULL
-                ELSE c.sale_amount_cents + COALESCE(f.realized_income, 0)
-                    + COALESCE(f.planned_income, 0)
-                    - c.purchase_amount_cents - COALESCE(f.realized_expenses, 0)
-                    - COALESCE(f.planned_expenses, 0)
+                ELSE CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+                    + COALESCE(f.realized_income, 0) + COALESCE(f.planned_income, 0)
+                    - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                    - COALESCE(f.realized_expenses, 0) - COALESCE(f.planned_expenses, 0)
                 END AS projected_result_cents
         ');
 
@@ -134,6 +135,22 @@ final class VehiclePortfolioController extends Controller
         }
 
         $page = $query->paginate(15);
+        // SUM() over BIGINT becomes DECIMAL on MySQL: normalize the public
+        // contract to integer cents, including NEGATIVE projected results.
+        $page->through(static function (object $row): object {
+            foreach ([
+                'id', 'model_year', 'purchase_amount_cents', 'sale_amount_cents',
+                'open_tasks', 'overdue_tasks', 'pending_checklist', 'documents_count',
+                'expense_realized_cents', 'expense_planned_cents',
+                'income_realized_cents', 'income_planned_cents',
+                'current_cost_cents', 'projected_cost_cents', 'projected_result_cents',
+            ] as $field) {
+                if ($row->{$field} !== null) {
+                    $row->{$field} = (int) $row->{$field};
+                }
+            }
+            return $row;
+        });
         $summary = [];
         foreach ((array) $totals as $key => $value) {
             $summary[$key] = (int) $value;
