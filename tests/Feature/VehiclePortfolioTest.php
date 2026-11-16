@@ -193,6 +193,30 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('data.0.current_cost_cents', null);
     }
 
+    public function test_negative_projected_result_is_preserved_without_unsigned_overflow(): void
+    {
+        $token = $this->token();
+        $id = $this->vehicle($token, [
+            'title' => 'Veículo com prejuízo gerencial',
+            'purchase_amount_cents' => 5000000,
+            'sale_amount_cents' => 4000000,
+        ]);
+        $this->withToken($token)->postJson("/api/v1/repasse-cases/$id/finance/entries", [
+            'kind' => 'expense', 'status' => 'planned',
+            'category' => 'Manutenção', 'description' => 'Revisão prevista',
+            'amount_cents' => 500000,
+        ])->assertCreated();
+
+        $this->withToken($token)->getJson('/api/v1/operations/vehicles')
+            ->assertOk()
+            ->assertJsonPath('data.0.current_cost_cents', 5000000)
+            ->assertJsonPath('data.0.projected_cost_cents', 5500000)
+            ->assertJsonPath('data.0.projected_result_cents', -1500000)
+            ->assertJsonPath('summary.vehicles_with_planned_expenses', 1);
+        $this->withToken($token)->getJson("/api/v1/repasse-cases/$id/finance/summary")
+            ->assertOk()->assertJsonPath('data.projected_result_cents', -1500000);
+    }
+
     public function test_validation_and_stable_pagination(): void
     {
         $token = $this->token();
