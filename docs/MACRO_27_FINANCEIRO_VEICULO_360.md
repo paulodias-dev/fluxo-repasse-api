@@ -55,7 +55,7 @@ Esta entrega fecha **um módulo de negócio inteiro** em API Laravel/MySQL e Rea
 - Serviço único VehicleFinanceWorkspace para categoria, relatório, filtro, registro e consulta de auditoria.
 - VehicleFinanceController evoluído preservando resumo e operações anteriores.
 - Dois controllers dedicados ao catálogo e ao vínculo seguro de comprovantes.
-- **14 operações REST** incluídas no OpenAPI 1.7, contando contratos pré-existentes ampliados, todas sob JWT, session.current e cases.manage, writes limitados por throttle.
+- **15 operações REST** incluídas no OpenAPI 1.7, contando contratos pré-existentes ampliados, todas sob JWT, session.current e cases.manage, writes limitados por throttle.
 - Não há migrations destrutivas, seeder de credenciais ou tabelas duplicadas de usuários.
 
 ## Segurança e limites de escopo
@@ -74,4 +74,9 @@ Esta entrega fecha **um módulo de negócio inteiro** em API Laravel/MySQL e Rea
 7. Smoke com veículo em acompanhamento e arquivado; categoria nova/renomeada/inativa, lançamento legado, estorno/retificação, comprovantes com veículos distintos, PDF/PNG válido, arquivo adulterado, CSV e relatório por período.
 8. Validar totais atuais/projetados do Veículo 360 e carteira operacional após retificação sem dupla contagem.
 
-**Estado de evidência:** 8 testes feature focais escritos, não executados em ambiente PHP/MySQL real desta sessão. A implantação e validação por navegador permanecem pendentes. Não apresentar PR como homologação.
+**Estado de evidência:** 9 testes feature focais escritos, não executados em ambiente PHP/MySQL real desta sessão. A implantação e validação por navegador permanecem pendentes. Não apresentar PR como homologação.
+
+### Complemento da revisão de integridade
+- Auditoria por lançamento tem consulta paginada GET /entries/{entry}/events com 30 eventos por página; o detalhe informa a contagem total. Não há truncamento silencioso.
+- Nome livre de categoria que corresponda a categoria cadastrada ativa é resolvido para a categoria existente. Se corresponder a categoria desativada, a API rejeita; não é possível contornar o bloqueio digitando o mesmo nome.
+- Downloads não recarregam a ficha inteira e os indicadores globais são explicitamente separados dos demonstrativos filtrados.
