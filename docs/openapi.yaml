@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.7.0
+  version: 1.8.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -889,6 +889,37 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Veículo, lançamento ou comprovante não localizado }
         '409': { description: Comprovante inválido ou integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/documentary/overview:
+    get:
+      operationId: vehicleDocumentaryOverview
+      tags: [Prestação de contas documental]
+      summary: Acompanhamento 360 de cenários, pareceres e pacotes de um veículo
+      description: |
+        Requer JWT, session.current, cases.manage E scenarios.manage.
+        Consulta estritamente do veículo solicitado. Usa a revisão documental
+        mais recente de cada cenário, marca revisões obsoletas por revisão ou
+        SHA divergente e devolve uma tabela paginada com contagens globais do
+        veículo, sem inflar resultados por relacionamentos. Parecer 'reviewed'
+        significa somente conferência documental: NUNCA libera pagamentos.
+        A criação de pacote continua exigindo packages.manage e sua própria
+        prévia SHA-256; esta rota é apenas de leitura.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, draft, archived], default: all } }
+        - { name: review_state, in: query, schema: { type: string, enum: [all, not_requested, pending, reviewed, changes_requested, withdrawn, stale, archived], default: all } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Situação documental global do veículo e cenários filtrados em páginas de 20
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VehicleDocumentaryOverviewResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo não encontrado }
         '422': { $ref: '#/components/responses/ValidationError' }
   /operations/dashboard:
     get:
@@ -2424,6 +2455,87 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    VehicleDocumentaryScenario:
+      type: object
+      required: [id, title, revision, gross_amount_cents, allocated_cents,
+        difference_cents, allocation_count, review_state]
+      properties:
+        id: { type: integer, minimum: 1 }
+        title: { type: string }
+        revision: { type: integer, minimum: 1 }
+        gross_amount_cents: { type: integer, format: int64 }
+        allocated_cents: { type: integer, format: int64 }
+        difference_cents: { type: integer, format: int64, description: "Pode ser negativo; não representa dinheiro transferido" }
+        allocation_count: { type: integer, minimum: 0 }
+        archived_at: { type: string, nullable: true }
+        created_by: { type: integer, nullable: true }
+        last_review_id: { type: integer, nullable: true }
+        last_review_status: { type: string, nullable: true }
+        last_review_revision: { type: integer, nullable: true }
+        reviewed_scenario_revision: { type: integer, nullable: true }
+        reviewer_id: { type: integer, nullable: true }
+        reviewer_name: { type: string, nullable: true }
+        review_due_on: { type: string, format: date, nullable: true }
+        review_created_at: { type: string, nullable: true }
+        review_state:
+          type: string
+          enum: [not_requested, pending, reviewed, changes_requested, withdrawn, stale, archived]
+    VehicleDocumentaryOverviewResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [vehicle, summary, scenarios, latest_package, as_of, financial_authorization, payment_enabled]
+          properties:
+            vehicle:
+              type: object
+              properties:
+                id: { type: integer, minimum: 1 }
+                title: { type: string }
+                status: { type: string, enum: [draft, archived] }
+                plate: { type: string, nullable: true }
+                brand: { type: string, nullable: true }
+                model: { type: string, nullable: true }
+            summary:
+              type: object
+              properties:
+                scenarios_total: { type: integer, minimum: 0 }
+                scenarios_active: { type: integer, minimum: 0 }
+                scenarios_balanced: { type: integer, minimum: 0 }
+                not_requested: { type: integer, minimum: 0 }
+                pending: { type: integer, minimum: 0 }
+                reviewed: { type: integer, minimum: 0 }
+                changes_requested: { type: integer, minimum: 0 }
+                withdrawn: { type: integer, minimum: 0 }
+                stale: { type: integer, minimum: 0 }
+                archived: { type: integer, minimum: 0 }
+                active_evidence: { type: integer, minimum: 0 }
+                active_parties: { type: integer, minimum: 0 }
+                open_tasks: { type: integer, minimum: 0 }
+                pending_checklist: { type: integer, minimum: 0 }
+                packages_total: { type: integer, minimum: 0 }
+            scenarios:
+              type: object
+              required: [data, current_page, last_page, total]
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/VehicleDocumentaryScenario' }
+                current_page: { type: integer, minimum: 1 }
+                last_page: { type: integer, minimum: 1 }
+                total: { type: integer, minimum: 0 }
+            latest_package:
+              type: object
+              nullable: true
+              properties:
+                id: { type: integer, minimum: 1 }
+                title: { type: string }
+                manifest_sha256: { type: string }
+                created_at: { type: string }
+            as_of: { type: string, format: date-time }
+            financial_authorization: { type: boolean, enum: [false] }
+            payment_enabled: { type: boolean, enum: [false] }
     VehicleFinanceCategoryInput:
       type: object
       additionalProperties: false
