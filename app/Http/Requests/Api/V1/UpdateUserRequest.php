@@ -30,6 +30,8 @@ final class UpdateUserRequest extends FormRequest
             'email' => ['sometimes', 'required', 'email', 'max:254',
                 Rule::unique('users', 'email')->ignore($this->route('user')?->getKey())],
             'roles' => ['prohibited'],
+            'role_ids' => ['sometimes', 'array', 'max:20'],
+            'role_ids.*' => ['required', 'integer', 'distinct', Rule::exists('roles', 'id')],
             'permissions' => ['prohibited'],
             'password' => ['prohibited'],
             'is_active' => ['prohibited'],
