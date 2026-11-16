@@ -132,6 +132,14 @@ final class ScenarioReviewWorkflowTest extends TestCase
             'revision' => 2, 'decision' => 'reviewed',
             'note' => 'Não pode decidir novamente o mesmo parecer.',
         ])->assertUnprocessable();
+        // Evidence can be corrected in the dossier without changing the monetary snapshot.
+        $this->withToken($creatorJwt)->postJson("/api/v1/finance/scenarios/{$scenario}/reviews", [
+            'request_key' => (string) Str::uuid(),
+            'scenario_revision' => 1,
+            'request_note' => 'Os anexos solicitados foram complementados no dossiê.',
+            'assigned_to' => $reviewer->id,
+        ])->assertCreated();
+        $this->assertDatabaseCount('repasse_scenario_reviews', 2);
     }
 
     public function test_author_cannot_review_even_if_promoted_to_reviewer(): void
