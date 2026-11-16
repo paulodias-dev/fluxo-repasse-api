@@ -166,6 +166,12 @@ final class ScenarioReviewWorkflowTest extends TestCase
         ])->assertOk()->assertJsonPath('data.revision', 2);
         $this->withToken($reviewerJwt)->getJson("/api/v1/finance/reviews/{$reviewId}")
             ->assertOk()->assertJsonPath('data.is_stale', true);
+        // Even when the scenario is now 10001 cents, the review shows the submitted 10000-cent version.
+        $this->withToken($reviewerJwt)->getJson("/api/v1/finance/reviews/{$reviewId}/snapshot")
+            ->assertOk()->assertJsonPath('data.scenario_revision', 1)
+            ->assertJsonPath('data.snapshot.gross_amount_cents', 10000)
+            ->assertJsonPath('data.is_stale', true)
+            ->assertJsonPath('data.financial_authorization', false);
         $this->withToken($reviewerJwt)->postJson("/api/v1/finance/reviews/{$reviewId}/decide", [
             'revision' => 1, 'decision' => 'reviewed',
             'note' => 'Parecer não pode ser emitido em revisão desatualizada.',
