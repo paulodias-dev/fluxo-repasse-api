@@ -64,3 +64,8 @@ Leituras/preview/downloads exigem JWT vigente, cases.manage e scenarios.manage. 
 ## Próxima evolução
 
 Após homologar: trilha de distribuição documental para destinatários internos, notificações e políticas de retenção/LGPD a definir. Operações bancárias reais continuam bloqueadas até a aprovação formal dos requisitos de pagador, beneficiário, fato gerador, comissões, alçadas, impostos, conciliação e PSP.
+
+
+### Respeito ao arquivamento de evidências
+
+Pacotes antigos preservam **metadados e hashes** de evidências posteriormente arquivadas, porém seu ZIP não pode reexpor o conteúdo de um arquivo que foi arquivado. O endpoint de integridade marca a evidência como indisponível e bloqueia o ZIP (409), mesmo se os bytes privados permanecerem fisicamente guardados. Isso preserva o bloqueio de download já praticado pelo módulo original de evidências.
