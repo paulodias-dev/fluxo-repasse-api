@@ -1053,7 +1053,7 @@ components:
         memo: { type: string, nullable: true, maxLength: 240 }
     ScenarioDraftBase:
       type: object
-      additionalProperties: false
+      description: Base compartilhada. A API rejeita campos desconhecidos no payload final.
       required: [title, description, source_party_id, gross_amount_cents, allocations]
       properties:
         title: { type: string, minLength: 2, maxLength: 180 }
