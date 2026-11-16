@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
 use App\Http\Controllers\Api\V1\VehicleFinanceController;
 use App\Http\Controllers\Api\V1\OperationsCenterController;
+use App\Http\Controllers\Api\V1\VehiclePortfolioController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
@@ -130,6 +131,8 @@ Route::prefix('v1')->group(function (): void {
     ])->group(function (): void {
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
             ->name('api.v1.operations.dashboard');
+        Route::get('/vehicles', [VehiclePortfolioController::class, 'index'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.vehicles');
         Route::get('/assignees', [OperationsCenterController::class, 'assignees'])
             ->name('api.v1.operations.assignees');
         Route::get('/tasks', [OperationsCenterController::class, 'tasks'])
