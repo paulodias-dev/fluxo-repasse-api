@@ -110,6 +110,10 @@ final class VehicleFinanceWorkspaceTest extends TestCase
             ...$this->entryInput(), 'category_id' => $category,
         ])->assertUnprocessable()->assertJsonValidationErrors('category_id');
 
+        $this->withToken($token)->postJson("$base/entries", [
+            ...$this->entryInput(['category' => 'Serviços de oficina']),
+        ])->assertUnprocessable()->assertJsonValidationErrors('category');
+
         $this->withToken($token)->getJson("$base/categories")
             ->assertOk()->assertJsonCount(0, 'data');
         $this->withToken($token)->getJson("$base/categories?include_inactive=1")
