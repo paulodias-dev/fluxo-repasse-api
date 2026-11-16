@@ -385,3 +385,18 @@ Marco de negócio entregue como UM bloco integrado em API e React (não micro-PR
 Não cria migration, gateway ou permissão financeira; packages.manage continua obrigatória para emitir pacotes. Nem revisão 'reviewed' nem pacote verificado liberam transferências. A etapa 5 depende de regras financeiras aprovadas; a etapa 6 pode prosseguir com QA operacional das quatro primeiras.
 
 **Métrica:** etapas 1–4 têm código desenvolvido; etapas 1–4 ainda requerem evidência de homologação. Etapas 5 e 6 não estão concluídas. NÃO extrapolar porcentagem total do produto a partir de quantidade de etapas.
+
+## Macroentrega 29 — Etapa 6: Consolidação operacional e preparação de homologação
+
+Não consiste em uma nova sequência de microtestes. Inclui correções visíveis ao usuário e o executor seguro para ACEITAR o produto existente:
+- [x] Dashboard React original Metronic sem widgets fictícios, com 11 módulos reais, cards de acesso/permissão e KPIs autorizados pela API.
+- [x] Ficha de veículo carrega dados principais mesmo se serviços de documentos, tarefas, checklist, notas, histórico ou indicadores estiverem indisponíveis; falha explicitada e botão para recarregar.
+- [x] Diagnóstico CLI read-only repasse:acceptance [--json] para migrations 008–010, 26+ tabelas, colunas-chave, catálogo de 7 grants, papel platform_admin, conta admin ativa e blacklist JWT.
+- [x] Runner qa/run-stage6.sh com níveis static/local/full: usa o runner protegido já existente para Laravel/Pint, Node nativo para smoke HTTP, npm ci/lint/build e duas contas QA em localhost.
+- [x] Prova de 401/403 sem contas, RBAC do administrador e usuário comum, e consultas de veículo/financeiro/revisão/pacote com dados de QA sem mutações de negócio.
+- [x] Guarda contra host remoto, modo full sem banco QA confirmado, duas contas não distintas e veículo de homologação inexistente.
+- [x] Testes PHP da verificação estrutural e suite Node nativa do smoke HTTP codificados, com documentação completa.
+- [ ] Executar Composer/PHPUnit/Pint, npm ci/lint/build, MySQL QA e smoke HTTP em máquina com checkouts dos dois projetos.
+- [ ] Validação final no navegador real desktop/mobile, backup/restore, autorização de deploy e aceite humano.
+
+**Limite:** etapa 6 ainda NÃO homologada. O motor de pagamentos reais da etapa 5 segue bloqueado até regras financeiras formais. Não declarar percentual total do produto apenas pela implementação de scripts.
