@@ -35,3 +35,10 @@ A permissão técnica scenarios.manage exige cases.manage e não cria direitos d
 Existe motor de **planejamento e simulação**, com modelos percentuais configurados manualmente, arredondamento determinístico e lotes atômicos. Isso NÃO define política contratual de comissão, imposto, retenção, cobrança, autorização, recebíveis, estorno ou pagamento. Os cenários permanecem não executáveis mesmo com soma conferida.
 
 Antes de construir a camada financeira executável, aprovar de forma rastreável: modelo single-org versus isolamento por tenant; origem/beneficiário e titularidade; fato gerador; critérios de comissão/rateio e arredondamento contratual; impostos/retenções; níveis de autorização; ledger; liquidação e conciliação; gateway/PSP e eventos de webhook; cancelamentos e estornos. Não aplicar regra de outro projeto automaticamente.
+
+
+## Macro 20 — revisão documental NÃO é alçada de pagamento
+
+A macro 20 adiciona conferência humana segregada para snapshots de cenários. O novo status reviewed significa documentação conferida, enquanto changes_requested solicita correções. Mesmo após "reviewed", nenhuma obrigação, comissão, liquidação, saldo, ordem bancária, pagamento ou conciliação é criada.
+
+Não inferir que operadores com scenario_reviews.manage possuem alçada monetária. Regras de liberação financeira, papéis de aprovadores, dupla autorização, beneficiários, contratos, pagamentos, gateway/PSP, impostos, retenções, estornos e isolamento por organização continuam por aprovar, sem material original recuperado. Não ligar reviewed ao motor bancário futuro automaticamente.
