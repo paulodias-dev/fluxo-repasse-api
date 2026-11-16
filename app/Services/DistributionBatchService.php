@@ -179,6 +179,7 @@ final class DistributionBatchService
                     'gross_amount_cents' => $row['gross_amount_cents'],
                     'allocated_cents' => $row['allocated_cents'],
                     'difference_cents' => $row['difference_cents'],
+                    'allocations' => $row['allocations'],
                 ];
             }
             DB::table('repasse_distribution_batches')->where('request_key', $requestKey)
