@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -46,8 +47,35 @@ final class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'permissions' => $user->grantedPermissions(),
+                'roles' => $user->roles()->pluck('slug')->values()->all(),
+                'access_diagnostic' => $this->diagnostic($user),
             ],
         ])->header('Cache-Control', 'no-store');
+    }
+
+    public function access(): JsonResponse
+    {
+        $user = Auth::guard('api')->user();
+        return response()->json([
+            'data' => $this->diagnostic($user),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    private function diagnostic(User $user): array
+    {
+        $granted = $user->grantedPermissions();
+        $platformAdmin = $user->roles()->where('slug', 'platform_admin')->exists();
+        $missing = $platformAdmin
+            ? OperationalAccessCatalog::missingForAdmin($granted) : [];
+        return [
+            'is_platform_admin' => $platformAdmin,
+            'granted_count' => count($granted),
+            'expected_admin_count' => count(OperationalAccessCatalog::keys()),
+            'missing_admin_permissions' => $missing,
+            'admin_role_incomplete' => $platformAdmin && $missing !== [],
+            'modules' => OperationalAccessCatalog::modulesFor($granted),
+            'financial_operations_enabled' => false,
+        ];
     }
 
     public function refresh(): JsonResponse
