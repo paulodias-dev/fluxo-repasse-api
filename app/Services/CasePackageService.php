@@ -293,7 +293,9 @@ final class CasePackageService
         foreach ($package['manifest']['evidence'] as $file) {
             $row = DB::table('repasse_case_evidence')
                 ->where('repasse_case_id', $caseId)->where('id', $file['id'])->first();
-            $valid = $row !== null
+            // Archived evidence is deliberately inaccessible for download in
+            // CaseEvidenceController; packages must NOT bypass that restriction.
+            $valid = $row !== null && $row->archived_at === null
                 && hash_equals($file['sha256'], $row->sha256)
                 && (int) $file['size_bytes'] === (int) $row->size_bytes;
             if ($valid) {
