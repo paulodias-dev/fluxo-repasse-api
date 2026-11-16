@@ -99,28 +99,70 @@ final class AdminUserController extends Controller
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $changes = $request->validated();
+        $assigningRoles = array_key_exists('role_ids', $changes);
+        $roleIds = $changes['role_ids'] ?? [];
+        unset($changes['role_ids']);
+        $actor = $request->user('api');
 
-        DB::transaction(function () use ($request, $user, $changes): void {
+        if ($assigningRoles && (! $actor->hasPermission('roles.manage') || $actor->id === $user->id)) {
+            return response()->json(['message' => 'Não é permitido modificar os papéis desta conta.'], 403)
+                ->header('Cache-Control', 'no-store');
+        }
+
+        DB::transaction(function () use ($request, $user, $changes, $assigningRoles, $roleIds, $actor): void {
             $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
-            $target->fill($changes);
+            $roleChanged = false;
 
-            if (! $target->isDirty()) {
+            if ($assigningRoles) {
+                $allowed = $actor->grantedPermissions();
+
+                if ($target->roles()->where('slug', 'platform_admin')->exists() ||
+                    $target->roles()->whereHas('permissions', fn ($query) => $query->whereNotIn('key', $allowed))->exists()) {
+                    abort(403, 'Papéis protegidos não podem ser substituídos.');
+                }
+
+                $roles = Role::query()->whereIn('id', $roleIds)->with('permissions')->get();
+                if ($roles->count() !== count($roleIds) ||
+                    $roles->contains(fn (Role $role) => $role->slug === 'platform_admin' ||
+                        $role->permissions->pluck('key')->diff($allowed)->isNotEmpty())) {
+                    throw ValidationException::withMessages([
+                        'role_ids' => ['Não é permitido atribuir um ou mais dos papéis selecionados.'],
+                    ]);
+                }
+
+                $currentRoleIds = $target->roles()->pluck('roles.id')->all();
+                $nextRoleIds = $roles->pluck('id')->all();
+                sort($currentRoleIds);
+                sort($nextRoleIds);
+                $roleChanged = $currentRoleIds !== $nextRoleIds;
+            }
+
+            $target->fill($changes);
+            $profileChanged = $target->isDirty();
+            $emailChanged = $target->isDirty('email');
+            if (! $profileChanged && ! $roleChanged) {
                 return;
             }
 
-            $emailChanged = $target->isDirty('email');
-            if ($emailChanged) {
-                // Impedir que sessões antigas continuem válidas após alteração de identidade.
+            if ($emailChanged || $roleChanged) {
+                // Uma unica revogacao JWT para edicoes simultaneas de email e papeis.
                 $target->auth_version = (int) $target->auth_version + 1;
             }
 
             $target->save();
-            $this->events->record(
-                $emailChanged ? 'account_email_changed' : 'account_updated',
-                $request,
-                $target,
-                $request->user('api'),
-            );
+            if ($roleChanged) {
+                $target->roles()->sync($roleIds);
+                $this->events->record('account_roles_changed', $request, $target, $actor);
+            }
+
+            if ($profileChanged) {
+                $this->events->record(
+                    $emailChanged ? 'account_email_changed' : 'account_updated',
+                    $request,
+                    $target,
+                    $actor,
+                );
+            }
         });
 
         return response()->json(['data' => $this->publicUser($user->fresh())])
