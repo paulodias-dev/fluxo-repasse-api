@@ -362,7 +362,7 @@ Uma etapa de negócio de ponta a ponta em API+React Metronic, sem voltar à frag
 - [x] Linha de auditoria por lançamento (autor, data e transição), sem fabricar histórico anterior.
 - [x] Demonstrativos por categoria e competência, filtros e CSV seguro anti-fórmula.
 - [x] Interface Financeiro 360 integral na aba já existente da ficha do veículo, sem duplicar layout.
-- [x] Migration aditiva, controllers e serviço centralizado, 14 rotas documentadas no OpenAPI 1.7 e 8 novos testes feature.
+- [x] Migration aditiva, controllers e serviço centralizado, 15 rotas documentadas no OpenAPI 1.7 e 9 novos testes feature.
 - [ ] Executar migrações MySQL + PHPUnit/Pint + build/lint React + smoke real mobile/desktop; **não homologado ainda**.
 
 Documentos: docs/MACRO_27_FINANCEIRO_VEICULO_360.md e docs/ETAPAS_FUNCIONAIS.md.
