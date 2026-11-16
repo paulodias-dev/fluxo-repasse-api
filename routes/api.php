@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
 use App\Http\Controllers\Api\V1\VehicleFinanceController;
+use App\Http\Controllers\Api\V1\VehicleAccountabilityController;
 use App\Http\Controllers\Api\V1\VehicleFinanceCategoryController;
 use App\Http\Controllers\Api\V1\VehicleFinanceDocumentController;
 use App\Http\Controllers\Api\V1\OperationsCenterController;
@@ -129,6 +130,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.evidence.download');
         Route::patch('/{case}/evidence/{evidence}/archive', [CaseEvidenceController::class, 'archive'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.archive');
+
+        // Etapa 4: leitura consolidada por veículo; exige casos E cenários.
+        // Não concede permissão de revisão nem de criação de pacotes.
+        Route::get('/{case}/documentary/overview', [VehicleAccountabilityController::class, 'index'])
+            ->middleware(['permission:scenarios.manage', 'throttle:repasse-admin-read'])
+            ->name('api.v1.cases.documentary.overview');
 
         // Pacotes de prestação de contas e conferência: snapshots não executáveis.
         // Ler exige dossiês + cenários; criar exige uma terceira permissão específica.
