@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
+use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
 use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -92,6 +93,28 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.evidence.download');
         Route::patch('/{case}/evidence/{evidence}/archive', [CaseEvidenceController::class, 'archive'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.archive');
+
+        // Pacotes de prestação de contas e conferência: snapshots não executáveis.
+        // Ler exige dossiês + cenários; criar exige uma terceira permissão específica.
+        Route::prefix('/{case}/packages')->middleware('permission:scenarios.manage')->group(function (): void {
+            Route::get('/options', [CasePackageController::class, 'options'])
+                ->name('api.v1.cases.packages.options');
+            Route::get('/', [CasePackageController::class, 'index'])
+                ->name('api.v1.cases.packages.index');
+            Route::post('/preview', [CasePackageController::class, 'preview'])
+                ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.packages.preview');
+            Route::post('/', [CasePackageController::class, 'store'])
+                ->middleware(['permission:packages.manage', 'throttle:repasse-admin-write'])
+                ->name('api.v1.cases.packages.store');
+            Route::get('/{package}', [CasePackageController::class, 'show'])
+                ->name('api.v1.cases.packages.show');
+            Route::get('/{package}/integrity', [CasePackageController::class, 'integrity'])
+                ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.packages.integrity');
+            Route::get('/{package}/compare', [CasePackageController::class, 'compare'])
+                ->name('api.v1.cases.packages.compare');
+            Route::get('/{package}/download', [CasePackageController::class, 'download'])
+                ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.packages.download');
+        });
     });
 
     Route::prefix('operations')->middleware([
