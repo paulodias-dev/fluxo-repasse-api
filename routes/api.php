@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
 use App\Http\Controllers\Api\V1\VehicleFinanceController;
+use App\Http\Controllers\Api\V1\VehicleFinanceCategoryController;
+use App\Http\Controllers\Api\V1\VehicleFinanceDocumentController;
 use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\VehiclePortfolioController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -82,6 +84,29 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}/finance/entries', [VehicleFinanceController::class, 'index'])->name('api.v1.cases.finance.entries');
         Route::post('/{case}/finance/entries', [VehicleFinanceController::class, 'store'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.store');
         Route::post('/{case}/finance/entries/{entry}/void', [VehicleFinanceController::class, 'void'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.void');
+
+        // Financeiro 360: categoria operacional, documentos privados, correção e relatórios.
+        // Todos os endpoints já estão dentro de JWT + session.current + cases.manage.
+        Route::get('/{case}/finance/categories', [VehicleFinanceCategoryController::class, 'index'])
+            ->name('api.v1.cases.finance.categories');
+        Route::post('/{case}/finance/categories', [VehicleFinanceCategoryController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.categories.store');
+        Route::patch('/{case}/finance/categories/{category}', [VehicleFinanceCategoryController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.categories.update');
+        Route::get('/{case}/finance/report', [VehicleFinanceController::class, 'report'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.finance.report');
+        Route::get('/{case}/finance/export', [VehicleFinanceController::class, 'export'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.finance.export');
+        Route::get('/{case}/finance/entries/{entry}', [VehicleFinanceController::class, 'show'])
+            ->name('api.v1.cases.finance.entries.show');
+        Route::post('/{case}/finance/entries/{entry}/replace', [VehicleFinanceController::class, 'replace'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.replace');
+        Route::post('/{case}/finance/entries/{entry}/documents', [VehicleFinanceDocumentController::class, 'attach'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.documents.attach');
+        Route::delete('/{case}/finance/entries/{entry}/documents/{evidence}', [VehicleFinanceDocumentController::class, 'detach'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.documents.detach');
+        Route::get('/{case}/finance/entries/{entry}/documents/{evidence}/download', [VehicleFinanceDocumentController::class, 'download'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.finance.entries.documents.download');
         Route::get('/{case}/tasks', [CaseWorkController::class, 'tasks'])->name('api.v1.cases.tasks');
         Route::post('/{case}/tasks', [CaseWorkController::class, 'createTask'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.store');
