@@ -28,3 +28,10 @@ Foi criado exclusivamente um **planejador de cenários hipotéticos**, não um m
 Ainda faltam decisões formais: quem é de fato pagador e beneficiário; evento que gera a obrigação; critérios de cálculo, comissão, retenções, tributos, moeda e arredondamento; processo de aprovação; quando uma obrigação vira pagamento; banco/gateway; conciliação; estorno e disputa; política multi-organização, limites, segregação de funções e conformidade. Nunca afirmar que a macro 18 implementou essas regras.
 
 A permissão técnica scenarios.manage exige cases.manage e não cria direitos de pagamento.
+
+
+## Após a Macro 19
+
+Existe motor de **planejamento e simulação**, com modelos percentuais configurados manualmente, arredondamento determinístico e lotes atômicos. Isso NÃO define política contratual de comissão, imposto, retenção, cobrança, autorização, recebíveis, estorno ou pagamento. Os cenários permanecem não executáveis mesmo com soma conferida.
+
+Antes de construir a camada financeira executável, aprovar de forma rastreável: modelo single-org versus isolamento por tenant; origem/beneficiário e titularidade; fato gerador; critérios de comissão/rateio e arredondamento contratual; impostos/retenções; níveis de autorização; ledger; liquidação e conciliação; gateway/PSP e eventos de webhook; cancelamentos e estornos. Não aplicar regra de outro projeto automaticamente.
