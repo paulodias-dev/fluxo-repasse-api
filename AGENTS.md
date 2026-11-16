@@ -132,3 +132,15 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Dossiê arquivado impede mutação; snapshots históricos não têm endpoints de alteração; integridade SHA não é trilha inviolável externa.
 - Regras multi-organização continuam indefinidas; dados são controlados pelo RBAC técnico da plataforma sem garantia de isolamento multi-tenant. Não vender como multi-tenant pronto.
 - Documentar resultados reais de QA e não confundir testes escritos com testes executados.
+
+
+## Macro 19 — Modelos e lotes não executáveis
+
+- Modelos de distribuição são por dossiê, com percentuais definidos PELO OPERADOR em basis points (10000 = 100%) e sem qualquer taxa padrão.
+- Distribuir em centavos inteiros (até 10^12 por cenário), maior resto, desempate estável por party_id, proibir alocações silenciosas de zero centavo.
+- Dossiê/modelo arquivado bloqueia escrita; validar todos os destinatários ativos e vinculados ao mesmo dossiê.
+- Lotes de até 30 cenários têm uma transação/commit único, request_key UUID estável em retries, hash do payload e validação all-or-nothing.
+- Rotas exigem JWT + session.current + cases.manage e scenarios.manage. Histórico de modelos e lotes é somente leitura.
+- "Soma conferida" NÃO é autorização para pagar. Não adicionar ledger, obrigação, Pix, comissão automática ou saldos sem regras aprovadas.
+- Sem isolamento multi-tenant assumido; não disponibilizar comercialmente a organizações separadas até autorização/isolamento aprovados.
+- Distinguir artefatos/testes escritos de testes executados; não declarar homologação apenas com código.
