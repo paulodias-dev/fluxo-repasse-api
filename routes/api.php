@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
+use App\Http\Controllers\Api\V1\RepasseCaseController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -48,6 +49,23 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.links.update');
         Route::get('/{party}/events', PartyEventController::class)
             ->middleware('throttle:repasse-admin-read')->name('api.v1.parties.events');
+    });
+
+    Route::prefix('repasse-cases')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:cases.manage',
+    ])->group(function (): void {
+        Route::get('/', [RepasseCaseController::class, 'index'])->name('api.v1.cases.index');
+        Route::post('/', [RepasseCaseController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.store');
+        Route::get('/{case}', [RepasseCaseController::class, 'show'])->name('api.v1.cases.show');
+        Route::patch('/{case}', [RepasseCaseController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.update');
+        Route::post('/{case}/parties', [RepasseCaseController::class, 'attach'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.attach');
+        Route::delete('/{case}/parties/{party}', [RepasseCaseController::class, 'detach'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.detach');
+        Route::get('/{case}/events', [RepasseCaseController::class, 'events'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.events');
     });
 
     Route::prefix('admin/access')->middleware([
