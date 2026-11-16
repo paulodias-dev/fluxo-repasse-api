@@ -68,6 +68,11 @@ final class DistributionBatchService
                     "rows.{$i}.gross_amount_cents" => 'Valor não pode ser dividido entre os destinatários deste modelo.',
                 ]);
             }
+            $names = collect($template['lines'])->keyBy('party_id');
+            foreach ($allocations as &$allocation) {
+                $allocation['party_name'] = $names[$allocation['party_id']]['party_name'];
+            }
+            unset($allocation);
             $computed[] = [
                 'client_reference' => $row['client_reference'],
                 'title' => $row['title'],
