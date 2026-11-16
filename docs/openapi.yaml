@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.5.0
+  version: 1.6.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -447,6 +447,37 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Usuário não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/vehicles:
+    get:
+      operationId: operationsVehiclePortfolio
+      summary: Carteira 360 de veículos, indicadores de atenção e custos gerenciais
+      tags: [Central operacional]
+      description: |
+        Apenas cases.manage, JWT atual e sessão válida. A tabela principal
+        é paginada e filtrada; summary contém contagens da frota inteira
+        autorizada, não da página atual. Contagens de tarefas, checklist,
+        anexos e valores são pré-agregadas por veículo, sem multiplicação
+        por joins. Custos são gerenciais e não geram pagamento ou liquidação.
+        Veículos arquivados podem ser consultados, mas não são selecionados
+        pelos filtros de pendência.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 }, description: 'Busca em título, placa, chassi, marca, modelo, vendedor e origem' }
+        - { name: status, in: query, schema: { type: string, enum: [all, draft, archived], default: all } }
+        - { name: attention, in: query, schema: { type: string, enum: [all, overdue, open_tasks, missing_documents, incomplete_profile, planned_expenses], default: all } }
+        - { name: sort, in: query, schema: { type: string, enum: [updated, oldest, purchase_desc, overdue], default: updated } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200':
+          description: Carteira paginada, resumo global e instante de consulta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehiclePortfolioResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
   /operations/dashboard:
     get:
@@ -2365,6 +2396,61 @@ components:
           type: integer
           description: Tempo de validade em segundos.
           example: 900
+    VehiclePortfolioRow:
+      type: object
+      required: [id, title, status, open_tasks, overdue_tasks, pending_checklist,
+        documents_count, expense_realized_cents, expense_planned_cents]
+      properties:
+        id: { type: integer, minimum: 1 }
+        title: { type: string }
+        status: { type: string, enum: [draft, archived] }
+        plate: { type: string, nullable: true }
+        brand: { type: string, nullable: true }
+        model: { type: string, nullable: true }
+        purchased_on: { type: string, format: date, nullable: true }
+        delivered_on: { type: string, format: date, nullable: true }
+        sold_on: { type: string, format: date, nullable: true }
+        purchase_amount_cents: { type: integer, format: int64, nullable: true }
+        sale_amount_cents: { type: integer, format: int64, nullable: true }
+        open_tasks: { type: integer, minimum: 0 }
+        overdue_tasks: { type: integer, minimum: 0 }
+        pending_checklist: { type: integer, minimum: 0 }
+        documents_count: { type: integer, minimum: 0 }
+        expense_realized_cents: { type: integer, format: int64 }
+        expense_planned_cents: { type: integer, format: int64 }
+        income_realized_cents: { type: integer, format: int64 }
+        income_planned_cents: { type: integer, format: int64 }
+        current_cost_cents: { type: integer, format: int64, nullable: true }
+        projected_cost_cents: { type: integer, format: int64, nullable: true }
+        projected_result_cents: { type: integer, format: int64, nullable: true }
+        updated_at: { type: string, format: date-time }
+    VehiclePortfolioSummary:
+      type: object
+      required: [vehicles_total, vehicles_active, vehicles_archived, vehicles_overdue,
+        vehicles_with_open_tasks, vehicles_without_documents, vehicles_incomplete_profile,
+        vehicles_with_planned_expenses]
+      properties:
+        vehicles_total: { type: integer, minimum: 0 }
+        vehicles_active: { type: integer, minimum: 0 }
+        vehicles_archived: { type: integer, minimum: 0 }
+        vehicles_overdue: { type: integer, minimum: 0 }
+        vehicles_with_open_tasks: { type: integer, minimum: 0 }
+        vehicles_without_documents: { type: integer, minimum: 0 }
+        vehicles_incomplete_profile: { type: integer, minimum: 0 }
+        vehicles_with_planned_expenses: { type: integer, minimum: 0 }
+    VehiclePortfolioResponse:
+      type: object
+      required: [data, current_page, last_page, per_page, total, summary, as_of]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/VehiclePortfolioRow' }
+        current_page: { type: integer, minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+        per_page: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0 }
+        summary: { $ref: '#/components/schemas/VehiclePortfolioSummary' }
+        as_of: { type: string, format: date-time }
     AccessModule:
       type: object
       required: [id, name, requires, available, missing_permissions]
