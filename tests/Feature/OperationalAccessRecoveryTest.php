@@ -144,4 +144,29 @@ final class OperationalAccessRecoveryTest extends TestCase
         $this->assertCount(7, $user->fresh()->grantedPermissions());
         $this->assertDatabaseCount('users', 1);
     }
+    public function test_data_migration_backfills_only_existing_platform_admin_members(): void
+    {
+        $admin = $this->makeUser([]);
+        $other = $this->makeUser(['users.manage']);
+        $role = Role::query()->create(['slug' => 'platform_admin', 'name' => 'Administrador técnico']);
+        $role->permissions()->attach(Permission::query()->firstOrCreate(['key' => 'users.manage'])->id);
+        $admin->roles()->attach($role->id);
+        $oldVersion = (int) $admin->auth_version;
+        $token = $this->login($admin);
+
+        $migration = require database_path(
+            'migrations/2026_11_16_000008_backfill_existing_platform_admin_modules.php'
+        );
+        $migration->up();
+        $this->assertCount(7, $admin->fresh()->grantedPermissions());
+        $this->assertCount(1, $other->fresh()->grantedPermissions());
+        $this->assertFalse($other->fresh()->roles()->where('slug', 'platform_admin')->exists());
+        $this->assertSame($oldVersion + 1, (int) $admin->fresh()->auth_version);
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+
+        $migration->up();
+        $this->assertSame($oldVersion + 1, (int) $admin->fresh()->auth_version);
+        $this->assertDatabaseCount('users', 2);
+    }
+
 }
