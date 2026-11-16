@@ -121,3 +121,14 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Middleware de correlação registrado globalmente age **somente** em `api/*`; não registrar request headers, query, JWT, senha ou IP.
 - QA executado nesta entrega: 7/7 testes Node do gate de sessão e 2/2 sintaxes PHP. Os 7 testes PHPUnit e 3 Vitest novos permanecem sem execução no Mac.
 - Contagem: entrega técnica 12 17/21 (80,95%) e roadmap canônico 6/12 (50,00%).
+
+
+## Guardrails da Macro 18 — cenários hipotéticos (não executáveis)
+
+- Rotas /api/v1/finance são exclusivamente de simulações e exigem BOTH cases.manage + scenarios.manage, JWT e sessão vigente. Permissionamento não equivale a autorização financeira.
+- Cenários usam centavos inteiros, não float; atribuições manuais com origem/destinatários integrantes ativos do dossiê e validação de revisão concorrente.
+- O estado balanced significa que a soma manual coincide com valor total previsto; **NÃO** é aprovação de pagamento, título a pagar, saldo ou lançamento contábil.
+- NUNCA conectar cenário a banco, Pix, comissão automática, webhook, ledger ou status executável sem regras financeiras aprovadas e revisão de segurança/concorrência.
+- Dossiê arquivado impede mutação; snapshots históricos não têm endpoints de alteração; integridade SHA não é trilha inviolável externa.
+- Regras multi-organização continuam indefinidas; dados são controlados pelo RBAC técnico da plataforma sem garantia de isolamento multi-tenant. Não vender como multi-tenant pronto.
+- Documentar resultados reais de QA e não confundir testes escritos com testes executados.
