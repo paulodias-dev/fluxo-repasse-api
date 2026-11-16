@@ -298,3 +298,23 @@ Próximo pacote substancial: motor financeiro + aprovações + trilha monetária
 **Evolução aferível:** 9/9 frentes da macro 21 codificadas, validação em ambiente real pendente. O percentual global do projeto permanece indefinido (os antigos 6/12=50% se referem somente ao roadmap técnico anterior e não representam conclusão financeira).
 
 A próxima macro deve priorizar publicação/documentação de fluxos para operadores autorizados e retenção/acessos se o escopo permitir. Fluxos bancários reais só após aprovação formal de regras de negócio e isolamento organizacional.
+
+
+## Macroentrega 22 — Visibilidade real dos módulos e recuperação de administração
+
+Incidente da tela /dashboard: conta autenticada com um grant users.manage e apenas o módulo Usuários; a tela de boas-vindas ocupava a primeira dobra. Confirmado em código: bootstrap antigo atribuía apenas users.manage e seeders novos não eram aplicados automaticamente.
+
+- [x] Catálogo único com 7 grants técnicos e módulos reais, sem permissões financeiras executáveis.
+- [x] Seeder idempotente atualiza platform_admin e invalida JWTs quando concede novos grants.
+- [x] Migration de backfill apenas para membros existentes do platform_admin, sem promover usuários comuns.
+- [x] Bootstrap administrativo corrigido, com confirmação explícita e auditoria.
+- [x] CLI repasse:access:doctor, verificação e --repair limitado ao admin já existente.
+- [x] Perfil e endpoint /auth/access com diagnóstico e grants reais, OpenAPI 1.5.
+- [x] Workspace autenticado com menu lateral visível, mobile e dashboard separado das áreas de trabalho.
+- [x] Módulos autênticos acessíveis por botões, RBAC deny-by-default e reconsulta de acessos.
+- [x] Indicadores reais da API e testes de regressão PHP/React escritos.
+- [ ] Validar migration/seeder MySQL, PHPUnit/Pint e Vitest/build/browser no localhost autorizado antes de homologar.
+
+A macro prioriza **desbloquear o uso de funcionalidades já implementadas**, não criar mais um módulo invisível. A nova migration só funciona depois de atualizar a API e executar php artisan migrate com backup e novo login.
+
+**Evolução local:** nove frentes concluídas em código; nenhuma porcentagem global de implementação financeira é inferida.

@@ -352,3 +352,12 @@ O índice histórico 6/12=50% permanece apenas como informação do roadmap téc
 O código da macro de pacotes documentais foi entregue em conjunto nos repositórios API + APP, com nove frentes: seleção, captura, históricos, prévia anti-TOCTOU, idempotência, métricas, integridade, comparação e ZIP/UI integrada. Além disso, foram escritos testes para compatibilidade de snapshots JSON legados.
 
 **9/9 frentes de código concluídas; homologação não comprovada** até executar PHPUnit/Laravel/MySQL, Pint, Vitest, build e teste real de exportação ZIP com extensão PHP adequada. O antigo número 50% não deve ser aumentado artificialmente: representava outro conjunto de marcos técnicos e não o escopo financeiro executável.
+
+
+## Macro 22 — correção de acesso ao produto já implementado
+
+Nove frentes de código: catálogo RBAC, seeder, backfill de migration, bootstrap seguro, CLI doctor/repair, perfil/diagnóstico, layout de navegação, dashboard com dados reais e testes de regressão. Foram desenvolvidas para corrigir o problema observado no localhost (/dashboard mostrando 1 acesso e só Usuários).
+
+Backfill só concede novos grants a contas JÁ associadas a platform_admin; demais usuários não recebem promoção automática. Novos grants invalidam JWTs existentes. Sem execução financeira.
+
+A aplicação local do usuário não foi acessada, portanto o banco e a atribuição atual do usuário não foram confirmados. Testes PHPUnit/MySQL/Vitest/build e experiência no navegador seguem pendentes. Progresso da macro = 9/9 frentes de código, NÃO conclusão do produto financeiro.

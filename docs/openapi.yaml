@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.4.0
+  version: 1.5.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -121,6 +121,32 @@ paths:
                 $ref: '#/components/schemas/ProfileResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /auth/access:
+    get:
+      tags: [Autenticação]
+      operationId: accessDiagnostic
+      summary: Diagnosticar permissões e módulos liberados ao usuário autenticado
+      description: |
+        Retorna apenas as capacidades da própria conta e os módulos realmente
+        implementados. Nenhuma permissão é concedida por esta consulta.
+        Membros do papel platform_admin podem identificar permissões técnicas
+        não sincronizadas; o reparo exige a CLI administrativa com confirmação.
+        Mudanças no papel revogam JWTs antigos via auth_version.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Diagnóstico de acessos da própria sessão
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AccessDiagnostic' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /auth/refresh:
     post:
       summary: Renovar JWT ainda válido
@@ -2339,6 +2365,35 @@ components:
           type: integer
           description: Tempo de validade em segundos.
           example: 900
+    AccessModule:
+      type: object
+      required: [id, name, requires, available, missing_permissions]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        requires:
+          type: array
+          items: { type: string }
+        available: { type: boolean }
+        missing_permissions:
+          type: array
+          items: { type: string }
+    AccessDiagnostic:
+      type: object
+      required: [is_platform_admin, granted_count, expected_admin_count, missing_admin_permissions,
+        admin_role_incomplete, modules, financial_operations_enabled]
+      properties:
+        is_platform_admin: { type: boolean }
+        granted_count: { type: integer, minimum: 0 }
+        expected_admin_count: { type: integer, minimum: 0 }
+        missing_admin_permissions:
+          type: array
+          items: { type: string }
+        admin_role_incomplete: { type: boolean }
+        modules:
+          type: array
+          items: { $ref: '#/components/schemas/AccessModule' }
+        financial_operations_enabled: { type: boolean, enum: [false] }
     ProfileResponse:
       type: object
       required: [data]
@@ -2357,6 +2412,10 @@ components:
             permissions:
               type: array
               items: { type: string }
+            roles:
+              type: array
+              items: { type: string }
+            access_diagnostic: { $ref: '#/components/schemas/AccessDiagnostic' }
     Error:
       type: object
       properties:

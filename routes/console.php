@@ -4,6 +4,8 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Support\OperationalAccessCatalog;
+use Database\Seeders\AdminUserSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -103,30 +105,30 @@ Artisan::command('repasse:user:status {email : E-mail do usuário} {state : ativ
     return Command::SUCCESS;
 })->purpose('Ativar ou desativar uma conta e revogar todos os JWTs emitidos');
 
-Artisan::command('repasse:access:bootstrap {email : Usuário existente para acesso administrativo} {--yes : Confirmar sem prompt}', function (): int {
+Artisan::command('repasse:access:bootstrap {email : Conta existente que será administradora} {--yes : Confirmar sem prompt}', function (): int {
     $email = Str::lower(trim((string) $this->argument('email')));
     $user = User::query()->where('email', $email)->first();
 
     if (! $user || ! $user->is_active) {
-        $this->error('O usuário precisa existir e estar ativo.');
-
+        $this->error('A conta precisa existir e estar ativa.');
         return Command::FAILURE;
     }
 
-    if (! $this->option('yes') && ! $this->confirm('Conceder users.manage à conta por meio do papel técnico platform_admin?', false)) {
+    $total = count(OperationalAccessCatalog::TECHNICAL_PERMISSIONS);
+    $this->warn("Acesso técnico administrativo: {$total} permissões (usuários, cadastros, RBAC, dossiês, cenários, pareceres e pacotes).");
+    $this->line('Não será concedida nenhuma permissão de pagamento, liquidação ou operação bancária.');
+
+    if (! $this->option('yes')
+        && ! $this->confirm('Confirmar vínculo da conta existente ao papel platform_admin?', false)) {
         return Command::FAILURE;
     }
 
     DB::transaction(function () use ($user): void {
-        $permission = Permission::query()->firstOrCreate(
-            ['key' => 'users.manage'], ['description' => 'Gerenciar usuários e seu estado']
-        );
-        $role = Role::query()->firstOrCreate(
-            ['slug' => 'platform_admin'], ['name' => 'Administrador técnico']
-        );
-        $role->permissions()->syncWithoutDetaching([$permission->getKey()]);
+        // Keep permissions current BEFORE assigning the explicitly approved user.
+        app(AdminUserSeeder::class)->run();
+        $role = Role::query()->where('slug', 'platform_admin')->firstOrFail();
         $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
-
+        if (! $locked->is_active) throw new RuntimeException('Usuário desativado durante a operação.');
         if (! $locked->roles()->whereKey($role->getKey())->exists()) {
             $locked->roles()->syncWithoutDetaching([$role->getKey()]);
             $locked->auth_version = (int) $locked->auth_version + 1;
@@ -135,10 +137,65 @@ Artisan::command('repasse:access:bootstrap {email : Usuário existente para aces
         }
     });
 
-    $this->info('Permissão técnica concedida. É necessário novo login; não há privilégio financeiro.');
+    $this->info('Acesso administrativo técnico sincronizado. Saia do painel e faça novo login.');
+    return Command::SUCCESS;
+})->purpose('Vincular usuário existente ao papel técnico com catálogo completo e consentimento explícito');
+
+Artisan::command('repasse:access:doctor {email : Conta a conferir} {--repair : Sincronizar somente o papel platform_admin} {--yes : Confirmar sem prompt} {--json : Mostrar diagnóstico em JSON}', function (): int {
+    $email = Str::lower(trim((string) $this->argument('email')));
+    $user = User::query()->where('email', $email)->first();
+    if (! $user) {
+        $this->error('Conta não localizada: nenhuma alteração efetuada.');
+        return Command::FAILURE;
+    }
+
+    $role = $user->roles()->where('slug', 'platform_admin')->exists();
+    $before = $user->grantedPermissions();
+    if ($this->option('repair')) {
+        if (! $role) {
+            $this->error('Reparo não permitido: esta conta NÃO possui platform_admin.');
+            $this->line('O vínculo administrativo exige autorização explícita pelo comando repasse:access:bootstrap <email>.');
+            return Command::FAILURE;
+        }
+        $missing = OperationalAccessCatalog::missingForAdmin($before);
+        if ($missing !== []) {
+            $this->warn('O reparo sincroniza o catálogo para TODOS os membros do papel platform_admin e invalida seus JWTs.');
+            if (! $this->option('yes')
+                && ! $this->confirm('Confirmar sincronização dos privilégios administrativos existentes?', false)) {
+                return Command::FAILURE;
+            }
+            app(AdminUserSeeder::class)->run();
+        }
+    }
+
+    $user->refresh();
+    $current = $user->grantedPermissions();
+    $result = [
+        'user_id' => (int) $user->id, 'email' => $user->email,
+        'is_active' => (bool) $user->is_active, 'platform_admin' => $role,
+        'roles' => $user->roles()->pluck('slug')->all(),
+        'granted_permissions' => $current,
+        'missing_platform_admin_permissions' => $role
+            ? OperationalAccessCatalog::missingForAdmin($current) : null,
+        'modules' => OperationalAccessCatalog::modulesFor($current),
+        'next_action' => ! $role ? 'Solicitar autorização do bootstrap administrativo'
+            : (OperationalAccessCatalog::missingForAdmin($current) !== []
+                ? 'Executar repasse:access:doctor <email> --repair após autorização'
+                : 'Permissões atuais: atualizar sessão por novo login'),
+    ];
+    if ($this->option('json')) {
+        $this->line(json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    } else {
+        $this->info('Conta: '.$result['email'].' · platform_admin: '.($role ? 'SIM' : 'NÃO'));
+        $this->line('Permissões: '.implode(', ', $current));
+        $this->line('Módulos acessíveis: '.implode(', ', array_column(
+            array_filter($result['modules'], static fn (array $m): bool => $m['available']), 'name'
+        )));
+        $this->line($result['next_action']);
+    }
 
     return Command::SUCCESS;
-})->purpose('Conceder permissão administrativa técnica, com confirmação e auditoria');
+})->purpose('Diagnosticar menus ausentes e reparar apenas permissões do papel admin já atribuído');
 
 Artisan::command('repasse:access:revoke-admin {email : Usuário que perderá a permissão técnica} {--yes : Confirmar sem prompt}', function (): int {
     $email = Str::lower(trim((string) $this->argument('email')));
