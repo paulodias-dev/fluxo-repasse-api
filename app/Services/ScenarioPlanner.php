@@ -256,16 +256,19 @@ final class ScenarioPlanner
             ->selectRaw('SUM(CASE WHEN archived_at IS NULL THEN 1 ELSE 0 END) as active')
             ->selectRaw('SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END) as archived')
             ->first();
-        $balanced = 0;
-        $difference = 0;
-        DB::table('repasse_scenarios')->whereNull('archived_at')
-            ->orderBy('id')->chunkById(200, function ($scenarios) use (&$balanced, &$difference): void {
-                foreach ($scenarios as $scenario) {
-                    $data = $this->show((int) $scenario->id);
-                    if ($data['balance_state'] === 'balanced') $balanced++;
-                    else $difference++;
-                }
-            });
+        // Agregação SQL em centavos: evita N+1 e nunca soma versões históricas.
+        $allocations = DB::table('repasse_scenario_allocations')
+            ->select('repasse_scenario_id')
+            ->selectRaw('SUM(amount_cents) as allocated')
+            ->selectRaw('COUNT(*) as lines')
+            ->groupBy('repasse_scenario_id');
+        $balance = DB::table('repasse_scenarios as s')
+            ->leftJoinSub($allocations, 'a', 'a.repasse_scenario_id', '=', 's.id')
+            ->whereNull('s.archived_at')
+            ->selectRaw('SUM(CASE WHEN s.source_party_id IS NOT NULL AND COALESCE(a.lines,0) > 0 AND COALESCE(a.allocated,0) = s.gross_amount_cents THEN 1 ELSE 0 END) as balanced')
+            ->first();
+        $balanced = (int) ($balance->balanced ?? 0);
+        $difference = (int) $counts->active - $balanced;
         return [
             'total' => (int) $counts->total, 'active' => (int) $counts->active,
             'archived' => (int) $counts->archived, 'balanced_drafts' => $balanced,
