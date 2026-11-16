@@ -68,3 +68,6 @@ Alterar o cenário após solicitação **não** altera automaticamente o parecer
 ## Pendências para produto financeiro real
 
 Continuam sem especificação aprovada: pagador/beneficiário, fato gerador, comissão/rateio contratual, retenção, tributos, segregaçāo multi-organização, alçadas de liberação financeira, ledger, estornos, conciliação e PSP. O novo status reviewed não pode ser reutilizado para "pagar" nem alimentar um gateway.
+
+### Reenvio após correções
+Se o parecer retornar changes_requested, o solicitante pode reenviar a **mesma revisão** do cenário quando a correção for exclusivamente de documentos ou notas do dossiê, sem alterar os valores previstos. Cria-se uma nova solicitação/histórico, sem sobrescrever a anterior. Enquanto pending/reviewed, novas solicitações para a mesma revisão são bloqueadas, salvo retirada formal.
