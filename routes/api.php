@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
 use App\Http\Controllers\Api\V1\RepasseScenarioController;
+use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -132,6 +133,37 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.scenarios.fork');
         Route::get('/scenarios/{scenario}/export', [RepasseScenarioController::class, 'export'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.scenarios.export');
+
+        // Modelos versionados e geração idempotente de SIMULAÇÕES, nunca pagamentos.
+        Route::get('/distribution-templates', [DistributionWorkbenchController::class, 'templates'])
+            ->name('api.v1.finance.distributions.templates');
+        Route::post('/distribution-templates', [DistributionWorkbenchController::class, 'createTemplate'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.distributions.templates.store');
+        Route::get('/distribution-templates/{template}', [DistributionWorkbenchController::class, 'showTemplate'])
+            ->name('api.v1.finance.distributions.templates.show');
+        Route::put('/distribution-templates/{template}', [DistributionWorkbenchController::class, 'replaceTemplate'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.distributions.templates.update');
+        Route::patch('/distribution-templates/{template}/state', [DistributionWorkbenchController::class, 'changeTemplateState'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.distributions.templates.state');
+        Route::get('/distribution-templates/{template}/versions', [DistributionWorkbenchController::class, 'templateVersions'])
+            ->name('api.v1.finance.distributions.templates.versions');
+        Route::get('/distribution-templates/{template}/versions/{revision}', [DistributionWorkbenchController::class, 'templateVersion'])
+            ->name('api.v1.finance.distributions.templates.version');
+        Route::post('/distribution-templates/{template}/fork', [DistributionWorkbenchController::class, 'forkTemplate'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.distributions.templates.fork');
+        Route::post('/distribution-templates/{template}/preview', [DistributionWorkbenchController::class, 'previewTemplate'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.distributions.templates.preview');
+        Route::post('/distribution-templates/{template}/batch-preview', [DistributionWorkbenchController::class, 'previewBatch'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.distributions.batch.preview');
+        Route::post('/distribution-templates/{template}/batches', [DistributionWorkbenchController::class, 'applyBatch'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.distributions.batch.apply');
+        Route::get('/distribution-batches', [DistributionWorkbenchController::class, 'batches'])
+            ->name('api.v1.finance.distributions.batches');
+        Route::get('/distribution-batches/{batch}', [DistributionWorkbenchController::class, 'showBatch'])
+            ->name('api.v1.finance.distributions.batches.show');
+        Route::get('/distribution-batches/{batch}/export', [DistributionWorkbenchController::class, 'exportBatch'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.distributions.batches.export');
+
     });
 
     Route::prefix('admin/access')->middleware([
