@@ -4,56 +4,41 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
+use App\Support\OperationalAccessCatalog;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 final class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Prepara o RBAC sem criar contas ou senhas administrativas fixas.
-        $permission = Permission::query()->updateOrCreate(
-            ['key' => 'users.manage'],
-            ['description' => 'Gerenciar usuários administrativos']
-        );
+        DB::transaction(function (): void {
+            $ids = [];
+            foreach (OperationalAccessCatalog::TECHNICAL_PERMISSIONS as $key => $description) {
+                $permission = Permission::query()->updateOrCreate(
+                    ['key' => $key], ['description' => $description]
+                );
+                $ids[] = $permission->id;
+            }
 
-        $partyPermission = Permission::query()->updateOrCreate(
-            ['key' => 'parties.manage'],
-            ['description' => 'Gerenciar cadastro de pessoas e empresas']
-        );
+            $role = Role::query()->updateOrCreate(
+                ['slug' => 'platform_admin'], ['name' => 'Administrador técnico']
+            );
 
-        $accessPermission = Permission::query()->updateOrCreate(
-            ['key' => 'roles.manage'],
-            ['description' => 'Gerenciar papéis e atribuições de acesso']
-        );
+            $existing = $role->permissions()->pluck('permissions.id')->all();
+            $missing = array_values(array_diff($ids, $existing));
+            if ($missing === []) return;
 
-        $casePermission = Permission::query()->updateOrCreate(
-            ['key' => 'cases.manage'],
-            ['description' => 'Gerenciar dossiês documentais de repasse, sem movimentação financeira']
-        );
+            $role->permissions()->syncWithoutDetaching($missing);
 
-        $scenarioPermission = Permission::query()->updateOrCreate(
-            ['key' => 'scenarios.manage'],
-            ['description' => 'Planejamento e comparação de cenários, sem executar dinheiro']
-        );
+            // Privileges have changed. All JWTs issued to existing members of
+            // this role must be invalidated, including JWTs already in memory.
+            User::query()->whereHas('roles', fn ($q) => $q->whereKey($role->id))
+                ->increment('auth_version');
+        });
 
-        $reviewPermission = Permission::query()->updateOrCreate(
-            ['key' => 'scenario_reviews.manage'],
-            ['description' => 'Emitir parecer documental e atribuir revisões; sem autorização de pagamento']
-        );
-
-        $packagePermission = Permission::query()->updateOrCreate(
-            ['key' => 'packages.manage'],
-            ['description' => 'Emitir pacotes documentais privados de conferência; sem autorizar pagamentos']
-        );
-
-        $role = Role::query()->updateOrCreate(
-            ['slug' => 'platform_admin'],
-            ['name' => 'Administrador técnico']
-        );
-
-        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id, $scenarioPermission->id, $reviewPermission->id, $packagePermission->id]);
-
-        // Provisionar usuários via Artisan: repasse:user:create e
-        // repasse:access:bootstrap com confirmação, sem credenciais versionadas.
+        // This seeder never creates, identifies or automatically promotes a user.
+        // Only explicitly bootstrapped accounts can receive platform_admin.
     }
 }
