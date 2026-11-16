@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 0.9.0
+  version: 1.0.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -9,7 +9,8 @@ info:
     Referrer-Policy no-referrer, X-Frame-Options DENY e CSP restritiva.
     Toda resposta da API expõe X-Request-ID gerado pelo servidor, para correlação de erros sem dados privados.
     Cadastro de pessoas e empresas é apenas um diretório sem valores ou transferências.
-    Não há endpoints financeiros neste estágio.
+    Central operacional: tarefas, checklist, notas, anexos privados, dashboard e exportação CSV.
+    Sem cálculos, saldos, aprovação financeira, remessas, gateway ou liquidação.
 servers:
   - url: /api/v1
 tags:
@@ -17,6 +18,7 @@ tags:
   - name: Autenticação
   - name: Administração de usuários
   - name: Pessoas e empresas
+  - name: Central operacional
 paths:
   /health:
     get:
@@ -416,6 +418,408 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Usuário não encontrado }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/dashboard:
+    get:
+      operationId: operationsDashboard
+      summary: Indicadores reais de dossiês, pendências e documentos
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/tasks:
+    get:
+      operationId: operationsTasks
+      summary: Fila operacional paginada com filtros
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/assignees:
+    get:
+      operationId: operationsAssignees
+      summary: Pesquisa de usuários ativos com acesso à operação
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/export:
+    get:
+      operationId: operationsExport
+      summary: Exportação privada CSV de dossiês ou tarefas
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: entity
+          in: query
+          required: true
+          schema: { type: string, enum: [cases, tasks] }
+      responses:
+        '200':
+          description: Arquivo CSV em streaming (no-store)
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/tasks:
+    get:
+      operationId: caseTasks
+      summary: Consultar tarefas do dossiê
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      operationId: caseTasksCreate
+      summary: Criar tarefa com prazo e responsável
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos aceitos pelo endpoint (subconjunto controlado).
+              x-accepted-fields: [title, details, priority, due_on, assigned_to]
+      responses:
+        '201':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/tasks/{task}:
+    patch:
+      operationId: caseTasksUpdate
+      summary: Editar tarefa e seu status
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: task
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos aceitos pelo endpoint (subconjunto controlado).
+              x-accepted-fields: [title, details, status, priority, due_on, assigned_to]
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/checklist:
+    get:
+      operationId: caseChecklist
+      summary: Listar checklist do dossiê
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      operationId: caseChecklistCreate
+      summary: Adicionar item de checklist
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos aceitos pelo endpoint (subconjunto controlado).
+              x-accepted-fields: [label]
+      responses:
+        '201':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/checklist/{item}:
+    patch:
+      operationId: caseChecklistUpdate
+      summary: Conferir/desmarcar ou editar item de checklist
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: item
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos aceitos pelo endpoint (subconjunto controlado).
+              x-accepted-fields: [label, checked]
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/notes:
+    get:
+      operationId: caseNotes
+      summary: Listar notas permanentes
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      operationId: caseNotesCreate
+      summary: Adicionar nota de acompanhamento imutável
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Campos aceitos pelo endpoint (subconjunto controlado).
+              x-accepted-fields: [body]
+      responses:
+        '201':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/evidence:
+    get:
+      operationId: caseEvidence
+      summary: Listar metadados dos documentos privados
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      operationId: caseEvidenceUpload
+      summary: Enviar PDF ou imagem para armazenamento privado
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF, JPEG, PNG ou WebP; máximo 10 MB.
+      responses:
+        '201':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/evidence/{evidence}/download:
+    get:
+      operationId: caseEvidenceDownload
+      summary: Download autorizado de documento sem URL pública
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: evidence
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Download binário (attachment, no-store)
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/evidence/{evidence}/archive:
+    patch:
+      operationId: caseEvidenceArchive
+      summary: Arquivar metadados, preservando arquivo e auditoria
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: evidence
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Resultado autenticado da operação
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   headers:
     RequestId:
