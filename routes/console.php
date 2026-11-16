@@ -5,6 +5,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
+use App\Support\OperationalAcceptance;
 use Database\Seeders\AdminUserSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
@@ -251,3 +252,27 @@ Artisan::command('repasse:access:revoke-admin {email : Usuário que perderá a p
 
     return Command::SUCCESS;
 })->purpose('Revogar administração técnica sem permitir remover o último admin ativo');
+
+
+// Structural acceptance is deliberately read-only. A broken installation must
+// be repaired explicitly (migrations/seeders/bootstrap), never by this command.
+// --json is safe for CI logs: no emails, tokens, passwords, paths or PII.
+Artisan::command('repasse:acceptance {--json : Imprimir relatório sem dados pessoais}', function (): int {
+    $result = app(OperationalAcceptance::class)->inspect();
+    if ($this->option('json')) {
+        $this->line(json_encode(
+            $result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT
+        ));
+    } else {
+        $this->info('Diagnóstico estrutural de módulos (somente leitura)');
+        foreach ($result['checks'] as $check) {
+            $this->line(($check['ok'] ? '[OK] ' : '[FALHA] ').$check['id']);
+        }
+        $this->line($result['ready']
+            ? 'Estrutura pronta para executar testes integrados de homologação.'
+            : 'Estrutura incompleta. Verifique migrations, catálogo de papéis e administrador.');
+        $this->warn('Não é prova de build React, de pagamento ou de testes executados.');
+    }
+
+    return $result['ready'] ? Command::SUCCESS : Command::FAILURE;
+})->purpose('Diagnosticar módulos/perm. sem mutar banco ou mostrar segredos');
