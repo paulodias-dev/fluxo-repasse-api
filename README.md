@@ -16,7 +16,9 @@ PHP 8.3+, Laravel 12, MySQL 8+, JWT (php-open-source-saver/jwt-auth), testes PHP
 - `php artisan repasse:user:status EMAIL ativo|inativo`: controle de conta via CLI, revogação global das sessões.
 - Auditoria mínima de login, logout, refresh, credenciais e suspensão; sem senha, e-mail digitado ou IP em claro.
 
-Nenhuma rota de repasse, valor financeiro, beneficiário ou cadastro público foi criada. Identidade **não equivale** a autorização financeira.
+**Estado funcional atual (macro 29):** além da identidade, a API já implementa cadastros de pessoas/empresas, vínculos, Veículo 360, central operacional, lançamentos financeiros gerenciais, categorias, comprovantes privados, cenários de simulação, revisões documentais independentes, pacotes SHA-256/ZIP e acompanhamento consolidado. Não foram implementados pagamentos bancários ou repasses efetivos; identidade, pareceres e simulações **não equivalem a autorização financeira**.
+
+**Diagnóstico e homologação por etapa:** use `php artisan repasse:acceptance --json` para inventário **somente leitura** de migrations, módulos, permissões e admin ativo. Em QA local com o checkout React, `QA_APP_PATH=/caminho/fluxo-repasse-app QA_STAGE=static bash qa/run-stage6.sh` valida scripts e segurança; `QA_STAGE=local` executa Laravel/Pint e build React em modo seguro; `QA_STAGE=full` também exige contas QA distintas, banco QA confirmado e veículo real. Consultar `docs/MACRO_29_HOMOLOGACAO_OPERACIONAL.md`. Nenhum nível substitui o aceite visual desktop/mobile nem evidencia execução sem logs.
 
 ## Instalação
 ```bash
