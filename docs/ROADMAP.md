@@ -225,3 +225,19 @@ O percentual global financeiro **não é aferível** sem o escopo original, e a 
 **Regra de medição:** frentes de código da macro 17 = 6/6 entregues em branch; não usar 6/6 como percentual de conclusão financeira. Baseline de produto depende da definição de regras de repasse, ainda não recuperadas.
 
 Próximo pacote substancial: motor financeiro + aprovações + trilha monetária + liquidação/conciliação, condicionado à aprovação das regras de origem/destino, cálculo, repasses, cancelamentos e gateways. Não voltar a entregar macros isoladas de QA.
+
+
+## Macroentrega 18 — MOTOR DE CENÁRIOS DE REPASSE (macro funcional API + APP)
+
+**7 frentes implementadas em um único pacote:** construtor de propostas, distribuição manual em centavos, conciliação aritmética de valores previstos (não bancária), idempotência/concorrência, versionamento imutável na aplicação, comparação/fork de alternativas, indicadores/CSV.
+- [x] Migration e modelos de dados por cenário com origem, destinatários e revisões.
+- [x] API autenticada com RBAC duplo, transações e bloqueio de mutações em dossiês arquivados.
+- [x] React responsivo com editor dinâmico, validação e reconciliação exata em centavos.
+- [x] Auditoria de revisões, comparação, ramificação e exportação segura.
+- [x] OpenAPI v1.1, testes direcionados escritos, documentação de aceite.
+- [ ] PHPUnit/MySQL, Pint, testes do APP, build e smoke de browser executados em homologação.
+- [ ] Aprovação das regras do negócio financeiro real (indispensável antes de ledger/pagamentos).
+
+**Progresso da macro de código: 7/7 frentes entregues.** Não constitui percentual global do produto nem prova homologação. O antigo índice técnico 6/12=50% não deve ser atualizado por extrapolação: os 12 marcos originais não cobrem a especificação financeira real.
+
+**Próximo pacote substancial:** motor executável, obrigações, regras de comissão, aprovação, ledger e conciliação como um conjunto grande SOMENTE depois da aprovação rastreável das regras de negócio. Nunca tratar simulação balanced como autorização de pagar.

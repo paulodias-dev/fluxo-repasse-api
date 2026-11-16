@@ -31,12 +31,17 @@ final class AdminUserSeeder extends Seeder
             ['description' => 'Gerenciar dossiês documentais de repasse, sem movimentação financeira']
         );
 
+        $scenarioPermission = Permission::query()->updateOrCreate(
+            ['key' => 'scenarios.manage'],
+            ['description' => 'Planejamento e comparação de cenários, sem executar dinheiro']
+        );
+
         $role = Role::query()->updateOrCreate(
             ['slug' => 'platform_admin'],
             ['name' => 'Administrador técnico']
         );
 
-        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id]);
+        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id, $scenarioPermission->id]);
 
         // Provisionar usuários via Artisan: repasse:user:create e
         // repasse:access:bootstrap com confirmação, sem credenciais versionadas.

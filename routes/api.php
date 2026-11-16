@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
+use App\Http\Controllers\Api\V1\RepasseScenarioController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -102,6 +103,35 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.operations.tasks');
         Route::get('/export', [OperationsCenterController::class, 'export'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.export');
+    });
+
+
+    // Cenários financeiros exclusivamente de simulação: sem pagamentos, aprovação ou ledger.
+    Route::prefix('finance')->middleware([
+        'bearer.only', 'auth:api', 'session.current',
+        'permission:cases.manage', 'permission:scenarios.manage',
+    ])->group(function (): void {
+        Route::get('/summary', [RepasseScenarioController::class, 'summary'])->name('api.v1.finance.summary');
+        Route::get('/cases', [RepasseScenarioController::class, 'cases'])->name('api.v1.finance.cases');
+        Route::get('/cases/{case}/parties', [RepasseScenarioController::class, 'parties'])->name('api.v1.finance.case_parties');
+        Route::get('/scenarios', [RepasseScenarioController::class, 'index'])->name('api.v1.finance.scenarios.index');
+        Route::post('/scenarios', [RepasseScenarioController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.scenarios.store');
+        Route::get('/scenarios/{scenario}', [RepasseScenarioController::class, 'show'])->name('api.v1.finance.scenarios.show');
+        Route::put('/scenarios/{scenario}', [RepasseScenarioController::class, 'replace'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.scenarios.replace');
+        Route::patch('/scenarios/{scenario}/state', [RepasseScenarioController::class, 'changeState'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.scenarios.state');
+        Route::get('/scenarios/{scenario}/versions', [RepasseScenarioController::class, 'versions'])
+            ->name('api.v1.finance.scenarios.versions');
+        Route::get('/scenarios/{scenario}/versions/{revision}', [RepasseScenarioController::class, 'version'])
+            ->name('api.v1.finance.scenarios.version');
+        Route::get('/scenarios/{scenario}/compare', [RepasseScenarioController::class, 'compare'])
+            ->name('api.v1.finance.scenarios.compare');
+        Route::post('/scenarios/{scenario}/fork', [RepasseScenarioController::class, 'fork'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.finance.scenarios.fork');
+        Route::get('/scenarios/{scenario}/export', [RepasseScenarioController::class, 'export'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.scenarios.export');
     });
 
     Route::prefix('admin/access')->middleware([

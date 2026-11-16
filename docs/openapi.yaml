@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -19,6 +19,7 @@ tags:
   - name: Administração de usuários
   - name: Pessoas e empresas
   - name: Central operacional
+  - name: Cenários de repasse
 paths:
   /health:
     get:
@@ -820,6 +821,211 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /finance/summary:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioSummary
+      summary: Indicadores de planejamento, sem saldos ou cobranças
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: Contagens de cenários ativos, arquivados e conferidos
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/ScenarioSummary' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /finance/cases:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioAvailableCases
+      summary: Dossiês abertos disponíveis para planejamento
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Página de dossiês abertos com id e título }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /finance/cases/{case}/parties:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioCaseParties
+      summary: Pessoas e empresas já vinculadas ao dossiê, com status de atividade
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Lista de participantes cadastrais; nenhum papel financeiro presumido }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Dossiê não encontrado }
+  /finance/scenarios:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioList
+      summary: Listar cenários e conferência dos valores planejados
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Página de cenários com diferença calculada e status não executável }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Cenários de repasse]
+      operationId: scenarioCreate
+      summary: Criar prévia idempotente, sem obrigação financeira
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScenarioCreateInput' }
+      responses:
+        '201': { description: Cenário hipotético criado e revisão inicial gravada }
+        '200': { description: Mesmo client_reference e payload original; resposta idempotente }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Referência reutilizada para payload diferente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioShow
+      summary: Detalhes e diferença prevista
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Documento financeiro não executável
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/ScenarioRecord' } } }
+        '404': { description: Cenário inexistente }
+    put:
+      tags: [Cenários de repasse]
+      operationId: scenarioReplace
+      summary: Substituir inteiramente cenário com controle otimista de revisão
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScenarioReplaceInput' }
+      responses:
+        '200': { description: Revisão atualizada ou no-op sem snapshot extra }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Revisão desatualizada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}/state:
+    patch:
+      tags: [Cenários de repasse]
+      operationId: scenarioArchive
+      summary: Arquivar ou reabrir cenário sem apagar revisões
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, action]
+              additionalProperties: false
+              properties:
+                revision: { type: integer, minimum: 1 }
+                action: { type: string, enum: [archive, reopen] }
+      responses:
+        '200': { description: Estado alterado sem gerar pagamento }
+        '409': { description: Revisão desatualizada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}/versions:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioVersions
+      summary: Listagem paginada de revisões imutáveis com SHA-256
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Revisões com ator, tipo, data e hash }
+  /finance/scenarios/{scenario}/versions/{revision}:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioVersion
+      summary: Visualizar fotografia histórica íntegra e não editável
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: revision, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Snapshot histórico íntegro }
+        '404': { description: Versão não encontrada }
+  /finance/scenarios/{scenario}/compare:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioCompare
+      summary: Comparação de dois snapshots, valores em centavos
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: left, in: query, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: right, in: query, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Deltas de valor bruto, origem e alocações }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}/fork:
+    post:
+      tags: [Cenários de repasse]
+      operationId: scenarioFork
+      summary: Criar cenário alternativo a partir de versão imutável
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, client_reference]
+              additionalProperties: false
+              properties:
+                revision: { type: integer, minimum: 1 }
+                client_reference: { type: string, format: uuid }
+                title: { type: string, minLength: 2, maxLength: 180 }
+      responses:
+        '201': { description: Cenário alternativo criado com trilha de origem }
+        '200': { description: Resposta idempotente de alternativa já criada }
+        '409': { description: Referência reutilizada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}/export:
+    get:
+      tags: [Cenários de repasse]
+      operationId: scenarioExport
+      summary: Exportar prévia CSV, sem dados bancários
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: CSV com valores em centavos e aviso de simulação não executável
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
 components:
   headers:
     RequestId:
@@ -837,6 +1043,72 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    ScenarioAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [party_id, amount_cents]
+      properties:
+        party_id: { type: integer, minimum: 1 }
+        amount_cents: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        memo: { type: string, nullable: true, maxLength: 240 }
+    ScenarioDraftBase:
+      type: object
+      description: Base compartilhada. A API rejeita campos desconhecidos no payload final.
+      required: [title, description, source_party_id, gross_amount_cents, allocations]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 180 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        source_party_id: { type: integer, nullable: true, minimum: 1 }
+        gross_amount_cents: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        allocations:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/ScenarioAllocationInput' }
+    ScenarioCreateInput:
+      allOf:
+        - { $ref: '#/components/schemas/ScenarioDraftBase' }
+        - type: object
+          required: [case_id, client_reference]
+          properties:
+            case_id: { type: integer, minimum: 1 }
+            client_reference: { type: string, format: uuid }
+    ScenarioReplaceInput:
+      allOf:
+        - { $ref: '#/components/schemas/ScenarioDraftBase' }
+        - type: object
+          required: [revision]
+          properties:
+            revision: { type: integer, minimum: 1 }
+    ScenarioRecord:
+      type: object
+      description: Somente cenário hipotético, jamais ordem de pagamento.
+      required: [id, case_id, title, currency, gross_amount_cents, allocated_cents, difference_cents, balance_state, revision, executable, payment_enabled]
+      properties:
+        id: { type: integer }
+        case_id: { type: integer }
+        title: { type: string }
+        currency: { type: string, enum: [BRL] }
+        gross_amount_cents: { type: integer, format: int64 }
+        allocated_cents: { type: integer, format: int64 }
+        difference_cents: { type: integer, format: int64 }
+        source_party_id: { type: integer, nullable: true }
+        allocations:
+          type: array
+          items: { type: object }
+        balance_state: { type: string, enum: [missing_source, missing_allocations, underallocated, overallocated, balanced] }
+        revision: { type: integer }
+        archived_at: { type: string, nullable: true }
+        executable: { type: boolean, enum: [false] }
+        payment_enabled: { type: boolean, enum: [false] }
+    ScenarioSummary:
+      type: object
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        archived: { type: integer }
+        balanced_drafts: { type: integer }
+        incomplete_drafts: { type: integer }
+        payment_enabled: { type: boolean, enum: [false] }
     PartyRecord:
       type: object
       required: [id, type, name, is_active]

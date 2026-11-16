@@ -19,3 +19,12 @@ Para avançar nos próximos módulos sem retrabalho, faltam as regras originais 
 Essas definições não foram encontradas no link original do Gemini. Não inventar essas regras nem criar saques, saldos e transações até validação do escopo.
 
 Prioridade formal: **módulos de produto antes de novos ciclos amplos de QA**. Testes devem acompanhar o módulo entregue, não constituir uma macro isolada.
+
+
+## Macro 18 — avanço financeiro sem regras inventadas
+
+Foi criado exclusivamente um **planejador de cenários hipotéticos**, não um motor de repasse executável. O valor total e todas as alocações são informados manualmente pelo operador em centavos, com destino/origem previstos e vinculados ao dossiê. Estado balanced significa só diferença aritmética zero.
+
+Ainda faltam decisões formais: quem é de fato pagador e beneficiário; evento que gera a obrigação; critérios de cálculo, comissão, retenções, tributos, moeda e arredondamento; processo de aprovação; quando uma obrigação vira pagamento; banco/gateway; conciliação; estorno e disputa; política multi-organização, limites, segregação de funções e conformidade. Nunca afirmar que a macro 18 implementou essas regras.
+
+A permissão técnica scenarios.manage exige cases.manage e não cria direitos de pagamento.
