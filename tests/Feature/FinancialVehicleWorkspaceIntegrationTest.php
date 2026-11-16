@@ -46,6 +46,10 @@ final class FinancialVehicleWorkspaceIntegrationTest extends TestCase
             'plate' => 'AAA1B23', 'purchase_amount_cents' => 1230000,
             'sale_amount_cents' => 1700000,
         ])->assertCreated()->assertJsonPath('data.plate', 'AAA1B23')->json('data.id');
+        $this->withToken($token)->getJson('/api/v1/repasse-cases?search=AAA1B23')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $vehicle);
+
         $source = Party::query()->create(['type' => 'company', 'name' => 'Fornecedor QA']);
         $recipient = Party::query()->create(['type' => 'person', 'name' => 'Destinatário QA']);
         foreach ([$source, $recipient] as $party) {
