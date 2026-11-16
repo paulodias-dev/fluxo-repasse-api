@@ -173,3 +173,15 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Guardar manifesto serialized LONGTEXT, sem JSON column que pode reordenar chaves antes do hash. Para snapshots legados das macros 18/20, usar HistoricalHashCompatibility para verificar hash registrado com ordem de chaves original sem relaxar integridade.
 - ZIP só com ZipArchive disponível, nomes internos sanitizados, arquivo temporário privado removido após envio e sem guardar cópias desnecessárias.
 - NÃO expor esses pacotes a clientes/tenants externos antes de regras de acesso e LGPD aprovadas. Não inferir regras de repasse financeiro.
+
+
+## Macro 22 — UI deve exibir módulos liberados, sem conceder grants indevidos
+
+- Ao atualizar API e APP, módulos da aplicação devem estar na navegação principal com prioridade, não abaixo de uma landing de boas-vindas persistente.
+- Fonte única de módulos autorizados é GET /auth/me e os grants JWT efetivamente aceitos no backend; o frontend não pode inferir administração pelo nome ou e-mail.
+- Catalogar 7 permissões técnicas: users.manage, parties.manage, roles.manage, cases.manage, scenarios.manage, scenario_reviews.manage, packages.manage. Não confundir com aprovação financeira.
+- Sempre sincronizar o papel platform_admin existente por seeder idempotente, invalidando tokens ao conceder novas permissões.
+- Migration de backfill NUNCA deve promover contas comuns nem criar senhas/usuários; afeta somente membros do papel técnico já presente. Diagnóstico por CLI não altera dados, reparo exige --repair, papel preexistente e confirmação.
+- Preserve /auth/me e o GET /auth/access como diagnóstico da própria sessão. Erro 401 após modificação de privilégios exige login novo.
+- Entregar testes focais sobre permissões, mínima autoridade, navegação mobile e um usuário que só tem users.manage, sem falsos positivos de liberação.
+- Não executar migrate:fresh em banco persistente ou atualizar arquivos do usuário sem autorização/backup.
