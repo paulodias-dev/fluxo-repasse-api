@@ -278,3 +278,23 @@ Próximo pacote substancial: motor financeiro + aprovações + trilha monetária
 **Escopo de código da macro 20: 9/9 frentes implementadas.** Não é índice global de produto nem prova de homologação; a métrica técnica histórica 6/12=50% não mede o negócio. Esta revisão é **documental**, nunca uma aprovação ou liquidação de repasse.
 
 **Próximo passo para motor financeiro real:** aprovação formal de requisitos de quem paga/recebe, critérios de comissão/rateio, fato gerador, alçadas, conta/PSP, conciliação, estorno e isolamento por organização.
+
+
+## Macroentrega 21 — pacotes de dossiê e prestação de contas documental
+
+**Nove frentes funcionais concluídas em código API + APP, sem Draft:**
+- [x] Seleção independente, paginada e pesquisável de evidências, cenários e pareceres.
+- [x] Fotografia de participantes, tarefas, prazos, checklist, notas e status do dossiê.
+- [x] Inclusão verificada de cenários/revisões e pareceres históricos.
+- [x] Prévia sem gravação, SHA-256 e bloqueio HTTP 409 se conteúdo mudar antes da emissão.
+- [x] Registro idempotente de pacotes com manifesto exato em LONGTEXT, sem mutação posterior via API.
+- [x] Indicadores de conteúdo e pendências do pacote, sem saldos fictícios.
+- [x] Verificação de hash do manifesto e SHA-256 de arquivos privados.
+- [x] Comparação de adições/remoções/modificações entre fotografias do mesmo dossiê.
+- [x] ZIP privado, manifest.json, anexos com hash conferido, React responsivo, OpenAPI 1.4 e testes dirigidos.
+- [x] Compatibilidade com snapshots legados MySQL JSON preservando verificação criptográfica dos hashes existentes.
+- [ ] Executar Laravel/MySQL, PHPUnit/Pint, Vitest/build e smoke de ZIP real antes da homologação.
+
+**Evolução aferível:** 9/9 frentes da macro 21 codificadas, validação em ambiente real pendente. O percentual global do projeto permanece indefinido (os antigos 6/12=50% se referem somente ao roadmap técnico anterior e não representam conclusão financeira).
+
+A próxima macro deve priorizar publicação/documentação de fluxos para operadores autorizados e retenção/acessos se o escopo permitir. Fluxos bancários reais só após aprovação formal de regras de negócio e isolamento organizacional.
