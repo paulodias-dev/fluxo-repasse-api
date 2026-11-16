@@ -20,9 +20,13 @@ return new class extends Migration
 
             $now = now();
             foreach (OperationalAccessCatalog::TECHNICAL_PERMISSIONS as $key => $description) {
-                DB::table('permissions')->updateOrInsert(
-                    ['key' => $key], ['description' => $description, 'updated_at' => $now, 'created_at' => $now]
-                );
+                DB::table('permissions')->insertOrIgnore([
+                    'key' => $key, 'description' => $description,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+                // Preserve original created_at when the permission already exists.
+                DB::table('permissions')->where('key', $key)
+                    ->update(['description' => $description, 'updated_at' => $now]);
             }
 
             $ids = DB::table('permissions')
