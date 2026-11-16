@@ -107,4 +107,71 @@ final class AdminUserRoleOnboardingTest extends TestCase
 
         $this->assertDatabaseMissing('users', ['email' => 'protected@example.test']);
     }
+
+    public function test_profile_and_roles_edit_is_atomic_and_revokes_existing_token_once(): void
+    {
+        [$actor, $token] = $this->operator(['users.manage', 'roles.manage', 'cases.manage']);
+        $role = Role::query()->create(['slug' => 'vehicle_staff', 'name' => 'Equipe de veículos']);
+        $role->permissions()->attach(Permission::query()->firstOrCreate(['key' => 'cases.manage'])->id);
+        $target = User::factory()->create([
+            'email' => 'before-edit@example.test', 'password' => 'Strong-Passphrase-123!',
+        ]);
+        $targetToken = $this->postJson('/api/v1/auth/login', [
+            'email' => $target->email, 'password' => 'Strong-Passphrase-123!',
+        ])->assertOk()->json('access_token');
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Equipe atualizada', 'email' => 'after-edit@example.test',
+            'role_ids' => [$role->id],
+        ])->assertOk()->assertJsonPath('data.email', 'after-edit@example.test');
+
+        $this->assertSame(2, (int) $target->fresh()->auth_version);
+        $this->assertTrue($target->fresh()->hasPermission('cases.manage'));
+        $this->withToken($targetToken)->getJson('/api/v1/auth/me')->assertUnauthorized();
+        $this->assertDatabaseHas('auth_security_events', [
+            'user_id' => $target->id, 'actor_user_id' => $actor->id, 'event_type' => 'account_roles_changed',
+        ]);
+        $this->assertDatabaseHas('auth_security_events', [
+            'user_id' => $target->id, 'actor_user_id' => $actor->id, 'event_type' => 'account_email_changed',
+        ]);
+    }
+
+    public function test_rejected_role_selection_rolls_back_profile_changes(): void
+    {
+        [, $token] = $this->operator(['users.manage', 'roles.manage']);
+        $target = User::factory()->create(['name' => 'Nome original', 'email' => 'unchanged@example.test']);
+        $role = Role::query()->create(['slug' => 'restricted_finance', 'name' => 'Financeiro restrito']);
+        $role->permissions()->attach(Permission::query()->firstOrCreate(['key' => 'scenarios.manage'])->id);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Alteração indevida', 'role_ids' => [$role->id],
+        ])->assertUnprocessable()->assertJsonValidationErrors('role_ids');
+
+        $this->assertSame('Nome original', $target->fresh()->name);
+        $this->assertSame([], $target->roles()->pluck('roles.id')->all());
+        $this->assertSame(1, (int) $target->fresh()->auth_version);
+    }
+
+    public function test_user_manager_cannot_smuggle_roles_through_profile_update(): void
+    {
+        [, $token] = $this->operator(['users.manage']);
+        $target = User::factory()->create(['name' => 'Nome original']);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$target->id, [
+            'name' => 'Alteração indevida', 'role_ids' => [],
+        ])->assertForbidden();
+
+        $this->assertSame('Nome original', $target->fresh()->name);
+    }
+
+    public function test_self_role_updates_are_forbidden_even_with_full_permission(): void
+    {
+        [$actor, $token] = $this->operator(['users.manage', 'roles.manage']);
+
+        $this->withToken($token)->patchJson('/api/v1/admin/users/'.$actor->id, [
+            'role_ids' => [],
+        ])->assertForbidden();
+
+        $this->assertTrue($actor->fresh()->hasPermission('roles.manage'));
+    }
 }
