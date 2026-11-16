@@ -159,3 +159,17 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Nenhum seed cria credenciais fixas; migrações são aditivas e homologação/teste precisam de evidência.
 
 - Após changes_requested, pode ser aberta nova rodada de revisão da MESMA versão se a correção foi somente documental (ex.: anexos no dossiê). Enquanto pending ou reviewed a mesma versão não pode receber segunda solicitação ativa, exceto após retirada.
+
+
+## Macro 21 — pacotes documentais privados
+
+- Pacotes são sempre snapshots documentais, nunca ordem de pagamento, aprovação monetária, comprovante de quitação ou liquidação.
+- Rotas de leitura exigem cases.manage + scenarios.manage + JWT/session.current; a emissão exige packages.manage adicional.
+- Selecionar até 40 evidências, 30 cenários e 30 pareceres do mesmo dossiê; não selecionar evidência arquivada.
+- Incluir participantes, tarefas, checklist e notas em snapshot até 400 registros por coleção; recusar excesso em vez de truncar silenciosamente.
+- Validar SHA-256 de arquivos privados antes da prévia, na emissão e antes/depois do ZIP; máximo 100 MiB, sem URL pública; se divergente, negar download e manter manifesto preservado para inspeção.
+- Não emitir novos pacotes com dossiê arquivado; pacotes antigos continuam legíveis/verificáveis.
+- Prévia deve produzir SHA estável; POST exige o MESMO manifesto SHA e request_key UUID estável no retry, com 409 em mudança de dados.
+- Guardar manifesto serialized LONGTEXT, sem JSON column que pode reordenar chaves antes do hash. Para snapshots legados das macros 18/20, usar HistoricalHashCompatibility para verificar hash registrado com ordem de chaves original sem relaxar integridade.
+- ZIP só com ZipArchive disponível, nomes internos sanitizados, arquivo temporário privado removido após envio e sem guardar cópias desnecessárias.
+- NÃO expor esses pacotes a clientes/tenants externos antes de regras de acesso e LGPD aprovadas. Não inferir regras de repasse financeiro.
