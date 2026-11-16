@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.3.0
+  version: 1.4.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -22,6 +22,7 @@ tags:
   - name: Cenários de repasse
   - name: Modelos e lotes
   - name: Revisão documental
+  - name: Pacotes documentais
 paths:
   /health:
     get:
@@ -1733,6 +1734,211 @@ paths:
         '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /repasse-cases/{case}/packages/options:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageOptions
+      summary: Listar evidências, cenários ou pareceres elegíveis por página e busca
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: kind, in: query, required: true, schema: { type: string, enum: [evidence, scenarios, reviews] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/packages:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageIndex
+      summary: Histórico privado de pacotes já registrados
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Pacotes documentais]
+      operationId: casePackageCreate
+      summary: Registrar fotografia documental após conferir hash da prévia
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CasePackageCreate' }
+      responses:
+        '201':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '200': { description: Repetição idempotente sem criar outro pacote }
+  /repasse-cases/{case}/packages/preview:
+    post:
+      tags: [Pacotes documentais]
+      operationId: casePackagePreview
+      summary: Conferir a fotografia determinística sem gravar
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CasePackagePreview' }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/packages/{package}:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageShow
+      summary: Ler o manifesto preservado com valores e evidências originais
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: package, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/packages/{package}/integrity:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageIntegrity
+      summary: Verificar hash do manifesto e SHA-256 dos arquivos privados
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: package, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/packages/{package}/compare:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageCompare
+      summary: Comparar duas fotografias do mesmo dossiê
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: package, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: other_id, in: query, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/packages/{package}/download:
+    get:
+      tags: [Pacotes documentais]
+      operationId: casePackageZip
+      summary: Baixar ZIP privado com manifesto JSON e evidências verificadas
+      description: |
+        Requer JWT, sessão vigente, cases.manage E scenarios.manage. Emitir exige
+        também packages.manage. Pacote documental não autoriza pagamento, cobrança
+        ou liquidação. ZIP disponível somente com extensão PHP ZIP e evidências íntegras.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: package, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: ZIP privado com manifesto e evidências
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Pacote ou recurso inexistente }
+        '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Extensão PHP ZIP indisponível }
+
 components:
   headers:
     RequestId:
@@ -1750,6 +1956,52 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    CasePackagePreview:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 180 }
+        note: { type: string, nullable: true, maxLength: 4000 }
+        evidence_ids:
+          type: array
+          maxItems: 40
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        scenario_ids:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        review_ids:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+    CasePackageCreate:
+      type: object
+      additionalProperties: false
+      required: [title, request_key, expected_manifest_sha256]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 180 }
+        note: { type: string, nullable: true, maxLength: 4000 }
+        evidence_ids:
+          type: array
+          maxItems: 40
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        scenario_ids:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        review_ids:
+          type: array
+          maxItems: 30
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        request_key: { type: string, format: uuid }
+        expected_manifest_sha256: { type: string, minLength: 64, maxLength: 64, description: Digest recebido na prévia }
     ReviewRequestInput:
       type: object
       additionalProperties: false

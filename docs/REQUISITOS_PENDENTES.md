@@ -42,3 +42,12 @@ Antes de construir a camada financeira executável, aprovar de forma rastreável
 A macro 20 adiciona conferência humana segregada para snapshots de cenários. O novo status reviewed significa documentação conferida, enquanto changes_requested solicita correções. Mesmo após "reviewed", nenhuma obrigação, comissão, liquidação, saldo, ordem bancária, pagamento ou conciliação é criada.
 
 Não inferir que operadores com scenario_reviews.manage possuem alçada monetária. Regras de liberação financeira, papéis de aprovadores, dupla autorização, beneficiários, contratos, pagamentos, gateway/PSP, impostos, retenções, estornos e isolamento por organização continuam por aprovar, sem material original recuperado. Não ligar reviewed ao motor bancário futuro automaticamente.
+
+
+## Macro 21 — pacotes de prestação de contas documental
+
+O produto agora possui um fluxo de fotografias históricas de dossiê com manifesto SHA-256 e ZIP privado, integrando notas, tarefas, checklist, documentos, cenários e pareceres existentes. Isso não transforma os documentos em comprovante financeiro: não existe autorização monetária, retenção bancária, pagamento, taxa contratual ou liquidação.
+
+Políticas de compartilhamento externo, retenção LGPD e isolamento entre organizações seguem pendentes. Nesta macro, pacotes são **privados a operadores internos** com permissões explícitas, e não há convites públicos ou links assinados.
+
+O ZIP é gerado somente com evidências ainda íntegras no armazenamento local privado. Assinatura digital externa, timestamp de terceiro, guarda WORM e certificação jurídica não foram implementados nem presumidos.

@@ -290,7 +290,7 @@ final class ScenarioPlanner
         $row = DB::table('repasse_scenario_versions')
             ->where('repasse_scenario_id', $id)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
-        if (! hash_equals($row->sha256, hash('sha256', json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)))) {
+        if (! HistoricalHashCompatibility::scenario($snapshot, $row->sha256)) {
             abort(500, 'Integridade histórica não confirmada.');
         }
         return [

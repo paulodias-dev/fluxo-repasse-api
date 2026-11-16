@@ -41,12 +41,17 @@ final class AdminUserSeeder extends Seeder
             ['description' => 'Emitir parecer documental e atribuir revisões; sem autorização de pagamento']
         );
 
+        $packagePermission = Permission::query()->updateOrCreate(
+            ['key' => 'packages.manage'],
+            ['description' => 'Emitir pacotes documentais privados de conferência; sem autorizar pagamentos']
+        );
+
         $role = Role::query()->updateOrCreate(
             ['slug' => 'platform_admin'],
             ['name' => 'Administrador técnico']
         );
 
-        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id, $scenarioPermission->id, $reviewPermission->id]);
+        $role->permissions()->syncWithoutDetaching([$permission->id, $partyPermission->id, $accessPermission->id, $casePermission->id, $scenarioPermission->id, $reviewPermission->id, $packagePermission->id]);
 
         // Provisionar usuários via Artisan: repasse:user:create e
         // repasse:access:bootstrap com confirmação, sem credenciais versionadas.
