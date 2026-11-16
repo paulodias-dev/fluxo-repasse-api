@@ -379,7 +379,7 @@ Marco de negócio entregue como UM bloco integrado em API e React (não micro-PR
 - [x] Cenário conferido gera atalho para pacote com cenário+parecer pré-selecionados; prévia SHA-256, seleção de anexos e confirmação explícita continuam obrigatórias.
 - [x] Hash/ZIP, comparação e validação de integridade reaproveitados do módulo oficial, sem armazenamento paralelo.
 - [x] Ficha do Veículo 360 com uma aba Prestação de contas 360, preservando o layout adquirido e as telas detalhadas existentes.
-- [x] CSV anti-fórmula e sem cache; OpenAPI 1.8; 8 testes feature direcionados escritos, documentação e roteiro de aceite.
+- [x] CSV anti-fórmula e sem cache; OpenAPI 1.8; 9 testes feature direcionados escritos, documentação e roteiro de aceite.
 - [ ] Executar PHPUnit/MySQL, Pint, build/lint React e smoke de duas contas desktop/mobile — etapa ainda NÃO homologada.
 
 Não cria migration, gateway ou permissão financeira; packages.manage continua obrigatória para emitir pacotes. Nem revisão 'reviewed' nem pacote verificado liberam transferências. A etapa 5 depende de regras financeiras aprovadas; a etapa 6 pode prosseguir com QA operacional das quatro primeiras.
