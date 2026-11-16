@@ -69,14 +69,18 @@ final class VehicleFinanceWorkspace
                 'd.archived_at', 'd.created_at', 'l.linked_by', 'l.created_at as linked_at')
             ->orderBy('l.id')->get();
 
-        $events = DB::table('repasse_case_financial_events as e')
+        $eventQuery = DB::table('repasse_case_financial_events as e')
             ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
             ->where('e.repasse_case_id', $case)->where('e.entry_id', $entry)
             ->select('e.id', 'e.event_type', 'e.details', 'e.actor_user_id',
-                'u.name as actor_name', 'e.created_at')
-            ->orderByDesc('e.id')->limit(100)->get();
+                'u.name as actor_name', 'e.created_at');
 
-        return ['entry' => $record, 'documents' => $documents, 'events' => $events];
+        return [
+            'entry' => $record,
+            'documents' => $documents,
+            'events' => (clone $eventQuery)->orderByDesc('e.id')->limit(30)->get(),
+            'events_total' => (clone $eventQuery)->count(),
+        ];
     }
 
     public function filtered(int $case, array $filters): Builder
