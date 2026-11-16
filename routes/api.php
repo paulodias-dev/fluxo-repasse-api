@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
+use App\Http\Controllers\Api\V1\VehicleFinanceController;
 use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
@@ -75,6 +76,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.detach');
         Route::get('/{case}/events', [RepasseCaseController::class, 'events'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.events');
+        // Escrituração operacional, sem pagamentos ou liquidações.
+        Route::get('/{case}/finance/summary', [VehicleFinanceController::class, 'summary'])->name('api.v1.cases.finance.summary');
+        Route::get('/{case}/finance/entries', [VehicleFinanceController::class, 'index'])->name('api.v1.cases.finance.entries');
+        Route::post('/{case}/finance/entries', [VehicleFinanceController::class, 'store'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.store');
+        Route::post('/{case}/finance/entries/{entry}/void', [VehicleFinanceController::class, 'void'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.void');
         Route::get('/{case}/tasks', [CaseWorkController::class, 'tasks'])->name('api.v1.cases.tasks');
         Route::post('/{case}/tasks', [CaseWorkController::class, 'createTask'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.store');
