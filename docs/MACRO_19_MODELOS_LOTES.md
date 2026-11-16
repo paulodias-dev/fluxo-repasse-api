@@ -72,3 +72,11 @@ OpenAPI 1.2 em docs/openapi.yaml.
 O núcleo executável (obrigações, aprovações, ledger, liquidação/estorno, conciliação e integrações bancárias) permanece condicionado à recuperação e aprovação formal de quem paga/recebe, fatos geradores, comissão, retenções, alçadas e modelo organizacional. O sistema de cenários não oferece comando de pagamento nem endpoint equivalente.
 
 Progresso **da macro de código**: 8/8 frentes implementadas na branch, validação runtime pendente. Não converter isso em conclusão percentual do produto financeiro.
+
+
+## Verificação focalizada executada durante esta entrega
+
+- O arquivo DistributionCalculator.php foi reproduzido no ambiente local e sua identidade de conteúdo foi conferida pelo Git blob SHA 35c4c22ab8675f45eb1d7f888b6471fe6e7e0db3.
+- php -l DistributionCalculator.php: aprovado, sem erro de sintaxe.
+- Quatro checagens aritméticas com uma implementação mínima de ValidationException para isolar o cálculo: 33,33%/33,33%/33,34% em 10.001 centavos; soma exata; determinismo independente da ordem; rejeição de alocação com zero centavo. **4/4 aprovadas**.
+- Essas checagens validam a lógica pura; NÃO executam Laravel, migrations ou API HTTP. A suíte DistributionWorkbenchTest e homologação MySQL permanecem pendentes.
