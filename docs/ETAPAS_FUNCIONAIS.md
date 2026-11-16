@@ -7,7 +7,7 @@ A evolução a partir da macro 27 passa a ser acompanhada por **etapas completas
 | 1 — Acesso e cadastros | Autenticação JWT, papéis/permissões, usuários, pessoas/empresas e vínculos | Desenvolvido | Pendente de evidência integrada |
 | 2 — Veículo 360 | Cadastro, origem, compra/venda, participantes, anexos privados, tarefas, checklist, notas, histórico e central operacional | Desenvolvido | Pendente de evidência integrada |
 | 3 — Financeiro gerencial do veículo | Lançamentos, categorias editáveis, retificação, estorno, comprovantes privados vinculados, auditoria, filtros, relatório por categoria/mês e CSV | Macro 27 desenvolvida | Pendente de migrations/tests/browser |
-| 4 — Cenários e revisão documental | Simulações, versões, rateios hipotéticos, pareceres, pacotes com hashes e ZIP | Desenvolvido sem pagamento real | Pendente de evidência integrada |
+| 4 — Cenários e revisão documental | Fluxo 360 integrado por veículo: simulações, revisão segregada, estados/obsolescência, pacotes SHA/ZIP e CSV documental | Macro 28 integrada em código | PHPUnit/MySQL + build/mobile/E2E pendentes |
 | 5 — Motor efetivo de repasses | Fato gerador, beneficiários, cálculo aprovado, comissões, tributos, alçadas, obrigações, liquidação, reembolso e conciliação | **Bloqueado por escopo de negócio não recuperado/aprovado** | Não iniciado |
 | 6 — Homologação e entrega operacional | Cenários reais, QA Laravel/MySQL/React, segurança, backups, deploy/staging, migrações, mobile e aceite | Preparações técnicas parciais | Pendente |
 
