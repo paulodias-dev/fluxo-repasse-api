@@ -28,6 +28,23 @@ final class VehicleFinanceWorkspace
             throw ValidationException::withMessages(['category' => 'Selecione ou informe uma categoria válida.']);
         }
 
+        // Free-text compatibility must not bypass an explicitly disabled
+        // catalogue category. Active catalogue names resolve automatically.
+        $slug = Str::slug($name);
+        if ($slug !== '') {
+            $registered = DB::table('repasse_financial_categories')
+                ->where('kind', $data['kind'])->where('slug', mb_substr($slug, 0, 100))
+                ->lockForUpdate()->first();
+            if ($registered) {
+                if (! $registered->is_active) {
+                    throw ValidationException::withMessages([
+                        'category' => 'Esta categoria foi desativada e não pode ser reutilizada.',
+                    ]);
+                }
+                return ['category_id' => (int) $registered->id, 'category' => $registered->name];
+            }
+        }
+
         return ['category_id' => null, 'category' => $name];
     }
 
