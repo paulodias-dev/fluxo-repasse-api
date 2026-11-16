@@ -96,6 +96,8 @@ Route::prefix('v1')->group(function (): void {
     ])->group(function (): void {
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
             ->name('api.v1.operations.dashboard');
+        Route::get('/assignees', [OperationsCenterController::class, 'assignees'])
+            ->name('api.v1.operations.assignees');
         Route::get('/tasks', [OperationsCenterController::class, 'tasks'])
             ->name('api.v1.operations.tasks');
         Route::get('/export', [OperationsCenterController::class, 'export'])
