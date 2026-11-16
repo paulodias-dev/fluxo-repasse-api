@@ -18,6 +18,7 @@ final class OperationalAcceptanceTest extends TestCase
     {
         parent::setUp();
         config()->set('jwt.blacklist_enabled', true);
+        config()->set('jwt.secret', str_repeat('read-only-qa-secret-', 4));
     }
 
     private function provisionAdmin(): User
