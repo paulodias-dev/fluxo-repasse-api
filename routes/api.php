@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
+use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
@@ -47,6 +48,20 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.links.update');
         Route::get('/{party}/events', PartyEventController::class)
             ->middleware('throttle:repasse-admin-read')->name('api.v1.parties.events');
+    });
+
+    Route::prefix('admin/access')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:roles.manage',
+    ])->group(function (): void {
+        Route::get('/', [AccessManagementController::class, 'index'])->name('api.v1.access.index');
+        Route::post('/roles', [AccessManagementController::class, 'saveRole'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.access.roles.store');
+        Route::patch('/roles/{role}', [AccessManagementController::class, 'saveRole'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.access.roles.update');
+        Route::get('/users/{user}/roles', [AccessManagementController::class, 'userRoles'])
+            ->name('api.v1.access.users.roles');
+        Route::put('/users/{user}/roles', [AccessManagementController::class, 'assign'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.access.users.roles.update');
     });
 
     Route::prefix('admin')->middleware([
