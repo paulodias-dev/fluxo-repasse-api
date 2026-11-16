@@ -126,7 +126,8 @@ final class ScenarioReviewController extends Controller
     public function export(int $review): StreamedResponse
     {
         $record = $this->reviews->show($review);
-        return response()->streamDownload(function () use ($review, $record): void {
+        $historical = $this->reviews->snapshot($review, $this->planner);
+        return response()->streamDownload(function () use ($review, $record, $historical): void {
             $stream = fopen('php://output', 'wb');
             fputcsv($stream, ['Tipo', 'Solicitação', 'Cenário', 'Revisão do cenário', 'Status da análise',
                 'Data', 'Usuário', 'Descrição', 'Hash', 'Observação'], ';');
@@ -134,6 +135,21 @@ final class ScenarioReviewController extends Controller
                 $record['scenario_revision'], $record['status'], $record['created_at'],
                 $this->csv($record['requester_name']), $this->csv($record['request_note']),
                 $record['scenario_digest'], 'NÃO AUTORIZA PAGAMENTOS'], ';');
+            $snapshot = $historical['snapshot'];
+            fputcsv($stream, ['PROPOSTA_ORIGINAL', $review, $record['scenario_id'],
+                $record['scenario_revision'], $record['status'], $record['created_at'],
+                $this->csv($snapshot['source_name'] ?? null),
+                $this->csv($snapshot['title'] ?? null), $historical['scenario_sha256'],
+                'VALOR PREVISTO EM CENTAVOS: '.$snapshot['gross_amount_cents']], ';');
+            fputcsv($stream, ['DIFERENÇA_DE_PREVISAO', $review, $record['scenario_id'],
+                $record['scenario_revision'], $record['status'], '', '', '',
+                '', 'CENTAVOS: '.$snapshot['difference_cents']], ';');
+            foreach ($snapshot['allocations'] as $allocation) {
+                fputcsv($stream, ['DESTINATARIO_PREVISTO', $review, $record['scenario_id'],
+                    $record['scenario_revision'], $record['status'], '', '',
+                    $this->csv($allocation['party_name'] ?? null),
+                    '', 'CENTAVOS: '.$allocation['amount_cents'].'; SEM AUTORIZAÇÃO FINANCEIRA'], ';');
+            }
             $events = DB::table('repasse_scenario_review_events as e')
                 ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
                 ->where('e.review_id', $review)->select('e.sequence', 'e.event_type',
