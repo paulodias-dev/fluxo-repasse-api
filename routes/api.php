@@ -99,6 +99,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.finance.export');
         Route::get('/{case}/finance/entries/{entry}', [VehicleFinanceController::class, 'show'])
             ->name('api.v1.cases.finance.entries.show');
+        Route::get('/{case}/finance/entries/{entry}/events', [VehicleFinanceController::class, 'events'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.finance.entries.events');
         Route::post('/{case}/finance/entries/{entry}/replace', [VehicleFinanceController::class, 'replace'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.replace');
         Route::post('/{case}/finance/entries/{entry}/documents', [VehicleFinanceDocumentController::class, 'attach'])
