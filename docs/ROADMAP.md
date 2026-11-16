@@ -335,3 +335,19 @@ A macro prioriza **desbloquear o uso de funcionalidades já implementadas**, nã
 **Compatibilidade:** os conceitos técnicos `repasse_cases` e `scenarios` continuam no backend; no novo frontend, a entidade principal é apresentada como **Veículo**. Não há alteração destrutiva de migrations nesta macro.
 
 **Métrica global:** percentual de conclusão do produto ainda não aferível com segurança; não reutilizar os 50% históricos como medição das operações de veículos e repasses.
+
+## Macroentrega 26 — Carteira 360 de veículos no console operacional
+
+Status do código: **8 frentes implementadas em branches API/React; homologação real pendente**.
+
+- [x] Nova consulta paginada GET /operations/vehicles sem permissionamento novo: cases.manage e JWT vigentes.
+- [x] Subqueries agregadas por veículo para tarefas, checklist, anexos e lançamentos; nunca multiplicar centavos por join cruzado.
+- [x] Indicadores globais de ativos, arquivados, vencidos, tarefas abertas, ausência de documentos, identificação incompleta e gastos previstos.
+- [x] Filtros de atenção/status, busca por placa/chassi/marca/modelo/vendedor/origem e ordenação estável.
+- [x] Custos e resultado projetado com centavos inteiros, preservando null e resultados negativos.
+- [x] Central Operacional React com carteira de veículos e fila de tarefas avançada, navegação direta à ficha 360.
+- [x] Listagem de veículos modernizada, cadastro inicial completo para dados de compra e cartões de alerta na Visão Geral.
+- [x] Seis testes feature PHP escritos, contrato OpenAPI 1.6 e documentação de aceite.
+- [ ] Executar testes PHPUnit/MySQL, Pint, build, lint e smoke autenticado desktop/mobile nos ambientes reais.
+
+**Sem novas migrations ou lógica bancária**. O indicador histórico de 6/12 marcos técnicos da fundação não mede conclusão funcional do negócio financeiro e não deve ser elevado artificialmente. Consultar docs/MACRO_26_CENTRAL_FROTA_360.md.
