@@ -22,6 +22,7 @@ final class PartyLinkController extends Controller
                 'links.updated_at', 'related.name as related_name',
                 'related.type as related_type', 'related.is_active as related_is_active')
             ->orderByDesc('links.id')->paginate(15);
+        $links->getCollection()->transform(fn ($row) => $this->represent($row));
 
         return response()->json($links)->header('Cache-Control', 'no-store');
     }
@@ -62,7 +63,7 @@ final class PartyLinkController extends Controller
             return $id;
         });
 
-        return response()->json(['data' => $this->find($party, $id)], 201)
+        return response()->json(['data' => $this->represent($this->find($party, $id))], 201)
             ->header('Cache-Control', 'no-store');
     }
 
@@ -105,8 +106,16 @@ final class PartyLinkController extends Controller
             return true;
         });
 
-        return response()->json(['data' => $this->find($party, $link), 'changed' => $changed])
+        return response()->json(['data' => $this->represent($this->find($party, $link)), 'changed' => $changed])
             ->header('Cache-Control', 'no-store');
+    }
+
+    private function represent(object $row): array
+    {
+        $data = (array) $row;
+        $data['is_active'] = (bool) $data['is_active'];
+        $data['related_is_active'] = (bool) $data['related_is_active'];
+        return $data;
     }
 
     private function find(Party $party, int $id): object
