@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -21,6 +21,7 @@ tags:
   - name: Central operacional
   - name: Cenários de repasse
   - name: Modelos e lotes
+  - name: Revisão documental
 paths:
   /health:
     get:
@@ -1404,6 +1405,334 @@ paths:
         '409': { description: Revisão ou chave idempotente em conflito }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /finance/reviews/summary:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewSummary
+      summary: Indicadores de fila documental, versões obsoletas, prazos e responsáveis
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/reviewers:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewReviewers
+      summary: Listar operadores ativos habilitados para emitir parecer documental
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewIndex
+      summary: Fila filtrável por status, prazo, responsável e obsolescência
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [all, pending, reviewed, changes_requested, withdrawn] } }
+        - { name: scope, in: query, schema: { type: string, enum: [all, mine, requested, unassigned] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: stale, in: query, schema: { type: boolean } }
+        - { name: overdue, in: query, schema: { type: boolean } }
+        - { name: scenario_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/scenarios/{scenario}/reviews:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewScenarioIndex
+      summary: Histórico paginado de pedidos de conferência de um cenário
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Revisão documental]
+      operationId: reviewStore
+      summary: Solicitar conferência da revisão atual, sem autorização de pagamento
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: scenario, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewRequestInput' }
+      responses:
+        '201':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '200': { description: Replay idempotente da mesma solicitação }
+  /finance/reviews/{review}:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewShow
+      summary: Consultar status, revisão alvo e parecer documental
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/comment:
+    post:
+      tags: [Revisão documental]
+      operationId: reviewComment
+      summary: Registrar comentário permanente na trilha encadeada
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewCommentInput' }
+      responses:
+        '201':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/withdraw:
+    post:
+      tags: [Revisão documental]
+      operationId: reviewWithdraw
+      summary: Retirar solicitação pendente; somente solicitante
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewWithdrawInput' }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/assign:
+    post:
+      tags: [Revisão documental]
+      operationId: reviewAssign
+      summary: Designar revisor independente, exige scenario_reviews.manage
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewAssignInput' }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/decide:
+    post:
+      tags: [Revisão documental]
+      operationId: reviewDecide
+      summary: Emitir parecer documental ou solicitar correções, sem liberar pagamento
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionInput' }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/events:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewEvents
+      summary: Consultar eventos e hashes encadeados
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/snapshot:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewSnapshot
+      summary: Consultar fotografia exata da revisão de cenário solicitada
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/integrity:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewIntegrity
+      summary: Verificar consistência interna da cadeia de hashes SHA-256
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resposta documental autenticada sem efeito financeiro
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /finance/reviews/{review}/export:
+    get:
+      tags: [Revisão documental]
+      operationId: reviewExport
+      summary: Exportação privada da conferência e eventos em CSV
+      description: JWT + cases.manage E scenarios.manage; decisão documental não constitui aprovação monetária nem pagamento.
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Relatório CSV de revisão, sem dados bancários
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Recurso não encontrado }
+        '409': { description: Revisão de cenário ou análise desatualizada / referência idempotente divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   headers:
     RequestId:
@@ -1421,6 +1750,44 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    ReviewRequestInput:
+      type: object
+      additionalProperties: false
+      required: [request_key, scenario_revision, request_note]
+      properties:
+        request_key: { type: string, format: uuid, description: UUID estável para repetição segura }
+        scenario_revision: { type: integer, minimum: 1 }
+        request_note: { type: string, minLength: 10, maxLength: 5000 }
+        assigned_to: { type: integer, nullable: true, minimum: 1 }
+        due_on: { type: string, format: date, nullable: true }
+    ReviewCommentInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 2, maxLength: 5000 }
+    ReviewWithdrawInput:
+      type: object
+      additionalProperties: false
+      required: [revision, note]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        note: { type: string, minLength: 10, maxLength: 5000 }
+    ReviewAssignInput:
+      type: object
+      additionalProperties: false
+      required: [revision, assigned_to]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        assigned_to: { type: integer, nullable: true, minimum: 1 }
+    ReviewDecisionInput:
+      type: object
+      additionalProperties: false
+      required: [revision, decision, note]
+      properties:
+        revision: { type: integer, minimum: 1 }
+        decision: { type: string, enum: [reviewed, changes_requested], description: Parecer apenas documental }
+        note: { type: string, minLength: 10, maxLength: 5000 }
 
     DistributionLineInput:
       type: object
