@@ -25,7 +25,7 @@ QA_STAGE=static bash qa/run-stage6.sh
 # Testes PHPUnit/Pint em SQLite :memory: e build/lint do React:
 QA_MODE=sqlite QA_STAGE=local bash qa/run-stage6.sh
 ```
-Para MySQL local QA, use `QA_MODE=mysql` somente com `QA_DB_NAME=* _qa` (sem espaço), usuário exclusivo, guardas `qa/mysql-local-check.php` e autorização de reconstrução de schema descartável, conforme `qa/README_LOCAL_MYSQL.md`.
+Para MySQL local QA, use `QA_MODE=mysql` somente com `QA_DB_NAME=fluxo_repasse_qa` (sem espaço), usuário exclusivo, guardas `qa/mysql-local-check.php` e autorização de reconstrução de schema descartável, conforme `qa/README_LOCAL_MYSQL.md`.
 
 Para o aceite HTTP integrado:
 - Inicie a API local conectada **apenas** ao banco descartável de QA.
