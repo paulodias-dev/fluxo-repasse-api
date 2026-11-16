@@ -16,6 +16,8 @@ return new class extends Migration
             $table->foreignId('source_party_id')->constrained('parties')->restrictOnDelete();
             $table->unsignedInteger('revision')->default(1);
             $table->char('content_digest', 64);
+            $table->foreignId('forked_from_template_id')->nullable()->constrained('repasse_distribution_templates')->restrictOnDelete();
+            $table->unsignedInteger('forked_from_revision')->nullable();
             $table->timestamp('archived_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
