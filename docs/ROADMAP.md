@@ -241,3 +241,21 @@ Próximo pacote substancial: motor financeiro + aprovações + trilha monetária
 **Progresso da macro de código: 7/7 frentes entregues.** Não constitui percentual global do produto nem prova homologação. O antigo índice técnico 6/12=50% não deve ser atualizado por extrapolação: os 12 marcos originais não cobrem a especificação financeira real.
 
 **Próximo pacote substancial:** motor executável, obrigações, regras de comissão, aprovação, ledger e conciliação como um conjunto grande SOMENTE depois da aprovação rastreável das regras de negócio. Nunca tratar simulação balanced como autorização de pagar.
+
+
+## Macroentrega 19 — Modelos de rateio configuráveis + cenários em lote
+
+**Oito frentes integradas em um único pacote API + APP:**
+- [x] Modelos vinculados ao dossiê com origem/destinatários reais e pesos definidos pelo operador.
+- [x] Calculadora em centavos inteiros com método do maior resto, soma exata e desempate determinístico.
+- [x] Edição, arquivamento/reabertura e fork de modelos com histórico SHA-256 e revisão otimista.
+- [x] Prévia de uma simulação sem persistência.
+- [x] Prévia completa de 1 a 30 cenários por lote, com erro se qualquer linha falhar.
+- [x] Gravação transacional integral, locks, idempotência por UUID e prevenção de duplicidades.
+- [x] Histórico paginado de lotes, vínculo com cenários, metadados originais e CSV privado anti-fórmula.
+- [x] UI React integrada no módulo existente, mobile-first, OpenAPI e testes focais escritos.
+- [ ] Executar PHPUnit/MySQL, Pint, Vitest/Node, lint, build e smoke integrado antes de homologar.
+
+**Métrica local da macro:** 8/8 frentes codificadas; **não** representa 100% de homologação nem evolução total do produto financeiro. Percentual técnico antigo 6/12 permanece histórico e inadequado para inferir conclusão do negócio.
+
+**Pendente essencial:** motor efetivamente pagável, regras de origem/beneficiário, fato gerador, comissão, retenções, alçadas e integrações financeiras. Estes requisitos originais ainda não foram recuperados/aprovados e não podem ser inventados. Nenhum modelo desta macro cria obrigação ou liquidação.
