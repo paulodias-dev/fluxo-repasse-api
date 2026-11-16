@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Services\ScenarioReviewQueries;
 use App\Services\ScenarioReviewService;
+use App\Services\ScenarioPlanner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,8 @@ final class ScenarioReviewController extends Controller
 {
     public function __construct(
         private readonly ScenarioReviewService $reviews,
-        private readonly ScenarioReviewQueries $queries
+        private readonly ScenarioReviewQueries $queries,
+        private readonly ScenarioPlanner $planner
     ) {}
 
     public function summary(Request $request): JsonResponse
@@ -109,6 +111,11 @@ final class ScenarioReviewController extends Controller
     {
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
         return $this->json($this->queries->events($review));
+    }
+
+    public function snapshot(int $review): JsonResponse
+    {
+        return $this->json(['data' => $this->reviews->snapshot($review, $this->planner)]);
     }
 
     public function integrity(int $review): JsonResponse
