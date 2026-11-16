@@ -259,3 +259,22 @@ Próximo pacote substancial: motor financeiro + aprovações + trilha monetária
 **Métrica local da macro:** 8/8 frentes codificadas; **não** representa 100% de homologação nem evolução total do produto financeiro. Percentual técnico antigo 6/12 permanece histórico e inadequado para inferir conclusão do negócio.
 
 **Pendente essencial:** motor efetivamente pagável, regras de origem/beneficiário, fato gerador, comissão, retenções, alçadas e integrações financeiras. Estes requisitos originais ainda não foram recuperados/aprovados e não podem ser inventados. Nenhum modelo desta macro cria obrigação ou liquidação.
+
+
+## Macroentrega 20 — revisão documental independente de propostas
+
+**Nove capacidades integradas em um par de PRs API + APP, sem Draft:**
+- [x] Solicitar revisão por cenário+revision, UUID idempotente, prazo e comentário.
+- [x] Fila com busca, filtros, escopo por operador, prazos e versões obsoletas.
+- [x] Oito indicadores de trabalho, sem alegação de saldo financeiro.
+- [x] Responsáveis habilitados via RBAC triplo e segregação solicitante/criador/revisor.
+- [x] Parecer reviewed / changes_requested com justificativa e controle otimista.
+- [x] Detectar versão/digest desatualizados e impedir decidir cenário alterado/arquivado.
+- [x] Comentários permanentes, atribuição auditada e retirada pelo solicitante.
+- [x] Snapshot monetário histórico e cadeia de eventos SHA-256 com verificação interna.
+- [x] Exportação CSV segura e módulo React integrado ao planejamento, com testes focais escritos.
+- [ ] Executar PHPUnit/MySQL, Pint, testes Vitest, lint/build e smoke de revisão antes da homologação.
+
+**Escopo de código da macro 20: 9/9 frentes implementadas.** Não é índice global de produto nem prova de homologação; a métrica técnica histórica 6/12=50% não mede o negócio. Esta revisão é **documental**, nunca uma aprovação ou liquidação de repasse.
+
+**Próximo passo para motor financeiro real:** aprovação formal de requisitos de quem paga/recebe, critérios de comissão/rateio, fato gerador, alçadas, conta/PSP, conciliação, estorno e isolamento por organização.
