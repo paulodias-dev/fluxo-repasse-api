@@ -322,3 +322,10 @@ A direção de trabalho mudou por solicitação expressa do responsável: **prio
 **Percentual real de conclusão do produto:** ainda **não mensurável**, porque o documento de requisitos financeiros do Gemini não pôde ser acessado. O histórico `6/12 = 50%` refere-se exclusivamente ao roadmap técnico antigo e **não deve ser apresentado como 50% de conclusão do produto**.
 
 **Próximas macroentregas devem ser módulos**, não QA: relações entre cadastros, configurações do processo financeiro, geração/aprovação de repasses, histórico financeiro, conciliação e relatórios, **somente conforme regras de negócio confirmadas**. Não implementar monetização/transferência nem multi-tenant presumido.
+
+
+## Atualização após código da Macro 18 — cenários não executáveis
+
+O roadmap antigo de 12 marcos (6 concluídos = 50%) não é baseline adequada para estimar um produto financeiro completo. O índice **permanece histórico**, não deve ser incrementado artificialmente.
+
+Macro 18: 7 frentes de implementação de cenários planejados, 7 frentes codificadas em PRs API/APP, testes focalizados escritos. Homologação Laravel/MySQL, Vitest, lint/build, smoke browser e aprovação das regras financeiras **pendentes**. Não declarar percentual global de execução financeira sem escopo aprovado e pesos realistas.
