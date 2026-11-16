@@ -345,3 +345,10 @@ Foram codificadas nove frentes de revisão documental (solicitação, fila, indi
 O índice histórico 6/12=50% permanece apenas como informação do roadmap técnico original, não deve ser atualizado automaticamente. Percentual global do produto financeiro permanece NÃO MENSURÁVEL sem escopo formal e pesos funcionais aprovados.
 
 **IMPORTANTE:** reviewed é parecer documental, não autorização monetária, lançamento financeiro, obrigação a pagar ou saldo.
+
+
+## Macro 21 — situação de implementação
+
+O código da macro de pacotes documentais foi entregue em conjunto nos repositórios API + APP, com nove frentes: seleção, captura, históricos, prévia anti-TOCTOU, idempotência, métricas, integridade, comparação e ZIP/UI integrada. Além disso, foram escritos testes para compatibilidade de snapshots JSON legados.
+
+**9/9 frentes de código concluídas; homologação não comprovada** até executar PHPUnit/Laravel/MySQL, Pint, Vitest, build e teste real de exportação ZIP com extensão PHP adequada. O antigo número 50% não deve ser aumentado artificialmente: representava outro conjunto de marcos técnicos e não o escopo financeiro executável.
