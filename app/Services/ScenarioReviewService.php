@@ -334,10 +334,9 @@ final class ScenarioReviewService
                 'details' => $details,
                 'previous_hash' => $event->previous_hash,
             ];
-            $actualHash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
             if ($event->sequence !== $expectedSequence
                 || ! hash_equals($event->previous_hash ?? '', $previousHash ?? '')
-                || ! hash_equals($event->event_hash, $actualHash)) {
+                || ! HistoricalHashCompatibility::reviewEvent($payload, $event->event_hash)) {
                 return ['valid' => false, 'failed_sequence' => $expectedSequence,
                     'checked_events' => $expectedSequence - 1];
             }
