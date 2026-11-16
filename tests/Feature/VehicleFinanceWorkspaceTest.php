@@ -305,6 +305,31 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         $this->assertDatabaseCount('repasse_case_financial_entries', 1);
     }
 
+    public function test_audit_history_is_fully_paginated_and_not_silently_truncated(): void
+    {
+        $token = $this->token();
+        $vehicle = $this->vehicle($token);
+        $entry = $this->entry($token, $vehicle);
+        for ($i = 1; $i <= 35; $i++) {
+            DB::table('repasse_case_financial_events')->insert([
+                'repasse_case_id' => $vehicle,
+                'entry_id' => $entry,
+                'event_type' => 'qa_event',
+                'details' => json_encode(['sequence' => $i], JSON_THROW_ON_ERROR),
+                'created_at' => now(),
+            ]);
+        }
+
+        $base = "/api/v1/repasse-cases/$vehicle/finance/entries/$entry";
+        $this->withToken($token)->getJson($base)->assertOk()
+            ->assertJsonPath('data.events_total', 36)
+            ->assertJsonCount(30, 'data.events');
+        $this->withToken($token)->getJson("$base/events?page=2")
+            ->assertOk()->assertJsonCount(6, 'data')
+            ->assertJsonPath('total', 36)
+            ->assertJsonPath('current_page', 2);
+    }
+
     public function test_legacy_entry_contract_and_pagination_remain_compatible(): void
     {
         $token = $this->token();
