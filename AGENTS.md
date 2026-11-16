@@ -157,3 +157,5 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - "reviewed" é SOMENTE conferência documental, nunca aprovação financeira, liberação de saldo ou ordem de pagamento. Não adicionar gateway/ledger/PSP sem aprovação do domínio financeiro real.
 - Sem SLA default, aprovação automática, regras de comissão, valor mínimo de operação ou política de multiempresa presumidos.
 - Nenhum seed cria credenciais fixas; migrações são aditivas e homologação/teste precisam de evidência.
+
+- Após changes_requested, pode ser aberta nova rodada de revisão da MESMA versão se a correção foi somente documental (ex.: anexos no dossiê). Enquanto pending ou reviewed a mesma versão não pode receber segunda solicitação ativa, exceto após retirada.
