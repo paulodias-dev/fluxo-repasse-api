@@ -144,3 +144,16 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - "Soma conferida" NÃO é autorização para pagar. Não adicionar ledger, obrigação, Pix, comissão automática ou saldos sem regras aprovadas.
 - Sem isolamento multi-tenant assumido; não disponibilizar comercialmente a organizações separadas até autorização/isolamento aprovados.
 - Distinguir artefatos/testes escritos de testes executados; não declarar homologação apenas com código.
+
+
+## Macro 20 — segregação entre parecer documental e aprovação financeira
+
+- JWT + session.current + cases.manage + scenarios.manage para consultar/criar revisões; scenario_reviews.manage adicional apenas para decisão/atribuição.
+- Usuário que criou o cenário OU solicitou a análise não pode emitir parecer sobre ela, mesmo se possuir permissão de revisor. Usuários inativos não podem ser designados.
+- Parecer sempre vinculado ao scenario_revision e current_digest do cenário. Se revisão/digest/status de cenário ou dossiê mudar, bloquear DECISÃO pendente (409) e preservar histórico; exibir is_stale.
+- Solicitação tem request_key UUID idempotente (mesmo payload/mesmo usuário), conflito se outro payload. A mesma revisão não deve ser solicitada repetidamente após parecer/alterações.
+- Revisões/decisões possuem controle otimista de revision. Comentários e eventos têm histórico por revisão, sequence e hashes encadeados. Hashes internos não equivalem a prova externa inviolável.
+- Fonte de dados para parecer deve ser SEMPRE o snapshot histórico da scenario_revision solicitada, não o cenário atual.
+- "reviewed" é SOMENTE conferência documental, nunca aprovação financeira, liberação de saldo ou ordem de pagamento. Não adicionar gateway/ledger/PSP sem aprovação do domínio financeiro real.
+- Sem SLA default, aprovação automática, regras de comissão, valor mínimo de operação ou política de multiempresa presumidos.
+- Nenhum seed cria credenciais fixas; migrações são aditivas e homologação/teste precisam de evidência.
