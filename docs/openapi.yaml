@@ -665,6 +665,29 @@ paths:
         '404': { description: Veículo, lançamento ou comprovante não localizado }
         '409': { description: Comprovante inválido ou integridade divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/events:
+    get:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryAudit
+      summary: Histórico completo paginado dos eventos do lançamento financeiro
+      description: |
+        JWT vigente e cases.manage. Resposta paginada de 30 eventos em ordem
+        cronológica decrescente, inclusive depois de arquivar o veículo.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Eventos completos em páginas, sem truncamento silencioso
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou lançamento não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /repasse-cases/{case}/finance/entries/{entry}/replace:
     post:
       tags: [Financeiro 360 do veículo]
