@@ -19,7 +19,8 @@ final class RepasseCaseController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $query = DB::table('repasse_cases')->select([
-            'id', 'title', 'description', 'status', 'created_at', 'updated_at',
+            'id', 'title', 'description', 'status', 'plate', 'brand', 'model',
+            'purchased_on', 'purchase_amount_cents', 'sale_amount_cents', 'created_at', 'updated_at',
         ]);
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
@@ -39,10 +40,23 @@ final class RepasseCaseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->rejectUnknown($request, ['title', 'description']);
+        $this->rejectUnknown($request, ['title', 'description', 'plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
         $data = $request->validate([
             'title' => ['required', 'string', 'min:2', 'max:180'],
             'description' => ['nullable', 'string', 'max:3000'],
+            'plate' => ['sometimes', 'nullable', 'string','max:10'],
+            'chassis' => ['sometimes', 'nullable', 'string','max:30'],
+            'brand' => ['sometimes', 'nullable', 'string','max:100'],
+            'model' => ['sometimes', 'nullable', 'string','max:120'],
+            'model_year' => ['sometimes', 'nullable', 'integer','min:1900','max:2100'],
+            'purchase_location' => ['sometimes', 'nullable', 'string','max:180'],
+            'seller_name' => ['sometimes', 'nullable', 'string','max:180'],
+            'buyer_name' => ['sometimes', 'nullable', 'string','max:180'],
+            'purchased_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'delivered_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'sold_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'purchase_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
+            'sale_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
         ]);
         $title = trim($data['title']);
         if (mb_strlen($title) < 2) {
@@ -54,7 +68,7 @@ final class RepasseCaseController extends Controller
                 'status' => 'draft', 'created_by' => $request->user('api')->id,
                 'updated_by' => $request->user('api')->id,
                 'created_at' => now(), 'updated_at' => now(),
-            ]);
+            ] + array_intersect_key($data, array_flip(['plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'])));
             $this->record($id, $request, 'case_created');
             return $id;
         });
@@ -64,11 +78,24 @@ final class RepasseCaseController extends Controller
 
     public function update(Request $request, int $case): JsonResponse
     {
-        $this->rejectUnknown($request, ['title', 'description', 'status']);
+        $this->rejectUnknown($request, ['title', 'description', 'status', 'plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'min:2', 'max:180'],
             'description' => ['sometimes', 'nullable', 'string', 'max:3000'],
             'status' => ['sometimes', Rule::in(['draft', 'archived'])],
+            'plate' => ['sometimes', 'nullable', 'string','max:10'],
+            'chassis' => ['sometimes', 'nullable', 'string','max:30'],
+            'brand' => ['sometimes', 'nullable', 'string','max:100'],
+            'model' => ['sometimes', 'nullable', 'string','max:120'],
+            'model_year' => ['sometimes', 'nullable', 'integer','min:1900','max:2100'],
+            'purchase_location' => ['sometimes', 'nullable', 'string','max:180'],
+            'seller_name' => ['sometimes', 'nullable', 'string','max:180'],
+            'buyer_name' => ['sometimes', 'nullable', 'string','max:180'],
+            'purchased_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'delivered_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'sold_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'purchase_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
+            'sale_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
         ]);
         if ($data === []) {
             throw ValidationException::withMessages(['title' => 'Informe uma alteração.']);
@@ -82,15 +109,22 @@ final class RepasseCaseController extends Controller
             }
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
+            $profileUpdates = [];
+            foreach (['plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'] as $field) {
+                if (array_key_exists($field, $data) &&
+                    (string) ($data[$field] ?? '') !== (string) ($current->{$field} ?? '')) {
+                    $profileUpdates[$field] = $data[$field];
+                }
+            }
             if ($current->status === 'archived' && $status === 'archived' &&
-                ($title !== $current->title || $description !== $current->description)) {
+                ($title !== $current->title || $description !== $current->description || $profileUpdates !== [])) {
                 throw ValidationException::withMessages(['status' => 'Reabra o dossiê para editar.']);
             }
-            if ($title === $current->title && $description === $current->description && $status === $current->status) return false;
+            if ($title === $current->title && $description === $current->description && $status === $current->status && $profileUpdates === []) return false;
             DB::table('repasse_cases')->where('id', $case)->update([
                 'title' => $title, 'description' => $description, 'status' => $status,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
-            ]);
+            ] + $profileUpdates);
             $event = $status !== $current->status
                 ? ($status === 'archived' ? 'case_archived' : 'case_reopened')
                 : 'case_updated';
@@ -177,6 +211,19 @@ final class RepasseCaseController extends Controller
             'id' => $case->id, 'title' => $case->title, 'description' => $case->description,
             'status' => $case->status, 'created_at' => $case->created_at,
             'updated_at' => $case->updated_at, 'parties' => $parties,
+            'plate' => $case->plate,
+            'chassis' => $case->chassis,
+            'brand' => $case->brand,
+            'model' => $case->model,
+            'model_year' => $case->model_year,
+            'purchase_location' => $case->purchase_location,
+            'seller_name' => $case->seller_name,
+            'buyer_name' => $case->buyer_name,
+            'purchased_on' => $case->purchased_on,
+            'delivered_on' => $case->delivered_on,
+            'sold_on' => $case->sold_on,
+            'purchase_amount_cents' => $case->purchase_amount_cents,
+            'sale_amount_cents' => $case->sale_amount_cents,
         ];
     }
 
