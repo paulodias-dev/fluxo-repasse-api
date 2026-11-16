@@ -84,8 +84,8 @@ final class VehicleAccountabilityController extends Controller
         $whole = DB::query()->fromSub($base, 'portfolio');
         $totalsRow = (clone $whole)->selectRaw("
             COUNT(*) AS scenarios_total,
-            COALESCE(SUM(CASE WHEN archived_at IS NULL THEN 1 ELSE 0 END), 0) AS scenarios_active,
-            COALESCE(SUM(CASE WHEN archived_at IS NULL AND difference_cents = 0 THEN 1 ELSE 0 END), 0) AS scenarios_balanced,
+            COALESCE(SUM(CASE WHEN review_state <> 'archived' THEN 1 ELSE 0 END), 0) AS scenarios_active,
+            COALESCE(SUM(CASE WHEN review_state <> 'archived' AND difference_cents = 0 THEN 1 ELSE 0 END), 0) AS scenarios_balanced,
             COALESCE(SUM(CASE WHEN review_state = 'not_requested' THEN 1 ELSE 0 END), 0) AS not_requested,
             COALESCE(SUM(CASE WHEN review_state = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
             COALESCE(SUM(CASE WHEN review_state = 'reviewed' THEN 1 ELSE 0 END), 0) AS reviewed,
