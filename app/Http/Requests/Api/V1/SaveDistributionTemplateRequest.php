@@ -40,7 +40,8 @@ final class SaveDistributionTemplateRequest extends FormRequest
                 $validator->errors()->add($key, 'Campo não permitido.');
             }
             $sum = 0;
-            foreach ($this->input('lines', []) as $line) {
+            $lines = $this->input('lines', []);
+            foreach (is_array($lines) ? $lines : [] as $line) {
                 if (is_array($line) && is_int($line['basis_points'] ?? null)) {
                     $sum += $line['basis_points'];
                 }
