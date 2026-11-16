@@ -65,7 +65,9 @@ final class ScenarioReviewService
             $previous = DB::table('repasse_scenario_reviews')
                 ->where('scenario_id', $scenarioId)
                 ->where('scenario_revision', $scenario->revision)
-                ->where('status', '!=', 'withdrawn')->exists();
+                // After changes_requested, the operator may submit the SAME scenario
+                // revision again when fixing only dossier evidence/notes.
+                ->whereIn('status', ['pending', 'reviewed'])->exists();
             if ($previous) abort(409, 'Esta revisão já foi enviada para análise. Altere a proposta antes de reenviar.');
 
             $assignee = isset($input['assigned_to']) ? (int) $input['assigned_to'] : null;
