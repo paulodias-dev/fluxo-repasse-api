@@ -15,7 +15,8 @@ return new class extends Migration
             $table->char('request_digest', 64);
             $table->string('title', 180);
             $table->text('note')->nullable();
-            $table->json('manifest');
+            // Preserve exact serialized bytes: MySQL JSON may reorder object keys.
+            $table->longText('manifest');
             $table->char('manifest_sha256', 64);
             $table->unsignedSmallInteger('evidence_count');
             $table->unsignedSmallInteger('scenario_count');
