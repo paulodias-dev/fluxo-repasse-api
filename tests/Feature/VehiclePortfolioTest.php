@@ -252,6 +252,56 @@ final class VehiclePortfolioTest extends TestCase
             ->assertOk()->assertJsonPath('data.projected_result_cents', -1500000);
     }
 
+    public function test_priority_sort_follows_actionable_operational_work_not_money_or_archived(): void
+    {
+        $token = $this->token();
+        $complete = [
+            'plate' => 'ABC1D23', 'brand' => 'Toyota', 'model' => 'Etios',
+            'purchase_amount_cents' => 1200000,
+        ];
+        // Registro neutro e perfis incompletos não ganham prioridade
+        // artificial sobre trabalho operacional vencido.
+        $neutral = $this->vehicle($token, ['title' => 'Sem pendências', ...$complete]);
+        $profile = $this->vehicle($token, ['title' => 'Identificação a completar']);
+        $planned = $this->vehicle($token, ['title' => 'Despesa prevista', ...$complete]);
+        $open = $this->vehicle($token, ['title' => 'Tarefa aberta', ...$complete]);
+        $overdue = $this->vehicle($token, ['title' => 'Tarefa vencida', ...$complete]);
+        $archived = $this->vehicle($token, ['title' => 'Veículo arquivado', ...$complete]);
+
+        $this->withToken($token)->postJson("/api/v1/repasse-cases/{$planned}/finance/entries", [
+            'kind' => 'expense', 'status' => 'planned', 'category' => 'Manutenção',
+            'description' => 'Revisão ainda prevista', 'amount_cents' => 30000,
+        ])->assertCreated();
+        $this->task($token, $open, '2026-11-21');
+        $this->task($token, $overdue, '2026-11-15');
+        $this->task($token, $archived, '2026-11-01');
+        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$archived}", [
+            'status' => 'archived',
+        ])->assertOk();
+
+        $base = '/api/v1/operations/vehicles';
+        $result = $this->withToken($token)->getJson("$base?sort=priority")
+            ->assertOk()->assertJsonCount(6, 'data')
+            ->assertJsonPath('summary.vehicles_overdue', 1)
+            ->assertJsonPath('summary.vehicles_with_planned_expenses', 1)
+            ->json('data');
+        $this->assertSame(
+            [$overdue, $open, $planned, $profile, $neutral, $archived],
+            array_column($result, 'id'),
+        );
+
+        // Filters retain their existing meaning. Archived vehicles never
+        // enter attention-only results, and totals describe the whole fleet.
+        $this->withToken($token)->getJson("$base?sort=priority&attention=overdue")
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $overdue)
+            ->assertJsonPath('summary.vehicles_active', 5)
+            ->assertJsonPath('summary.vehicles_archived', 1);
+        $this->withToken($token)->getJson("$base?sort=priority&attention=planned_expenses")
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $planned);
+    }
+
     public function test_validation_and_stable_pagination(): void
     {
         $token = $this->token();
