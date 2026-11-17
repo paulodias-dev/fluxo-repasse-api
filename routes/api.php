@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
 use App\Http\Controllers\Api\V1\FinancialPreparationController;
 use App\Http\Controllers\Api\V1\PreparationRecordController;
+use App\Http\Controllers\Api\V1\ObligationProposalController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
@@ -215,6 +216,17 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.records.show');
                 Route::get('/{term}/preparation/records/{record}/export', [PreparationRecordController::class, 'export'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.records.export');
+                // Macro 45: propostas INTERNAS não executáveis a partir de apuração verificada.
+                Route::get('/{term}/preparation/proposals/options', [ObligationProposalController::class, 'options'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.options');
+                Route::get('/{term}/preparation/proposals', [ObligationProposalController::class, 'index'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.index');
+                Route::post('/{term}/preparation/proposals', [ObligationProposalController::class, 'store'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.proposals.store');
+                Route::get('/{term}/preparation/proposals/{proposal}', [ObligationProposalController::class, 'show'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.show');
+                Route::get('/{term}/preparation/proposals/{proposal}/export', [ObligationProposalController::class, 'export'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.export');
                 Route::post('/{term}/fork', [CommercialTermsController::class, 'fork'])
                     ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.fork');
             });
