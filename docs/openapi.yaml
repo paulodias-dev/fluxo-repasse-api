@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.11.0
+  version: 1.12.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -3647,6 +3647,17 @@ components:
         vehicles_without_documents: { type: integer, minimum: 0 }
         vehicles_incomplete_profile: { type: integer, minimum: 0 }
         vehicles_with_planned_expenses: { type: integer, minimum: 0 }
+        purchase_total_cents: { type: integer, format: int64, minimum: 0 }
+        sale_total_cents: { type: integer, format: int64, minimum: 0 }
+        expense_realized_total_cents: { type: integer, format: int64, minimum: 0 }
+        expense_planned_total_cents: { type: integer, format: int64, minimum: 0 }
+        income_realized_total_cents: { type: integer, format: int64, minimum: 0 }
+        income_planned_total_cents: { type: integer, format: int64, minimum: 0 }
+        vehicles_with_projected_result: { type: integer, minimum: 0 }
+        projected_result_known_total_cents:
+          type: integer
+          format: int64
+          description: Soma de margens gerenciais SOMENTE dos veículos com compra e venda informadas. Pode ser negativa.
     VehiclePortfolioResponse:
       type: object
       required: [data, current_page, last_page, per_page, total, summary, as_of]
