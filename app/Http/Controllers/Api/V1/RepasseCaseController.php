@@ -69,6 +69,10 @@ final class RepasseCaseController extends Controller
         if (mb_strlen($title) < 2) {
             throw ValidationException::withMessages(['title' => 'Título inválido.']);
         }
+        $this->assertSaleCoherence(
+            $data['sold_on'] ?? null, $data['purchased_on'] ?? null,
+            $data['sale_amount_cents'] ?? null,
+        );
         $id = DB::transaction(function () use ($request, $data, $title): int {
             $id = DB::table('repasse_cases')->insertGetId([
                 'title' => $title, 'description' => $data['description'] ?? null,
@@ -116,6 +120,14 @@ final class RepasseCaseController extends Controller
             }
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
+
+            if (array_intersect(array_keys($data), ['sold_on', 'purchased_on', 'sale_amount_cents']) !== []) {
+                $value = static fn (string $field) => array_key_exists($field, $data)
+                    ? $data[$field] : $current->{$field};
+                $this->assertSaleCoherence(
+                    $value('sold_on'), $value('purchased_on'), $value('sale_amount_cents')
+                );
+            }
             $profileUpdates = [];
             foreach (['plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'] as $field) {
                 if (array_key_exists($field, $data) &&
@@ -232,6 +244,24 @@ final class RepasseCaseController extends Controller
             'purchase_amount_cents' => $case->purchase_amount_cents,
             'sale_amount_cents' => $case->sale_amount_cents,
         ];
+    }
+
+    private function assertSaleCoherence(
+        ?string $soldOn, ?string $purchasedOn, int|string|null $saleCents
+    ): void {
+        if ($soldOn === null) {
+            return; // An undated sale amount remains a projection, not a recorded sale.
+        }
+        if ($saleCents === null || (int) $saleCents < 1) {
+            throw ValidationException::withMessages([
+                'sale_amount_cents' => 'Informe um valor de venda maior que zero para registrar a venda.',
+            ]);
+        }
+        if ($purchasedOn !== null && $soldOn < $purchasedOn) {
+            throw ValidationException::withMessages([
+                'sold_on' => 'A venda não pode ter data anterior à compra.',
+            ]);
+        }
     }
 
     private function rejectUnknown(Request $request, array $allowed): void
