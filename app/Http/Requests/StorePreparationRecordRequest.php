@@ -19,7 +19,7 @@ final class StorePreparationRecordRequest extends FormRequest
         return [
             'request_key' => ['required', 'uuid'],
             'expected_snapshot_sha256' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
-            'adjustments' => ['required', 'array', 'max:20'],
+            'adjustments' => ['present', 'array', 'max:20'],
             'adjustments.*' => ['required', 'array:kind,label,amount_cents'],
             'adjustments.*.kind' => ['required', Rule::in(['addition', 'deduction'])],
             'adjustments.*.label' => ['required', 'string', 'min:2', 'max:100'],
