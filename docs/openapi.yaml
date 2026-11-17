@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.20.0
+  version: 1.21.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -3298,6 +3298,112 @@ paths:
         '409': { description: Conteúdo mudou após prévia ou integridade de arquivo divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
         '503': { description: Extensão PHP ZIP indisponível }
+
+
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/options:
+    get:
+      tags: [Cenários de repasse]
+      operationId: obligationProposalOptions
+      summary: Participantes ativos elegíveis a serem declarados como responsável de uma proposta
+      description: JWT, sessão vigente, cases.manage E scenarios.manage. Nunca seleciona pagador automaticamente.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Participantes vinculados ao veículo; payment_enabled sempre false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou minuta inexistente no escopo }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals:
+    get:
+      tags: [Cenários de repasse]
+      operationId: obligationProposalIndex
+      summary: Histórico paginado de propostas internas, não executáveis
+      description: Cada proposta é imutável e pode ter origem desatualizada; nenhuma é uma obrigação financeira.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Página de 15 propostas com stale e payment_enabled false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Escopo inexistente }
+    post:
+      tags: [Cenários de repasse]
+      operationId: obligationProposalStore
+      summary: Congelar proposta documental de obrigações internas a partir de apuração manual existente
+      description: >-
+        Não constitui obrigação exigível, aprovação monetária, saldo ou pagamento.
+        Todos os valores são inteiros em centavos. O responsável deve ser um participante
+        ativo do mesmo veículo, escolhido explicitamente. A fonte precisa manter SHA atual.
+        Idempotência por request_key, autor, escopo e payload; replay 200 created=false.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [request_key, preparation_record_id, expected_record_sha256, payer_party_id]
+              properties:
+                request_key: { type: string, format: uuid }
+                preparation_record_id: { type: integer, minimum: 1 }
+                expected_record_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                payer_party_id: { type: integer, minimum: 1 }
+                trigger_on: { type: string, format: date, nullable: true }
+                due_on: { type: string, format: date, nullable: true }
+                operator_note: { type: string, maxLength: 1000, nullable: true }
+      responses:
+        '201': { description: Proposta imutável criada com obrigação e pagamento falsos }
+        '200': { description: Replay idempotente da mesma proposta }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Origem de outro veículo/minuta }
+        '409': { description: SHA divergente, fonte alterada ou chave em uso }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}:
+    get:
+      tags: [Cenários de repasse]
+      operationId: obligationProposalShow
+      summary: Ler fotografia íntegra e imutável de proposta interna
+      description: SHA-256 é conferido; verifica staleness sem editar a fotografia antiga.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Snapshot histórico, status proposal_only, executable false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Proposta fora do escopo }
+        '409': { description: Falha de integridade SHA-256 }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/export:
+    get:
+      tags: [Cenários de repasse]
+      operationId: obligationProposalExport
+      summary: CSV privado da proposta documental com proteção anti-fórmula
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: CSV UTF-8, no-store; nunca contém conta bancária ou instrução de liquidação
+          content:
+            text/csv: { schema: { type: string } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Proposta fora do escopo }
+        '409': { description: Falha de integridade }
 
 components:
   headers:

@@ -152,3 +152,11 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] OpenAPI 1.20, documentação/roadmap e baseline de evolução **somente código** atualizados.
 - [ ] Regras de obrigação/pagamento real, comissões legais, retenções, alçadas e banco continuam **sem aprovação de escopo**; o código mantém todos os campos financeiros executáveis como false.
 - [ ] PHPUnit/Pint/MySQL, npm lint/build, browser e aceite ficam na fase de homologação após MVP, conforme orientação do usuário.
+
+## Macro 45 — Proposta interna versionada, não exigível
+- [x] Uma etapa ponta a ponta API/APP: escolhe responsável do mesmo veículo explicitamente e congela a proposta com distribuições da apuração existente, sem alterar parcelas e sem fabricar impostos/taxas.
+- [x] Histórico em 15/página, fonte stale, leitura e exportação CSV com SHA revalidado, idempotência por UUID, nenhuma edição/exclusão da fotografia.
+- [x] JWT/sessão, cases.manage E scenarios.manage, validação FormRequest, transação/lock e proteção contra cross-case/termo/parte inativa.
+- [x] Interface no fluxo já existente Condições comerciais > Preparação > Apuração, Metronic Demo 1 com col-6 mobile e desktop preservado, sem novo shell.
+- [x] OpenAPI 1.21 + documentação + testes PHP escritos, execução adiada para homologação do MVP.
+- [ ] Etapa monetária real e suas regras de negócio **não aprovadas**. Sem obrigação, saldo, cobrança, PSP/Pix, pagamento ou conciliação.

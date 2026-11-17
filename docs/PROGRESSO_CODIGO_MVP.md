@@ -41,3 +41,16 @@ O histórico `docs/PROGRESSO_GERAL.md` (6/12=50%) mede marcos técnicos com homo
 A macro 44 acrescentou uma nova capacidade concreta, o registro interno versionado e imutável de apurações **hipotéticas**, reutilizando minutas e rateio. Não a contar como obrigação, pagamento, aprovação monetária ou motor bancário. O indicador continua uma ponderação provisória, não auditoria funcional automatizada. O valor da `main` antes da integração da macro 44 é 82%; com os PRs API/APP integrados fica estimado em **83%**, sem QA na fórmula.
 
 **Prioridades de código restantes:** aprovar fonte de regras financeiras, titularidade e fatos geradores, política executável de taxas/tributos, alçadas e aprovações, eventuais obrigações/ledger, integração PSP, conciliação, reembolsos e isolamento organizacional se exigido. Uma decisão explícita por MVP sem dinheiro real mudaria o denominador e exigiria recalcular a métrica.
+
+## Após Macroentrega 45 — indicador de implementação (provisório)
+| Etapa | Peso | Cobertura estimada de código | Contribuição |
+| --- | ---: | ---: | ---: |
+| 1. Acesso e cadastros | 10% | 100% | 10% |
+| 2. Veículos 360 | 20% | 100% | 20% |
+| 3. Financeiro gerencial 360 | 20% | 100% | 20% |
+| 4. Cenários e prestação documental | 15% | 100% | 15% |
+| 5. Preparação + motor monetário executável | 30% | **46% estimados** | 13,8% |
+| 6. Dashboard e operação | 5% | 100% | 5% |
+| **Total código MVP** | **100%** | — | **83,8% ≈ 84%** |
+
+Macro 45 entrega documento interno de proposta derivada da apuração manual: pagador declarado pelo operador, rateio congelado em centavos, história imutável, CSV, fonte stale e verificação SHA. É uma preparação de pré-repasse e **não constitui obrigação real nem motor executável**. Avanço da etapa 5 é estimativa editorial de +3 p.p. sobre a cobertura de código anterior (43% -> 46%). Homologação, QA, deploy e aceitação excluídos da matriz, por orientação do responsável. Regras financeiras/PSP, alçadas, conciliação e isolamento organizacional continuam sem aprovação; não inflar o índice pela contagem de PRs.

@@ -185,3 +185,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Preserve /auth/me e o GET /auth/access como diagnóstico da própria sessão. Erro 401 após modificação de privilégios exige login novo.
 - Entregar testes focais sobre permissões, mínima autoridade, navegação mobile e um usuário que só tem users.manage, sem falsos positivos de liberação.
 - Não executar migrate:fresh em banco persistente ou atualizar arquivos do usuário sem autorização/backup.
+
+## Macro 45 — propostas internas rigorosamente não executáveis
+- A proposta é fotografia documental de uma apuração manual existente e atual. Não constitui obrigação exigível, saldo, dívida, comissão devida, taxa, imposto, autorização ou pagamento.
+- Responsável/pagador é explicitamente selecionado entre partes ativas e vinculadas ao mesmo veículo; nunca usar defaults, inferência de texto livre, taxas automáticas ou parâmetros de banco.
+- Snapshots append-only com SHA canônico, UUID idempotente por autor/escopo/intenção, transação/lock; rejeitar origem obsoleta, adulterada ou de outro veículo. Histórico legível depois do arquivamento ou mudança de minuta.
+- JWT + session.current + cases.manage E scenarios.manage. Nenhum papel técnico concede autorização monetária.
+- Continuar no layout Metronic oficial da main: cards mobile col-6, ações compactas, desktop preservado; sem CSS global ou novo shell.
+- QA de homologação apenas com evidência real; não declarar PHP/React/Pint/MySQL aprovados sem executar.
