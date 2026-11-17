@@ -20,6 +20,16 @@ final class VehiclePortfolioController extends Controller
         $filters = $request->validated();
         $today = now()->toDateString();
 
+        // Mesma margem gerencial da ficha 360, em DECIMAL assinado e SEM
+        // estimativas/valores previstos. Uma venda sem compra tem resultado NULL.
+        // A expressão é usada ANTES da paginação nos filtros e na ordenação.
+        $saleKnown = "c.sold_on IS NOT NULL AND c.purchase_amount_cents IS NOT NULL
+            AND c.sale_amount_cents IS NOT NULL";
+        $saleMargin = "(CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+            + COALESCE(f.realized_income, 0)
+            - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+            - COALESCE(f.realized_expenses, 0))";
+
         // Fleet totals intentionally describe the whole authorized portfolio,
         // not just a filtered page; the list uses the requested filters.
         $totals = $this->joined($today)->selectRaw("
@@ -64,6 +74,22 @@ final class VehiclePortfolioController extends Controller
                 - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
                 - COALESCE(f.realized_expenses, 0) - COALESCE(f.planned_expenses, 0)
                 ELSE 0 END), 0) AS projected_result_known_total_cents
+        ")->selectRaw("
+            COALESCE(SUM(CASE WHEN c.sold_on IS NOT NULL THEN 1 ELSE 0 END), 0)
+                AS vehicles_sold,
+            COALESCE(SUM(CASE WHEN c.sold_on IS NULL THEN 1 ELSE 0 END), 0)
+                AS vehicles_without_sale,
+            COALESCE(SUM(CASE WHEN c.purchase_amount_cents IS NULL THEN 1 ELSE 0 END), 0)
+                AS vehicles_missing_purchase,
+            COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} > 0
+                THEN 1 ELSE 0 END), 0) AS vehicles_sold_profit,
+            COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} < 0
+                THEN 1 ELSE 0 END), 0) AS vehicles_sold_loss,
+            COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} = 0
+                THEN 1 ELSE 0 END), 0) AS vehicles_sold_break_even,
+            COALESCE(SUM(CASE WHEN c.sold_on IS NOT NULL AND
+                (c.purchase_amount_cents IS NULL OR c.sale_amount_cents IS NULL)
+                THEN 1 ELSE 0 END), 0) AS vehicles_sold_without_result
         ")->first();
 
         $query = $this->joined($today)->select([
@@ -142,7 +168,52 @@ final class VehiclePortfolioController extends Controller
                 break;
         }
 
+        // Rentabilidade é independente de arquivamento; o filtro de status
+        // continua combinável. Não classificar compra NULL como compra zero.
+        switch ($filters['performance'] ?? 'all') {
+            case 'sold_profit':
+                $query->whereNotNull('c.sold_on')->whereNotNull('c.purchase_amount_cents')
+                    ->whereNotNull('c.sale_amount_cents')
+                    ->whereRaw("{$saleMargin} > 0");
+                break;
+            case 'sold_loss':
+                $query->whereNotNull('c.sold_on')->whereNotNull('c.purchase_amount_cents')
+                    ->whereNotNull('c.sale_amount_cents')
+                    ->whereRaw("{$saleMargin} < 0");
+                break;
+            case 'sold_break_even':
+                $query->whereNotNull('c.sold_on')->whereNotNull('c.purchase_amount_cents')
+                    ->whereNotNull('c.sale_amount_cents')
+                    ->whereRaw("{$saleMargin} = 0");
+                break;
+            case 'sold_unknown':
+                $query->whereNotNull('c.sold_on')
+                    ->where(static function (Builder $q): void {
+                        $q->whereNull('c.purchase_amount_cents')
+                            ->orWhereNull('c.sale_amount_cents');
+                    });
+                break;
+            case 'not_sold':
+                $query->whereNull('c.sold_on');
+                break;
+            case 'purchase_missing':
+                $query->whereNull('c.purchase_amount_cents');
+                break;
+        }
+
         switch ($filters['sort'] ?? 'updated') {
+            case 'sale_result_desc':
+                // Apenas vendas com margem conhecida são comparáveis.
+                // NULL por ausência de compra/venda fica no fim, nunca vira zero.
+                $query->orderByRaw("CASE WHEN {$saleKnown} THEN 0 ELSE 1 END")
+                    ->orderByRaw("CASE WHEN {$saleKnown} THEN {$saleMargin} END DESC")
+                    ->orderByDesc('c.id');
+                break;
+            case 'sale_result_asc':
+                $query->orderByRaw("CASE WHEN {$saleKnown} THEN 0 ELSE 1 END")
+                    ->orderByRaw("CASE WHEN {$saleKnown} THEN {$saleMargin} END ASC")
+                    ->orderByDesc('c.id');
+                break;
             case 'priority':
                 // Prioridade operacional, NÃO financeira: prazos vencidos,
                 // tarefas abertas, despesas previstas e identificação a completar.
