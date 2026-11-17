@@ -51,7 +51,11 @@ final class ObligationProposalService
 
     private function snapshot(object $row): array
     {
-        $value = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
+        try {
+            $value = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            abort(409, 'Proposta interna com fotografia ilegível.');
+        }
         if (! is_array($value) || ! hash_equals($row->snapshot_sha256, $this->sha($value))) {
             abort(409, 'Proposta interna com integridade divergente.');
         }
