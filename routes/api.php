@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
+use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -76,6 +77,34 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.portfolio');
         Route::get('/export', [CommercialPortfolioController::class, 'export'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.portfolio.export');
+    });
+
+    // Conferência HUMANA documental de minutas (não aprova repasse monetário).
+    // Reuses scenario_reviews.manage for the independent reviewer's extra grant.
+    Route::prefix('commercial-reviews')->middleware([
+        'bearer.only', 'auth:api', 'session.current',
+        'permission:cases.manage', 'permission:scenarios.manage',
+    ])->group(function (): void {
+        Route::get('/', [CommercialReviewController::class, 'index'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.index');
+        Route::post('/', [CommercialReviewController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.commercial.reviews.store');
+        Route::get('/{review}', [CommercialReviewController::class, 'show'])
+            ->name('api.v1.commercial.reviews.show');
+        Route::post('/{review}/assign', [CommercialReviewController::class, 'assign'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.commercial.reviews.assign');
+        Route::post('/{review}/decide', [CommercialReviewController::class, 'decide'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.commercial.reviews.decide');
+        Route::post('/{review}/comment', [CommercialReviewController::class, 'comment'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.commercial.reviews.comment');
+        Route::post('/{review}/withdraw', [CommercialReviewController::class, 'withdraw'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.commercial.reviews.withdraw');
+        Route::get('/{review}/events', [CommercialReviewController::class, 'events'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.events');
+        Route::get('/{review}/snapshot', [CommercialReviewController::class, 'snapshot'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.snapshot');
+        Route::get('/{review}/integrity', [CommercialReviewController::class, 'integrity'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.integrity');
     });
 
     Route::prefix('repasse-cases')->middleware([

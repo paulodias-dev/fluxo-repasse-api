@@ -19,3 +19,6 @@ A evolução a partir da macro 27 passa a ser acompanhada por **etapas completas
 
 
 **Macro 31 (código em PR):** Central Comercial 360 unifica a carteira de minutas dos veículos com busca, indicadores de risco documental, filtros, CSV e link para edição, sob o Metronic. Etapa 5 executável permanece bloqueada por escopo; não há repasse real nem autorização bancária.
+
+
+**Macro 32 em PR — Revisões comerciais:** tramitação documental por versão congelada, revisor segregado, atribuição, comentários, decisão e retirada, histórico encadeado e consulta Metronic. Etapa 5 executável continua sem escopo financeiro aprovado; QA pendente.
