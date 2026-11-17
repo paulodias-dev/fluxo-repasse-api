@@ -45,6 +45,79 @@ final class RepasseCaseController extends Controller
         return response()->json(['data' => $this->details($case)])->header('Cache-Control', 'no-store');
     }
 
+    /**
+     * Revisão pontual, somente leitura, antes do arquivamento operacional.
+     * Não é quitação, pagamento, baixa contábil nem regra que obriga venda.
+     * Consulta todos os registros, sem usar páginas limitadas a 15 itens.
+     */
+    public function closeoutReview(int $case): JsonResponse
+    {
+        $vehicle = DB::table('repasse_cases')->where('id', $case)->first([
+            'id', 'title', 'status', 'updated_at', 'purchase_amount_cents',
+            'sale_amount_cents', 'sold_on',
+        ]);
+        if (! $vehicle) {
+            abort(404);
+        }
+
+        $openTasks = DB::table('repasse_case_tasks')
+            ->where('repasse_case_id', $case)
+            ->whereIn('status', ['pending', 'doing'])->count();
+        $pendingChecklist = DB::table('repasse_case_checklist')
+            ->where('repasse_case_id', $case)->whereNull('checked_at')->count();
+        $documents = DB::table('repasse_case_evidence')
+            ->where('repasse_case_id', $case)->whereNull('archived_at')->count();
+
+        $money = DB::table('repasse_case_financial_entries')
+            ->where('repasse_case_id', $case)->whereNull('voided_at')
+            ->selectRaw("
+                COALESCE(SUM(CASE WHEN kind = 'expense' AND status = 'realized'
+                    THEN amount_cents ELSE 0 END), 0) AS realized_expenses,
+                COALESCE(SUM(CASE WHEN kind = 'income' AND status = 'realized'
+                    THEN amount_cents ELSE 0 END), 0) AS realized_income,
+                COALESCE(SUM(CASE WHEN kind = 'expense' AND status = 'planned'
+                    THEN amount_cents ELSE 0 END), 0) AS planned_expenses,
+                COALESCE(SUM(CASE WHEN kind = 'income' AND status = 'planned'
+                    THEN amount_cents ELSE 0 END), 0) AS planned_income,
+                COALESCE(SUM(CASE WHEN kind = 'expense' AND status = 'planned'
+                    THEN 1 ELSE 0 END), 0) AS planned_expense_count,
+                COALESCE(SUM(CASE WHEN kind = 'income' AND status = 'planned'
+                    THEN 1 ELSE 0 END), 0) AS planned_income_count
+            ")->first();
+
+        $purchase = $vehicle->purchase_amount_cents === null
+            ? null : (int) $vehicle->purchase_amount_cents;
+        $sale = $vehicle->sale_amount_cents === null
+            ? null : (int) $vehicle->sale_amount_cents;
+        $realizedExpenses = (int) $money->realized_expenses;
+        $realizedIncome = (int) $money->realized_income;
+        $currentCost = $purchase === null ? null : $purchase + $realizedExpenses;
+        $saleResult = $vehicle->sold_on === null || $sale === null || $currentCost === null
+            ? null : $sale + $realizedIncome - $currentCost;
+
+        return response()->json(['data' => [
+            'id' => (int) $vehicle->id,
+            'title' => $vehicle->title,
+            'status' => $vehicle->status,
+            'updated_at' => $vehicle->updated_at,
+            'purchase_amount_cents' => $purchase,
+            'sale_amount_cents' => $sale,
+            'sold_on' => $vehicle->sold_on,
+            'current_cost_cents' => $currentCost,
+            'sale_result_cents' => $saleResult,
+            'expense_realized_cents' => $realizedExpenses,
+            'income_realized_cents' => $realizedIncome,
+            'expense_planned_cents' => (int) $money->planned_expenses,
+            'income_planned_cents' => (int) $money->planned_income,
+            'expense_planned_count' => (int) $money->planned_expense_count,
+            'income_planned_count' => (int) $money->planned_income_count,
+            'open_tasks_count' => $openTasks,
+            'pending_checklist_count' => $pendingChecklist,
+            'documents_count' => $documents,
+        ], 'as_of' => now()->toIso8601String()])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
     public function store(Request $request): JsonResponse
     {
         $this->rejectUnknown($request, ['title', 'description', 'plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
