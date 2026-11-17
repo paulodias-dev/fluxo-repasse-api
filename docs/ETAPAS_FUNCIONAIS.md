@@ -22,3 +22,6 @@ A evolução a partir da macro 27 passa a ser acompanhada por **etapas completas
 
 
 **Macro 32 em PR — Revisões comerciais:** tramitação documental por versão congelada, revisor segregado, atribuição, comentários, decisão e retirada, histórico encadeado e consulta Metronic. Etapa 5 executável continua sem escopo financeiro aprovado; QA pendente.
+
+
+**Macro 33 em PR — Simplicidade operacional:** totais reais da frota de compra, despesas, receitas extras e margens projetadas apenas para veículos com dados suficientes; lançamento rápido e cadastro essencial na interface React. Sem schema novo ou funções redundantes; execução de QA pendente.
