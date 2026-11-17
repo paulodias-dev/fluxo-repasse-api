@@ -207,6 +207,72 @@ final class VehicleFinanceController extends Controller
         ], 201)->header('Cache-Control', 'no-store, private');
     }
 
+    /**
+     * Confirm that a planned expense or extra income has been performed.
+     * Keep the SAME entry and private evidence. An event records the prior
+     * status/date. This is a declaration, not a bank settlement.
+     */
+    public function realize(Request $request, int $case, int $entry): JsonResponse
+    {
+        $this->operations->restrict($request, ['effective_on']);
+        $data = $request->validate([
+            'effective_on' => [
+                'required', 'date_format:Y-m-d',
+                'before_or_equal:'.now()->toDateString(),
+            ],
+        ]);
+
+        $changed = DB::transaction(function () use ($request, $case, $entry, $data): bool {
+            $this->operations->editable($case);
+            $record = DB::table('repasse_case_financial_entries')
+                ->where('repasse_case_id', $case)->where('id', $entry)
+                ->lockForUpdate()->firstOrFail();
+
+            if ($record->voided_at !== null) {
+                throw ValidationException::withMessages([
+                    'entry' => 'Lançamento estornado ou substituído não pode ser realizado.',
+                ]);
+            }
+
+            if ($record->status === 'realized') {
+                if ($record->effective_on === $data['effective_on']) {
+                    return false; // Safe double tap / retry, no duplicate events.
+                }
+
+                abort(409, 'Lançamento já realizado com data diferente. Use Retificar.');
+            }
+
+            if ($record->status !== 'planned') {
+                throw ValidationException::withMessages([
+                    'status' => 'Somente despesas e receitas previstas podem ser realizadas.',
+                ]);
+            }
+
+            DB::table('repasse_case_financial_entries')->where('id', $entry)->update([
+                'status' => 'realized',
+                'effective_on' => $data['effective_on'],
+                'updated_at' => now(),
+            ]);
+            $this->workspace->event($case, $entry, $request, 'realized', [
+                'previous_status' => 'planned',
+                'new_status' => 'realized',
+                'previous_effective_on' => $record->effective_on,
+                'effective_on' => $data['effective_on'],
+                'kind' => $record->kind,
+                'amount_cents' => (int) $record->amount_cents,
+            ]);
+            $this->operations->event($case, $request, 'vehicle_entry_realized');
+
+            return true;
+        }, 3);
+
+        return response()->json([
+            'data' => $this->workspace->entry($case, $entry),
+            'changed' => $changed,
+            'payment_executed' => false,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     public function void(Request $request, int $case, int $entry): JsonResponse
     {
         $this->operations->restrict($request, ['reason']);
