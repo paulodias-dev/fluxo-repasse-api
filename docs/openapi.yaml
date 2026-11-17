@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.13.0
+  version: 1.14.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -960,6 +960,52 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Veículo ou lançamento não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/finance/entries/{entry}/realize:
+    post:
+      tags: [Financeiro 360 do veículo]
+      operationId: vehicleFinanceEntryRealize
+      summary: Registrar ocorrência de lançamento previsto sem criar duplicata
+      description: |
+        Requer JWT vigente, session.current e cases.manage, com veículo ativo.
+        Transição atômica do estado planned para realized preservando ID, valor,
+        categoria, descrição e documentos privados. Registra auditoria do estado
+        e data anteriores. Não é confirmação bancária nem pagamento.
+        Novo envio com a mesma data de um registro já realizado é idempotente
+        (changed=false); data divergente deve seguir o fluxo de retificação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: entry, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [effective_on]
+              properties:
+                effective_on:
+                  type: string
+                  format: date
+                  description: Data efetiva da ocorrência, até o dia atual inclusive
+      responses:
+        '200':
+          description: Lançamento atualizado ou resposta idempotente, sem efeito bancário
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, changed, payment_executed]
+                properties:
+                  data: { type: object }
+                  changed: { type: boolean }
+                  payment_executed: { type: boolean, enum: [false] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou lançamento não encontrado neste veículo }
+        '409': { description: Lançamento já realizado com outra data; use retificação }
         '422': { $ref: '#/components/responses/ValidationError' }
   /repasse-cases/{case}/finance/entries/{entry}/replace:
     post:
