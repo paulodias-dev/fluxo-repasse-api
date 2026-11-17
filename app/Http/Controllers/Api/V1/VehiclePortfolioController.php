@@ -83,6 +83,10 @@ final class VehiclePortfolioController extends Controller
                 AS vehicles_missing_purchase,
             COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} > 0
                 THEN 1 ELSE 0 END), 0) AS vehicles_sold_profit,
+            COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} > 0
+                THEN {$saleMargin} ELSE 0 END), 0) AS sale_profit_total_cents,
+            COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} < 0
+                THEN {$saleMargin} ELSE 0 END), 0) AS sale_loss_total_cents,
             COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} < 0
                 THEN 1 ELSE 0 END), 0) AS vehicles_sold_loss,
             COALESCE(SUM(CASE WHEN {$saleKnown} AND {$saleMargin} = 0
