@@ -118,8 +118,9 @@ final class CommercialPortfolioTest extends TestCase
 
         $csv = $this->withToken($jwt)->get('/api/v1/commercial-portfolio/export?search=Carro%20Azul');
         $csv->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
-        $this->assertStringContainsString('Minuta Carro Azul', $csv->streamedContent());
-        $this->assertStringNotContainsString('Minuta Carro Vermelho', $csv->streamedContent());
+        $csvContent = $csv->streamedContent();
+        $this->assertStringContainsString('Minuta Carro Azul', $csvContent);
+        $this->assertStringNotContainsString('Minuta Carro Vermelho', $csvContent);
         $this->assertDatabaseCount('repasse_commercial_terms', 2);
     }
 
