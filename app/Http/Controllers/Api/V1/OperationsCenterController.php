@@ -45,7 +45,7 @@ final class OperationsCenterController extends Controller
     public function assignees(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $query = User::query()->where('is_active', true)
@@ -66,7 +66,7 @@ final class OperationsCenterController extends Controller
             'priority' => ['sometimes', Rule::in(['all', 'low', 'normal', 'high'])],
             'scope' => ['sometimes', Rule::in(['all', 'mine'])],
             'overdue' => ['sometimes', 'boolean'],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $query = DB::table('repasse_case_tasks as t')

@@ -49,7 +49,7 @@ final class CommercialTermsController extends Controller
     {
         $filters = $request->validate([
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         return $this->json($this->terms->list($case, $filters));
@@ -117,7 +117,7 @@ final class CommercialTermsController extends Controller
     {
         $filters = $request->validate([
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
         $this->cases->ensureExists($case);
         $query = DB::table('repasse_commercial_terms')->where('repasse_case_id', $case);

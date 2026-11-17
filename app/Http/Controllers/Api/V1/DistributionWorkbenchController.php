@@ -25,7 +25,7 @@ final class DistributionWorkbenchController extends Controller
         $filters = $request->validate([
             'case_id' => ['sometimes', 'integer', 'min:1'],
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         return $this->json($this->templates->list($filters));

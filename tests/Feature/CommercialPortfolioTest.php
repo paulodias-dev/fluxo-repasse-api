@@ -99,6 +99,9 @@ final class CommercialPortfolioTest extends TestCase
             ->assertJsonPath('data.terms.total', 2)
             ->assertJsonPath('data.terms.data.0.payment_enabled', false);
 
+        $this->withToken($jwt)->getJson('/api/v1/commercial-portfolio?search=')
+            ->assertOk()->assertJsonPath('data.terms.total', 2);
+
         $this->withToken($jwt)->getJson('/api/v1/commercial-portfolio?search=Carro%20Azul')
             ->assertOk()->assertJsonPath('data.terms.total', 1)
             ->assertJsonPath('data.terms.data.0.case_id', $first)

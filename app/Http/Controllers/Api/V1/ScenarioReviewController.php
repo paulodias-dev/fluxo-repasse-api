@@ -29,7 +29,7 @@ final class ScenarioReviewController extends Controller
     public function reviewers(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         return $this->json($this->queries->reviewers($filters));
@@ -177,7 +177,7 @@ final class ScenarioReviewController extends Controller
             'scope' => ['sometimes', Rule::in(['all', 'mine', 'requested', 'unassigned'])],
             'stale' => ['sometimes', 'boolean'],
             'overdue' => ['sometimes', 'boolean'],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'scenario_id' => ['sometimes', 'integer', 'min:1'],
             'case_id' => ['sometimes', 'integer', 'min:1'],
             'page' => ['sometimes', 'integer', 'min:1'],

@@ -14,7 +14,7 @@ final class RepasseCaseController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);

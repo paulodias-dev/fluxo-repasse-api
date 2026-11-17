@@ -20,7 +20,7 @@ final class CommercialPortfolioController extends Controller
     {
         return $request->validate([
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'case_id' => ['sometimes', 'integer', 'min:1'],
             'preparation' => ['sometimes', Rule::in([
                 'all', 'reviewed', 'needs_review', 'reference_missing', 'model_outdated',

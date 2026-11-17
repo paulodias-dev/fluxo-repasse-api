@@ -29,7 +29,7 @@ final class CommercialReviewController extends Controller
             'term_id' => ['sometimes', 'integer', 'min:1'],
             'status' => ['sometimes', Rule::in(['all', 'pending', 'reviewed', 'changes_requested', 'withdrawn'])],
             'scope' => ['sometimes', Rule::in(['all', 'requested', 'assigned'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         return $this->json(['data' => $this->reviews->index($filters, (int) $request->user('api')->id)]);

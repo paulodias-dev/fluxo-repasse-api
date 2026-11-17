@@ -19,7 +19,7 @@ final class VehiclePortfolioIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'attention' => ['sometimes', Rule::in([
                 'all', 'overdue', 'open_tasks', 'missing_documents',

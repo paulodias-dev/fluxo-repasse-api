@@ -24,7 +24,7 @@ final class RepasseScenarioController extends Controller
     public function cases(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $query = DB::table('repasse_cases')->where('status', 'draft')
@@ -54,7 +54,7 @@ final class RepasseScenarioController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
             'case_id' => ['sometimes', 'integer', 'min:1'],
             'page' => ['sometimes', 'integer', 'min:1'],

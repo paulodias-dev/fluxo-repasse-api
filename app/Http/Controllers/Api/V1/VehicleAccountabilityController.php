@@ -27,7 +27,7 @@ final class VehicleAccountabilityController extends Controller
     public function index(Request $request, int $case): JsonResponse
     {
         $input = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'review_state' => ['sometimes', Rule::in(self::REVIEW_STATES)],
             'page' => ['sometimes', 'integer', 'min:1'],
@@ -182,7 +182,7 @@ final class VehicleAccountabilityController extends Controller
     public function export(Request $request, int $case): StreamedResponse
     {
         $input = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'review_state' => ['sometimes', Rule::in(self::REVIEW_STATES)],
         ]);

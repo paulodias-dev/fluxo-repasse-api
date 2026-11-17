@@ -29,7 +29,7 @@ final class VehicleFinanceController extends Controller
             'include_voided' => ['sometimes', 'boolean'],
             'from' => ['sometimes', 'date_format:Y-m-d'],
             'to' => ['sometimes', 'date_format:Y-m-d'],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $this->workspace->rejectInvalidDateRange($data);

@@ -20,7 +20,7 @@ final class CasePackageController extends Controller
         DB::table('repasse_cases')->where('id', $case)->firstOrFail();
         $filters = $request->validate([
             'kind' => ['required', Rule::in(['evidence', 'scenarios', 'reviews'])],
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $search = trim($filters['search'] ?? '');

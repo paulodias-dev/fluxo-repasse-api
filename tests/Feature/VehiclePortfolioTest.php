@@ -92,6 +92,9 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('summary.sale_result_known_total_cents', 0)
             ->assertJsonCount(0, 'data')
             ->assertJsonPath('total', 0);
+
+        $this->withToken($token)->getJson('/api/v1/operations/vehicles?search=')
+            ->assertOk()->assertJsonPath('total', 0);
     }
 
     public function test_aggregates_each_vehicle_without_multiplying_tasks_documents_or_money(): void

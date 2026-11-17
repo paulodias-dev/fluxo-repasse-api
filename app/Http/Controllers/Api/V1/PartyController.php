@@ -16,7 +16,7 @@ final class PartyController extends Controller
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'type' => ['sometimes', Rule::in(['all', 'person', 'company'])],
             'status' => ['sometimes', Rule::in(['all', 'active', 'inactive'])],
             'page' => ['sometimes', 'integer', 'min:1'],
