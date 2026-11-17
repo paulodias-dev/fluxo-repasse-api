@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\VehiclePortfolioIndexRequest;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 /**
  * Read-only cross-vehicle cockpit. No payment, transfer or ledger writes.
@@ -16,18 +15,9 @@ use Illuminate\Validation\Rule;
  */
 final class VehiclePortfolioController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(VehiclePortfolioIndexRequest $request): JsonResponse
     {
-        $filters = $request->validate([
-            'search' => ['sometimes', 'string', 'max:100'],
-            'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
-            'attention' => ['sometimes', Rule::in([
-                'all', 'overdue', 'open_tasks', 'missing_documents',
-                'incomplete_profile', 'planned_expenses',
-            ])],
-            'sort' => ['sometimes', Rule::in(['updated', 'oldest', 'purchase_desc', 'overdue', 'priority'])],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ]);
+        $filters = $request->validated();
         $today = now()->toDateString();
 
         // Fleet totals intentionally describe the whole authorized portfolio,
