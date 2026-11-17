@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.17.0
+  version: 1.18.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -767,6 +767,41 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/closeout-review:
+    get:
+      tags: [Central operacional]
+      operationId: vehicleCloseoutReview
+      summary: Revisão operacional de encerramento do veículo
+      description: |
+        Consulta consolidada somente leitura, sem paginação de tarefas.
+        Requer JWT Bearer válido, session.current e cases.manage; throttling
+        de leitura e Cache-Control no-store/private. Retorna valores em
+        centavos inteiros, contagens de tarefas abertas, checklist pendente,
+        anexos não arquivados, gastos e receitas previstos.
+        A margem de venda datada usa apenas valores realizados e ignora
+        lançamentos estornados. Compra NULL não vira zero fictício.
+        É um auxílio de decisão, NÃO uma obrigação de vender, não confirma
+        recebimento, pagamento, quitação, lucro contábil ou transferência.
+        Arquivar continua sendo PATCH existente de status archived,
+        auditado e reversível para status draft; esta consulta não altera dados.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Resumo gerencial e operacional do veículo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, as_of]
+                properties:
+                  as_of: { type: string, format: date-time }
+                  data:
+                    $ref: '#/components/schemas/VehicleCloseoutReview'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo não encontrado }
   /repasse-cases/{case}/finance/summary:
     get:
       tags: [Financeiro 360 do veículo]
@@ -3759,6 +3794,32 @@ components:
           type: integer
           format: int64
           description: Soma de margens gerenciais SOMENTE dos veículos com compra e venda informadas. Pode ser negativa.
+    VehicleCloseoutReview:
+      type: object
+      required: [id, title, status, updated_at, purchase_amount_cents,
+        sale_amount_cents, sold_on, current_cost_cents, sale_result_cents,
+        expense_realized_cents, income_realized_cents,
+        expense_planned_cents, income_planned_cents, expense_planned_count,
+        income_planned_count, open_tasks_count, pending_checklist_count, documents_count]
+      properties:
+        id: { type: integer, minimum: 1 }
+        title: { type: string }
+        status: { type: string, enum: [draft, archived] }
+        updated_at: { type: string, description: 'Timestamp da última alteração da ficha; não garante trava de concorrência' }
+        purchase_amount_cents: { type: integer, format: int64, nullable: true, minimum: 0 }
+        sale_amount_cents: { type: integer, format: int64, nullable: true, minimum: 0 }
+        sold_on: { type: string, format: date, nullable: true }
+        current_cost_cents: { type: integer, format: int64, nullable: true }
+        sale_result_cents: { type: integer, format: int64, nullable: true, description: 'Margem gerencial da venda datada, pode ser negativa; não comprova quitação' }
+        expense_realized_cents: { type: integer, format: int64, minimum: 0 }
+        income_realized_cents: { type: integer, format: int64, minimum: 0 }
+        expense_planned_cents: { type: integer, format: int64, minimum: 0 }
+        income_planned_cents: { type: integer, format: int64, minimum: 0 }
+        expense_planned_count: { type: integer, minimum: 0 }
+        income_planned_count: { type: integer, minimum: 0 }
+        open_tasks_count: { type: integer, minimum: 0 }
+        pending_checklist_count: { type: integer, minimum: 0 }
+        documents_count: { type: integer, minimum: 0 }
     VehiclePortfolioResponse:
       type: object
       required: [data, current_page, last_page, per_page, total, summary, as_of]
