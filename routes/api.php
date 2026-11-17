@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\RepasseCaseController;
 use App\Http\Controllers\Api\V1\RepasseScenarioController;
 use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
+use App\Http\Controllers\Api\V1\CommercialTermsController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -130,6 +131,32 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.evidence.download');
         Route::patch('/{case}/evidence/{evidence}/archive', [CaseEvidenceController::class, 'archive'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.archive');
+
+        // Etapa 5 — minutas de condições comerciais, NUNCA autorizações de pagamento.
+        // Read and write scoped by vehicle; require case and simulation privileges.
+        Route::prefix('/{case}/commercial-terms')->middleware('permission:scenarios.manage')
+            ->group(function (): void {
+                Route::get('/', [CommercialTermsController::class, 'index'])
+                    ->name('api.v1.cases.terms.index');
+                Route::post('/', [CommercialTermsController::class, 'store'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.store');
+                Route::get('/export', [CommercialTermsController::class, 'export'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.export');
+                Route::get('/{term}', [CommercialTermsController::class, 'show'])
+                    ->name('api.v1.cases.terms.show');
+                Route::put('/{term}', [CommercialTermsController::class, 'update'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.update');
+                Route::patch('/{term}/state', [CommercialTermsController::class, 'state'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.state');
+                Route::get('/{term}/versions', [CommercialTermsController::class, 'versions'])
+                    ->name('api.v1.cases.terms.versions');
+                Route::get('/{term}/versions/{revision}', [CommercialTermsController::class, 'version'])
+                    ->name('api.v1.cases.terms.version');
+                Route::get('/{term}/preview', [CommercialTermsController::class, 'preview'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preview');
+                Route::post('/{term}/fork', [CommercialTermsController::class, 'fork'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.fork');
+            });
 
         // Etapa 4: leitura consolidada por veículo; exige casos E cenários.
         // Não concede permissão de revisão nem de criação de pacotes.
