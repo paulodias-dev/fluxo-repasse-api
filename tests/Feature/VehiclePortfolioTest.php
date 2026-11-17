@@ -409,6 +409,8 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('summary.vehicles_without_sale', 2)
             ->assertJsonPath('summary.vehicles_missing_purchase', 2)
             ->assertJsonPath('summary.vehicles_sold_profit', 2)
+            ->assertJsonPath('summary.sale_profit_total_cents', 32000)
+            ->assertJsonPath('summary.sale_loss_total_cents', -10000)
             ->assertJsonPath('summary.vehicles_sold_loss', 1)
             ->assertJsonPath('summary.vehicles_sold_break_even', 1)
             ->assertJsonPath('summary.vehicles_sold_without_result', 1)
