@@ -300,6 +300,31 @@ final class VehiclePortfolioTest extends TestCase
         $this->withToken($token)->getJson("$base?sort=priority&attention=planned_expenses")
             ->assertOk()->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $planned);
+
+        // A fila se reorganiza após concluir a tarefa existente, sem
+        // acrescentar novos módulos ou marcar pagamentos fictícios.
+        $taskId = DB::table('repasse_case_tasks')
+            ->where('repasse_case_id', $overdue)->value('id');
+        $this->withToken($token)->patchJson(
+            "/api/v1/repasse-cases/{$overdue}/tasks/{$taskId}",
+            ['status' => 'done']
+        )->assertOk();
+        $this->withToken($token)->getJson("$base?sort=priority")
+            ->assertOk()->assertJsonPath('data.0.id', $open)
+            ->assertJsonPath('summary.vehicles_overdue', 0);
+
+        // Quando a despesa prevista é declarada realizada (macro 35),
+        // não permanece indevidamente entre as prioridades de previstos.
+        $entry = DB::table('repasse_case_financial_entries')
+            ->where('repasse_case_id', $planned)->value('id');
+        $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$planned}/finance/entries/{$entry}/realize",
+            ['effective_on' => '2026-11-16']
+        )->assertOk();
+        $this->withToken($token)->getJson("$base?sort=priority")
+            ->assertOk()->assertJsonPath('data.0.id', $open)
+            ->assertJsonPath('data.1.id', $profile)
+            ->assertJsonPath('summary.vehicles_with_planned_expenses', 0);
     }
 
     public function test_validation_and_stable_pagination(): void
