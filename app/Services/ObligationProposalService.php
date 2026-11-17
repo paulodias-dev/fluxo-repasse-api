@@ -60,6 +60,21 @@ final class ObligationProposalService
             abort(409, 'Proposta interna com integridade divergente.');
         }
 
+        // O conteúdo e suas referências estruturais precisam coincidir.
+        // Detecta edições isoladas em FKs/fonte e evita expor dados incoerentes.
+        if ((int) ($value['case_id'] ?? 0) !== (int) $row->repasse_case_id
+            || (int) ($value['term_id'] ?? 0) !== (int) $row->term_id
+            || (int) ($value['preparation_record_id'] ?? 0) !== (int) $row->preparation_record_id
+            || (int) ($value['payer_party_id'] ?? 0) !== (int) $row->payer_party_id
+            || ($value['source_snapshot_sha256'] ?? null) !== $row->source_snapshot_sha256
+            || ($value['financial_policy_approved'] ?? null) !== false
+            || ($value['financial_authorization'] ?? null) !== false
+            || ($value['obligation_created'] ?? null) !== false
+            || ($value['payment_enabled'] ?? null) !== false
+            || ($value['executable'] ?? null) !== false) {
+            abort(409, 'Referências ou bloqueios financeiros da proposta inconsistentes.');
+        }
+
         return $value;
     }
 
