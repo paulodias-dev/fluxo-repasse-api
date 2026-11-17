@@ -132,6 +132,8 @@ final class CommercialTermsController extends Controller
             fwrite($file, "\xEF\xBB\xBF");
             fputcsv($file, ['ID', 'Minuta', 'Revisão', 'Status', 'Modelo ID',
                 'Revisão do modelo', 'Referência em centavos', 'Observações',
+                'SHA-256 da minuta', 'SHA-256 do modelo', 'Origem da cópia ID',
+                'Origem da cópia revisão',
                 ...array_values(CommercialTermsService::FIELDS),
                 'Aprovação bancária', 'Criada em'], ';');
             $query->orderBy('id')->chunkById(100, function ($rows) use ($file): void {
@@ -142,6 +144,8 @@ final class CommercialTermsController extends Controller
                         $row->archived_at ? 'Arquivada' : 'Em elaboração',
                         $row->template_id, $row->template_revision,
                         $row->reference_cents, $this->safe($row->description),
+                        $row->content_sha256, $row->template_sha256,
+                        $row->forked_from_term_id, $row->forked_from_revision,
                         ...array_map(fn (string $field): string =>
                             $this->safe($terms[$field] ?? null),
                             array_keys(CommercialTermsService::FIELDS)),
