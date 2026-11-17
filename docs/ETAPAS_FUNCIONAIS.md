@@ -16,3 +16,6 @@ A evolução a partir da macro 27 passa a ser acompanhada por **etapas completas
 **Separação obrigatória:** Valores do Financeiro 360 são **gerenciais**, não prova de pagamento. Simulação/parecer não autoriza remessa de dinheiro. Etapa 5 depende de aprovação explícita de quem paga, quem recebe, valor/percentual, momento, estorno, taxa, tributos, regras de elegibilidade, PSP/banco, armazenamento e isolamento organizacional.
 
 **Métricas:** "Etapa 3 codificada" não significa "etapa homologada" ou "% total do produto". O indicador antigo de 6/12 marcos técnicos (50%) pertence à fundação QA e não mede a conclusão financeira real.
+
+
+**Macro 31 (código em PR):** Central Comercial 360 unifica a carteira de minutas dos veículos com busca, indicadores de risco documental, filtros, CSV e link para edição, sob o Metronic. Etapa 5 executável permanece bloqueada por escopo; não há repasse real nem autorização bancária.
