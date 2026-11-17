@@ -25,7 +25,7 @@ final class VehiclePortfolioController extends Controller
                 'all', 'overdue', 'open_tasks', 'missing_documents',
                 'incomplete_profile', 'planned_expenses',
             ])],
-            'sort' => ['sometimes', Rule::in(['updated', 'oldest', 'purchase_desc', 'overdue'])],
+            'sort' => ['sometimes', Rule::in(['updated', 'oldest', 'purchase_desc', 'overdue', 'priority'])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
         $today = now()->toDateString();
@@ -153,6 +153,25 @@ final class VehiclePortfolioController extends Controller
         }
 
         switch ($filters['sort'] ?? 'updated') {
+            case 'priority':
+                // Prioridade operacional, NÃO financeira: prazos vencidos,
+                // tarefas abertas, despesas previstas e identificação a completar.
+                // Não inventar SLA/prazo para despesas ou obrigar documentos.
+                // A prioridade é global no SQL ANTES da paginação, não
+                // reordenada apenas na página exibida ao usuário.
+                $query->orderByRaw("CASE
+                    WHEN c.status <> 'draft' THEN 5
+                    WHEN COALESCE(t.overdue_tasks, 0) > 0 THEN 0
+                    WHEN COALESCE(t.open_tasks, 0) > 0 THEN 1
+                    WHEN COALESCE(f.planned_expenses, 0) > 0 THEN 2
+                    WHEN c.plate IS NULL OR c.plate = ''
+                      OR c.brand IS NULL OR c.brand = ''
+                      OR c.model IS NULL OR c.model = '' THEN 3
+                    ELSE 4 END")
+                    ->orderByDesc('t.overdue_tasks')
+                    ->orderByDesc('t.open_tasks')
+                    ->orderByDesc('c.updated_at')->orderByDesc('c.id');
+                break;
             case 'oldest':
                 $query->orderBy('c.created_at')->orderBy('c.id');
                 break;
