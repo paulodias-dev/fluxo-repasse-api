@@ -551,3 +551,18 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [ ] **QA obrigatório ainda não executado:** `composer test`, `composer lint`, teste MySQL 8/SQLite QA e smoke HTTP autenticado. Não atestar produção sem esses gates.
 
 **Progresso:** entrega funcional codificada em ambos repositórios, mas % global de conclusão do produto não é inferível desta macro.
+
+
+## Macroentrega 42 — Encerramento operacional revisado, reversível e sem status inventado
+
+**Entrega integrada com React na mesma macro, sem criar módulo de encerramento, tabelas ou migrations.**
+
+- [x] `GET /api/v1/repasse-cases/{case}/closeout-review`: uma consulta pontual somente leitura com custo/compra/venda/resultado da venda e contagem integral de tarefas abertas, checklist pendente, documentos não arquivados e despesas/receitas previstas.
+- [x] Contagens abrangem TODOS os registros do veículo (não apenas 15 da primeira página), excluem documentos arquivados e lançamentos financeiros estornados; valores em centavos e `null` preservado quando compra ou venda faltam.
+- [x] Mesma semântica financeira da `finance/summary`: venda datada + receitas extras realizadas − compra − despesas realizadas. Não mistura previstos, não confirma pagamento/recebimento bancário.
+- [x] Endpoint sob JWT Bearer, `session.current`, `cases.manage`, limite de leitura e `Cache-Control: no-store, private`; não retorna dados privados de anexos/usuários.
+- [x] Arquivamento/reabertura usa **PATCH existente** com status draft/archived, auditoria `case_archived`/`case_reopened`. Sem venda fictícia, sem regra automática de bloqueio e sem quitação.
+- [x] OpenAPI 1.18.0 e 3 testes feature escritos para 401/403/404, 17 tarefas (mais do que uma página), custo realizado/previsto/estornado, documentos/checklist, nulos, status e preservação do histórico após reabertura.
+- [ ] `composer test`, `composer lint`, teste MySQL 8, smoke autenticado e aceite visual do React ainda não executados nesta sessão.
+
+**Limite:** a dupla consulta de revisão do frontend detecta alterações entre a conferência e a confirmação, mas não representa lock transacional contra alterações entre a última leitura e o PATCH. O backend segue autoridade de autorização/auditoria.
