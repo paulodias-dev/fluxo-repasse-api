@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.16.0
+  version: 1.17.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -739,13 +739,23 @@ paths:
         identificação incompleta, demais ativos e por último arquivados.
         Ordenação executada no SQL antes da paginação, com desempate estável;
         não cria prazo financeiro, obrigação de anexos ou alerta inventado.
+        Macro 41: performance filtra por venda datada com margem conhecida
+        positiva, negativa, zerada, ou venda sem compra informada; também
+        permite veículos sem venda e compra desconhecida. Filtros combinam
+        com status/search/attention. Sort por margem da VENDA usa apenas
+        receitas/despesas realizadas, com NULL por último e desempate por ID;
+        toda ordenação e filtragem ocorre ANTES da paginação no banco.
+        Indicadores summary são globais na frota autorizada (inclui arquivados),
+        não mudam com filtros/página. Não equivale a lucro contábil ou
+        confirmação de recebimento bancário.
       security:
         - BearerAuth: []
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 100 }, description: 'Busca em título, placa, chassi, marca, modelo, vendedor e origem' }
         - { name: status, in: query, schema: { type: string, enum: [all, draft, archived], default: all } }
         - { name: attention, in: query, schema: { type: string, enum: [all, overdue, open_tasks, missing_documents, incomplete_profile, planned_expenses], default: all } }
-        - { name: sort, in: query, schema: { type: string, enum: [updated, oldest, purchase_desc, overdue, priority], default: updated }, description: 'priority ordena trabalho operacional primeiro; a API mantém updated por padrão para compatibilidade' }
+        - { name: performance, in: query, schema: { type: string, enum: [all, sold_profit, sold_loss, sold_break_even, sold_unknown, not_sold, purchase_missing], default: all }, description: 'Margem de venda realizada e compras conhecidas; independe de status arquivado' }
+        - { name: sort, in: query, schema: { type: string, enum: [updated, oldest, purchase_desc, overdue, priority, sale_result_desc, sale_result_asc], default: updated }, description: 'sale_result_desc/asc compara apenas vendas com margem conhecida, NULL por último; priority ordena trabalho operacional, API mantém updated como padrão' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
       responses:
         '200':
@@ -3711,7 +3721,9 @@ components:
       type: object
       required: [vehicles_total, vehicles_active, vehicles_archived, vehicles_overdue,
         vehicles_with_open_tasks, vehicles_without_documents, vehicles_incomplete_profile,
-        vehicles_with_planned_expenses]
+        vehicles_with_planned_expenses, vehicles_sold, vehicles_without_sale,
+        vehicles_missing_purchase, vehicles_sold_profit, vehicles_sold_loss,
+        vehicles_sold_break_even, vehicles_sold_without_result]
       properties:
         vehicles_total: { type: integer, minimum: 0 }
         vehicles_active: { type: integer, minimum: 0 }
@@ -3721,6 +3733,13 @@ components:
         vehicles_without_documents: { type: integer, minimum: 0 }
         vehicles_incomplete_profile: { type: integer, minimum: 0 }
         vehicles_with_planned_expenses: { type: integer, minimum: 0 }
+        vehicles_sold: { type: integer, minimum: 0, description: 'Vendas com data; não confirma dinheiro recebido' }
+        vehicles_without_sale: { type: integer, minimum: 0, description: 'Sem data de venda, mesmo quando preço estimado foi preenchido' }
+        vehicles_missing_purchase: { type: integer, minimum: 0, description: 'Compra NULL (zero informado conta como valor conhecido)' }
+        vehicles_sold_profit: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada maior que zero' }
+        vehicles_sold_loss: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada menor que zero' }
+        vehicles_sold_break_even: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada igual a zero' }
+        vehicles_sold_without_result: { type: integer, minimum: 0, description: 'Venda datada ainda sem custo da compra ou valor de venda para apurar margem' }
         purchase_total_cents: { type: integer, format: int64, minimum: 0 }
         sale_total_cents: { type: integer, format: int64, minimum: 0 }
         expense_realized_total_cents: { type: integer, format: int64, minimum: 0 }
