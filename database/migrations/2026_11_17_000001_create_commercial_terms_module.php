@@ -22,6 +22,9 @@ return new class extends Migration
             $table->json('conditions');
             $table->unsignedInteger('revision')->default(1);
             $table->char('content_sha256', 64);
+            $table->foreignId('forked_from_term_id')->nullable()
+                ->constrained('repasse_commercial_terms')->restrictOnDelete();
+            $table->unsignedInteger('forked_from_revision')->nullable();
             $table->timestamp('archived_at')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
