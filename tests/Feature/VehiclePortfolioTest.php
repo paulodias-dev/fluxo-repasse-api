@@ -494,7 +494,8 @@ final class VehiclePortfolioTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('performance');
         $this->withToken($token)->getJson("$base?sort=profit_estimated")
             ->assertUnprocessable()->assertJsonValidationErrors('sort');
-        $this->getJson("$base?performance=sold_profit")->assertUnauthorized();
+        $this->withToken('invalid-jwt')->getJson("$base?performance=sold_profit")
+            ->assertUnauthorized();
         $withoutGrant = $this->token(false);
         $this->withToken($withoutGrant)->getJson("$base?performance=sold_loss")
             ->assertForbidden();
