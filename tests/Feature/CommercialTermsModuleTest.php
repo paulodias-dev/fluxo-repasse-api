@@ -10,6 +10,7 @@ use App\Services\CommercialTermsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class CommercialTermsModuleTest extends TestCase
@@ -281,4 +282,129 @@ final class CommercialTermsModuleTest extends TestCase
         $this->assertDatabaseCount('repasse_commercial_terms', 2);
         $this->assertDatabaseCount('repasse_commercial_term_versions', 2);
     }
+    public function test_preparation_consolidates_exact_documentary_review_realized_result_and_hypothetical_allocations(): void
+    {
+        $author = $this->token();
+        [$case, $template, , $recipientA, $recipientB] = $this->fixture($author);
+        $base = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $this->withToken($author)->patchJson("/api/v1/repasse-cases/{$case}", [
+            'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 150000,
+            'sold_on' => '2026-11-16',
+        ])->assertOk();
+        $this->withToken($author)->postJson("/api/v1/repasse-cases/{$case}/finance/entries", [
+            'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
+            'description' => 'Despesa confirmada', 'amount_cents' => 11000,
+        ])->assertCreated();
+        $this->withToken($author)->postJson("/api/v1/repasse-cases/{$case}/finance/entries", [
+            'kind' => 'expense', 'status' => 'planned', 'category' => 'Transporte',
+            'description' => 'Despesa prevista', 'amount_cents' => 50000,
+        ])->assertCreated();
+        $this->withToken($author)->postJson("/api/v1/repasse-cases/{$case}/finance/entries", [
+            'kind' => 'income', 'status' => 'realized', 'category' => 'Extras',
+            'description' => 'Receita declarada', 'amount_cents' => 1000,
+        ])->assertCreated();
+
+        $created = $this->withToken($author)->postJson($base, $this->input($template))
+            ->assertCreated();
+        $term = $created->json('data.id');
+        $route = "{$base}/{$term}/preparation";
+        $result = $this->withToken($author)->getJson($route)
+            ->assertOk()
+            ->assertJsonPath('data.term_revision', 1)
+            ->assertJsonPath('data.review_state', 'not_requested')
+            ->assertJsonPath('data.documentary_preparation_complete', false)
+            ->assertJsonPath('data.financial_policy_approved', false)
+            ->assertJsonPath('data.executable', false)
+            ->assertJsonPath('data.obligation_created', false)
+            ->assertJsonPath('data.payment_enabled', false)
+            ->assertJsonPath('data.manual_reference_cents', 10001)
+            ->assertJsonPath('data.allocated_cents', 10001)
+            ->assertJsonPath('data.difference_cents', 0)
+            ->assertJsonPath('data.sale_result_known_cents', 40000)
+            ->assertJsonPath('data.allocations.0.party_id', $recipientA->id)
+            ->assertJsonPath('data.allocations.0.amount_cents', 6001)
+            ->assertJsonPath('data.allocations.1.party_id', $recipientB->id)
+            ->assertJsonPath('data.allocations.1.amount_cents', 4000);
+        $this->assertCount(11, $result->json('data.issues'));
+        $this->assertSame(64, strlen($result->json('data.snapshot_sha256')));
+        $hash = $result->json('data.snapshot_sha256');
+        $this->withToken($author)->getJson($route)
+            ->assertOk()->assertJsonPath('data.snapshot_sha256', $hash);
+
+        // Parecer da revisão 1 não serve para revisão 2; a avaliação
+        // documental exige a mesma revisão E o mesmo SHA atual.
+        $conditions = array_fill_keys(array_keys(CommercialTermsService::FIELDS),
+            'Condição preenchida para conferência documental interna.');
+        $this->withToken($author)->putJson("{$base}/{$term}", [
+            ...$this->input($template, ['conditions' => $conditions]), 'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+        $review = $this->withToken($author)->postJson('/api/v1/commercial-reviews', [
+            'case_id' => $case, 'term_id' => $term, 'term_revision' => 2,
+            'request_key' => (string) Str::uuid(),
+            'request_note' => 'Conferência independente das dez condições da minuta.',
+        ])->assertCreated()->json('data.id');
+        $reviewer = $this->token(['cases.manage', 'scenarios.manage', 'scenario_reviews.manage']);
+        $this->withToken($reviewer)->postJson("/api/v1/commercial-reviews/{$review}/decide", [
+            'revision' => 1, 'decision' => 'reviewed',
+            'note' => 'Revisão documental verificada sem aprovação de pagamentos.',
+        ])->assertOk();
+
+        $ready = $this->withToken($author)->getJson($route)
+            ->assertOk()
+            ->assertJsonPath('data.review_state', 'reviewed')
+            ->assertJsonPath('data.documentary_preparation_complete', true)
+            ->assertJsonPath('data.issues', [])
+            ->assertJsonPath('data.payment_enabled', false)
+            ->assertJsonPath('data.financial_authorization', false)
+            ->assertJsonPath('data.sale_result_known_cents', 40000);
+        $this->assertNotSame($hash, $ready->json('data.snapshot_sha256'));
+
+        $csv = $this->withToken($author)->get("{$route}/export")
+            ->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+        $out = $csv->streamedContent();
+        $this->assertStringContainsString('snapshot_sha256', $out);
+        $this->assertStringContainsString('NÃO', $out);
+        $this->assertStringContainsString('6001', $out);
+        $this->assertDatabaseCount('repasse_commercial_terms', 1);
+
+        $this->withToken($author)->putJson("{$base}/{$term}", [
+            ...$this->input($template, ['conditions' => $conditions,
+                'title' => 'Minuta revisada novamente']), 'revision' => 2,
+        ])->assertOk()->assertJsonPath('data.revision', 3);
+        $this->withToken($author)->getJson($route)->assertOk()
+            ->assertJsonPath('data.review_state', 'not_requested')
+            ->assertJsonPath('data.documentary_preparation_complete', false);
+    }
+
+    public function test_preparation_is_private_scoped_read_only_and_has_no_real_payment_side_effects(): void
+    {
+        $token = $this->token();
+        [$case, $template] = $this->fixture($token);
+        $other = $this->fixture($token);
+        $term = $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$case}/commercial-terms",
+            $this->input($template, ['reference_cents' => null])
+        )->assertCreated()->json('data.id');
+
+        $path = "/api/v1/repasse-cases/{$case}/commercial-terms/{$term}/preparation";
+        $this->withToken('invalid-jwt')->getJson($path)->assertUnauthorized();
+        $this->withToken($this->token(['cases.manage']))->getJson($path)->assertForbidden();
+        $this->withToken($this->token(['scenarios.manage']))->getJson($path)->assertForbidden();
+        $this->withToken($token)->getJson(
+            "/api/v1/repasse-cases/{$other[0]}/commercial-terms/{$term}/preparation"
+        )->assertNotFound();
+        $this->withToken($token)->getJson($path)
+            ->assertOk()->assertJsonPath('data.manual_reference_cents', null)
+            ->assertJsonPath('data.allocations', [])
+            ->assertJsonPath('data.sale_result_known_cents', null)
+            ->assertJsonPath('data.executable', false);
+        $this->withToken($token)->get("{$path}/export")->assertOk();
+
+        // Nenhuma mutação/obrigação criada durante a revisão.
+        $this->assertDatabaseCount('repasse_commercial_term_versions', 1);
+        $this->assertDatabaseCount('repasse_commercial_reviews', 0);
+        $this->assertDatabaseCount('repasse_scenarios', 0);
+    }
+
 }

@@ -134,4 +134,76 @@ final class CommercialPortfolioTest extends TestCase
                 ->assertUnprocessable();
         }
     }
+    public function test_preparation_filters_and_global_counts_use_exact_current_review_before_pagination(): void
+    {
+        $jwt = $this->token(['cases.manage', 'scenarios.manage']);
+        [$first, $template, $firstTerm] = $this->fixture($jwt, 'Carro Acompanhado');
+        [$second] = $this->fixture($jwt, 'Carro Pendente');
+
+        $commercial = DB::table('repasse_commercial_terms')->where('id', $firstTerm)->first();
+        $version = DB::table('repasse_commercial_term_versions')->where('term_id', $firstTerm)
+            ->where('revision', 1)->first();
+        DB::table('repasse_commercial_reviews')->insert([
+            'term_id' => $firstTerm,
+            'request_key' => (string) \Illuminate\Support\Str::uuid(),
+            'payload_digest' => str_repeat('a', 64),
+            'term_revision' => 1,
+            'term_sha256' => $commercial->content_sha256,
+            'term_version_sha256' => $version->sha256,
+            'status' => 'reviewed',
+            'request_note' => 'Parecer documental criado para consulta do filtro.',
+            'revision' => 2,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $base = '/api/v1/commercial-portfolio';
+        $this->withToken($jwt)->getJson($base)
+            ->assertOk()->assertJsonPath('data.summary.total', 2)
+            ->assertJsonPath('data.summary.reviewed_current_revision', 1)
+            ->assertJsonPath('data.summary.needs_documentary_review', 1)
+            ->assertJsonPath('data.summary.reference_missing', 0);
+        $this->withToken($jwt)->getJson("$base?preparation=reviewed")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.id', $firstTerm)
+            ->assertJsonPath('data.terms.data.0.current_review_status', 'reviewed')
+            ->assertJsonPath('data.summary.reviewed_current_revision', 1);
+        $this->withToken($jwt)->getJson("$base?preparation=needs_review")
+            ->assertOk()->assertJsonPath('data.terms.total', 1);
+        $this->withToken($jwt)->getJson("$base?status=active&search=Carro%20Acompanhado&preparation=reviewed")
+            ->assertOk()->assertJsonPath('data.terms.total', 1);
+        $this->withToken($jwt)->getJson("$base?preparation=not_approved")
+            ->assertUnprocessable()->assertJsonValidationErrors('preparation');
+
+        $csv = $this->withToken($jwt)->get("$base/export?preparation=reviewed")
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('Carro Acompanhado', $csv);
+        $this->assertStringNotContainsString('Carro Pendente', $csv);
+        $this->assertStringContainsString('reviewed', $csv);
+
+        // Depois de alterar a minuta, a revisão documental antiga não autoriza
+        // uma revisão nova, mesmo que seu status histórico fosse "reviewed".
+        $this->withToken($jwt)->putJson(
+            "/api/v1/repasse-cases/{$first}/commercial-terms/{$firstTerm}",
+            [
+                'revision' => 1, 'title' => 'Minuta revisada',
+                'description' => null,
+                'template_id' => $template, 'template_revision' => 1,
+                'reference_cents' => null,
+                'conditions' => array_fill_keys(array_keys(CommercialTermsService::FIELDS), null),
+                'evidence_ids' => [],
+            ]
+        )->assertOk()->assertJsonPath('data.revision', 2);
+        $this->withToken($jwt)->getJson("$base?preparation=reviewed")
+            ->assertOk()->assertJsonPath('data.terms.total', 0);
+        $this->withToken($jwt)->getJson("$base?preparation=needs_review")
+            ->assertOk()->assertJsonPath('data.terms.total', 2);
+        $this->withToken($jwt)->getJson("$base?preparation=reference_missing")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.case_id', $first);
+        $this->withToken($jwt)->getJson($base)->assertOk()
+            ->assertJsonPath('data.summary.reviewed_current_revision', 0)
+            ->assertJsonPath('data.summary.reference_missing', 1);
+        $this->assertNotSame($first, $second);
+    }
+
 }

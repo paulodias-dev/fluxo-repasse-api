@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\RepasseScenarioController;
 use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
+use App\Http\Controllers\Api\V1\FinancialPreparationController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
@@ -199,6 +200,11 @@ Route::prefix('v1')->group(function (): void {
                     ->name('api.v1.cases.terms.version');
                 Route::get('/{term}/preview', [CommercialTermsController::class, 'preview'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preview');
+                // Simulação consolidada + checklist de bloqueios, sem emitir obrigação.
+                Route::get('/{term}/preparation', [FinancialPreparationController::class, 'show'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preparation');
+                Route::get('/{term}/preparation/export', [FinancialPreparationController::class, 'export'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preparation.export');
                 Route::post('/{term}/fork', [CommercialTermsController::class, 'fork'])
                     ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.fork');
             });

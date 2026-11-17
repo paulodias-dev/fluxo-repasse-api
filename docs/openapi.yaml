@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.18.0
+  version: 1.19.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -242,6 +242,7 @@ paths:
         - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
         - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: preparation, in: query, schema: { type: string, enum: [all, reviewed, needs_review, reference_missing, model_outdated], default: all }, description: 'Filtro de parecer da revisão exata, sem implicar autorização de pagamento' }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
       responses:
         '200':
@@ -264,6 +265,9 @@ paths:
                           archived: { type: integer }
                           model_outdated: { type: integer }
                           vehicle_archived: { type: integer }
+                          reviewed_current_revision: { type: integer }
+                          needs_documentary_review: { type: integer }
+                          reference_missing: { type: integer }
                       terms:
                         type: object
                         description: Paginador Laravel; cada item traz campos, revisão e alertas.
@@ -1571,6 +1575,60 @@ paths:
         '404': { description: Minuta, veículo ou revisão inexistente }
         '409': { description: Revisão concorrente ou integridade/versionamento divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: financialPreparationShow
+      summary: Conferir pré-repasse documental e valores hipotéticos, sem execução
+      description: |
+        Requer JWT, session.current, cases.manage E scenarios.manage e valida
+        SHA-256 da minuta e modelo. Somente leitura. Reúne dez condições
+        declaradas, vínculos atuais, parecer documental da MESMA revisão e SHA,
+        valor de referência MANUAL, rateio já existente e resultado GERENCIAL
+        da venda datada para comparação independente.
+        Documento "reviewed" NÃO é autorização monetária, nem a referência
+        manual torna-se base contratual automaticamente. Sempre retorna
+        financial_authorization=false, obligation_created=false,
+        payment_enabled=false, executable=false e lista de políticas financeiras
+        faltantes. Sem ledger, transferência, PSP ou nova tabela.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Relatório de preparação com bloqueios documentais e execução financeira desabilitada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/FinancialPreparation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta não pertence ao veículo ou não existe }
+        '409': { description: SHA da minuta/modelo inconsistente }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/export:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: financialPreparationExport
+      summary: Exportar relatório privado de pré-repasse em CSV, anti-fórmula
+      description: |
+        Mesma autorização e conferência de integridade do GET de preparação.
+        CSV UTF-8 BOM e separador ponto e vírgula, SHA-256 do snapshot e
+        discriminação entre valores hipotéticos, gerenciais e faltas.
+        Nunca autoriza obrigação ou pagamento.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: CSV privado no-store, sem ordem de pagamento }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta inexistente/fora do veículo }
+        '409': { description: Minuta ou modelo com integridade inválida }
   /repasse-cases/{case}/commercial-terms/{term}/fork:
     post:
       tags: [Condições comerciais do veículo]
@@ -3172,6 +3230,64 @@ components:
             cancellation: { type: string, nullable: true, maxLength: 2000 }
             banking: { type: string, nullable: true, maxLength: 2000 }
             organization: { type: string, nullable: true, maxLength: 2000 }
+    FinancialPreparation:
+      type: object
+      required: [case_id, case_title, case_status, term_id, term_title,
+        term_revision, term_sha256, template_id, template_revision, template_sha256,
+        source_party_id, manual_reference_cents, sale_result_known_cents, sold_on,
+        allocations, allocated_cents, difference_cents, review, review_state,
+        documentary_preparation_complete, issues, financial_policy_approved,
+        financial_authorization, obligation_created, payment_enabled, executable,
+        missing_execution_decisions, snapshot_sha256]
+      properties:
+        case_id: { type: integer, minimum: 1 }
+        case_title: { type: string }
+        case_status: { type: string, enum: [draft, archived] }
+        term_id: { type: integer, minimum: 1 }
+        term_title: { type: string }
+        term_revision: { type: integer, minimum: 1 }
+        term_sha256: { type: string, minLength: 64, maxLength: 64 }
+        template_id: { type: integer, minimum: 1 }
+        template_revision: { type: integer, minimum: 1 }
+        template_sha256: { type: string, minLength: 64, maxLength: 64 }
+        source_party_id: { type: integer, minimum: 1, description: 'Origem declarada no modelo, não titularidade bancária validada' }
+        manual_reference_cents: { type: integer, format: int64, nullable: true, description: 'Montante informado pelo operador, não base obrigacional' }
+        sale_result_known_cents: { type: integer, format: int64, nullable: true, description: 'Margem gerencial de venda datada, independente da referência manual' }
+        sold_on: { type: string, format: date, nullable: true }
+        allocations:
+          type: array
+          items:
+            type: object
+            required: [party_id, basis_points, amount_cents]
+            properties:
+              party_id: { type: integer, minimum: 1 }
+              party_name: { type: string }
+              basis_points: { type: integer, minimum: 1, maximum: 10000 }
+              amount_cents: { type: integer, format: int64 }
+              memo: { type: string, nullable: true }
+        allocated_cents: { type: integer, format: int64, nullable: true }
+        difference_cents: { type: integer, format: int64, nullable: true }
+        review: { type: object, nullable: true, description: 'Último parecer da revisão e SHA atuais, exclusivamente documental' }
+        review_state: { type: string, enum: [not_requested, pending, reviewed, changes_requested, withdrawn] }
+        documentary_preparation_complete: { type: boolean, description: 'Somente completude documental e rateio manual; não autoriza pagar' }
+        issues:
+          type: array
+          items:
+            type: object
+            required: [key, scope, message]
+            properties:
+              key: { type: string }
+              scope: { type: string }
+              message: { type: string }
+        financial_policy_approved: { type: boolean, enum: [false] }
+        financial_authorization: { type: boolean, enum: [false] }
+        obligation_created: { type: boolean, enum: [false] }
+        payment_enabled: { type: boolean, enum: [false] }
+        executable: { type: boolean, enum: [false] }
+        missing_execution_decisions:
+          type: array
+          items: { type: string }
+        snapshot_sha256: { type: string, minLength: 64, maxLength: 64, description: 'Hash interno da leitura, não assinatura ou autorização bancária' }
     CommercialTerm:
       type: object
       required: [id, case_id, title, revision, template_id, template_revision,

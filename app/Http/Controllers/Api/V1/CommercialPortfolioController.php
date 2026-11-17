@@ -22,15 +22,30 @@ final class CommercialPortfolioController extends Controller
             'status' => ['sometimes', Rule::in(['all', 'active', 'archived'])],
             'search' => ['sometimes', 'string', 'max:100'],
             'case_id' => ['sometimes', 'integer', 'min:1'],
+            'preparation' => ['sometimes', Rule::in([
+                'all', 'reviewed', 'needs_review', 'reference_missing', 'model_outdated',
+            ])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
     }
 
     private function query(array $filters): \Illuminate\Database\Query\Builder
     {
+        // Último parecer da MESMA revisão+SHA, no SQL antes da paginação.
+        // Parecer anterior à alteração da minuta NÃO pode ser reaproveitado.
+        $latest = DB::table('repasse_commercial_reviews')
+            ->select('term_id', 'term_revision', 'term_sha256')
+            ->selectRaw('MAX(id) AS review_id')
+            ->groupBy('term_id', 'term_revision', 'term_sha256');
         $query = DB::table('repasse_commercial_terms as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
-            ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id');
+            ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id')
+            ->leftJoinSub($latest, 'lr', static function ($join): void {
+                $join->on('lr.term_id', '=', 't.id')
+                    ->on('lr.term_revision', '=', 't.revision')
+                    ->on('lr.term_sha256', '=', 't.content_sha256');
+            })
+            ->leftJoin('repasse_commercial_reviews as cr', 'cr.id', '=', 'lr.review_id');
 
         if (($filters['status'] ?? 'all') === 'active') {
             $query->whereNull('t.archived_at');
@@ -51,7 +66,29 @@ final class CommercialPortfolioController extends Controller
             });
         }
 
+        switch ($filters['preparation'] ?? 'all') {
+            case 'reviewed':
+                $query->where('cr.status', 'reviewed');
+                break;
+            case 'needs_review':
+                $this->needsReview($query);
+                break;
+            case 'reference_missing':
+                $query->whereNull('t.reference_cents');
+                break;
+            case 'model_outdated':
+                $this->outdated($query);
+                break;
+        }
+
         return $query;
+    }
+
+    private function needsReview(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
+    {
+        return $query->where(static function ($q): void {
+            $q->whereNull('cr.id')->orWhere('cr.status', '!=', 'reviewed');
+        });
     }
 
     private function outdated(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
@@ -71,6 +108,7 @@ final class CommercialPortfolioController extends Controller
             't.template_id', 't.template_revision', 'm.revision as current_template_revision',
             'm.name as template_name', 'm.archived_at as model_archived_at',
             't.reference_cents', 't.archived_at', 't.created_at', 't.updated_at',
+            'cr.id as current_review_id', 'cr.status as current_review_status',
         ];
     }
 
@@ -105,6 +143,9 @@ final class CommercialPortfolioController extends Controller
             'conditions_total' => count(CommercialTermsService::FIELDS),
             'missing_conditions' => $missing,
             'model_outdated' => $modelOutdated,
+            'current_review_id' => $row->current_review_id === null ? null : (int) $row->current_review_id,
+            'current_review_status' => $row->current_review_status ?? 'not_requested',
+            'reference_missing' => $row->reference_cents === null,
             'vehicle_archived' => $row->case_status !== 'draft',
             'full_documentary_checks_pending' => true,
             'financial_authorization' => false,
@@ -121,6 +162,9 @@ final class CommercialPortfolioController extends Controller
             'archived' => (clone $query)->whereNotNull('t.archived_at')->count('t.id'),
             'model_outdated' => $this->outdated(clone $query)->count('t.id'),
             'vehicle_archived' => (clone $query)->where('c.status', '!=', 'draft')->count('t.id'),
+            'reviewed_current_revision' => (clone $query)->where('cr.status', 'reviewed')->count('t.id'),
+            'needs_documentary_review' => $this->needsReview(clone $query)->count('t.id'),
+            'reference_missing' => (clone $query)->whereNull('t.reference_cents')->count('t.id'),
         ];
         $terms = (clone $query)->select($this->columns())
             ->orderByDesc('t.updated_at')->orderByDesc('t.id')->paginate(20);
@@ -151,7 +195,8 @@ final class CommercialPortfolioController extends Controller
                 'Minuta ID', 'Veículo ID', 'Veículo', 'Placa', 'Minuta', 'Revisão',
                 'Status', 'Modelo', 'Revisão do modelo', 'Referência (centavos)',
                 'Campos preenchidos', 'Campos pendentes', 'Modelo desatualizado',
-                'Veículo arquivado', 'Atualizada em', 'Autorização financeira',
+                'Veículo arquivado', 'Parecer documental da versão atual',
+                'Referência manual ausente', 'Atualizada em', 'Autorização financeira',
             ], ';');
 
             $query->orderBy('t.id')->chunkById(100, function ($rows) use ($out): void {
@@ -166,6 +211,8 @@ final class CommercialPortfolioController extends Controller
                         implode(', ', $item['missing_conditions']),
                         $item['model_outdated'] ? 'Sim' : 'Não',
                         $item['vehicle_archived'] ? 'Sim' : 'Não',
+                        $this->safe($item['current_review_status']),
+                        $item['reference_missing'] ? 'Sim' : 'Não',
                         $item['updated_at'], 'NÃO AUTORIZA PAGAMENTO',
                     ], ';');
                 }
