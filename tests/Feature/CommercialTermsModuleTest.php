@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\CommercialTermsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -604,6 +605,138 @@ final class CommercialTermsModuleTest extends TestCase
             ->update(['snapshot_sha256' => str_repeat('0', 64)]);
         $this->withToken($jwt)->getJson("{$base}/records/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/records/{$id}/export")->assertConflict();
+    }
+
+    public function test_internal_proposal_is_immutable_idempotent_and_never_creates_a_debt(): void
+    {
+        $jwt = $this->token();
+        [$case, $template, , $a, $b] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $preparation = "{$terms}/{$term}/preparation";
+        $sha = $this->withToken($jwt)->getJson($preparation)
+            ->assertOk()->json('data.snapshot_sha256');
+        $record = $this->withToken($jwt)->postJson("{$preparation}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $sha,
+            'adjustments' => [],
+        ])->assertCreated()->json('data');
+        $base = "{$preparation}/proposals";
+        $this->withToken($jwt)->getJson("{$base}/options")
+            ->assertOk()->assertJsonCount(3, 'data.parties')
+            ->assertJsonPath('data.payment_enabled', false);
+        $payload = [
+            'request_key' => (string) Str::uuid(),
+            'preparation_record_id' => $record['id'],
+            'expected_record_sha256' => $record['snapshot_sha256'],
+            'payer_party_id' => $a->id,
+            'trigger_on' => '2026-11-17',
+            'due_on' => '2026-11-20',
+            'operator_note' => 'Análise documental interna',
+        ];
+        $created = $this->withToken($jwt)->postJson($base, $payload)
+            ->assertCreated()
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('data.snapshot.net_cents', 10001)
+            ->assertJsonPath('data.snapshot.lines.0.party_id', $a->id)
+            ->assertJsonPath('data.snapshot.lines.0.proposed_amount_cents', 6001)
+            ->assertJsonPath('data.snapshot.lines.1.party_id', $b->id)
+            ->assertJsonPath('data.snapshot.lines.1.proposed_amount_cents', 4000)
+            ->assertJsonPath('data.snapshot.lines.0.payable', false)
+            ->assertJsonPath('data.snapshot.financial_policy_approved', false)
+            ->assertJsonPath('data.snapshot.obligation_created', false)
+            ->assertJsonPath('data.payment_enabled', false)
+            ->assertJsonPath('data.executable', false);
+        $id = $created->json('data.id');
+        $hash = $created->json('data.snapshot_sha256');
+
+        $this->withToken($jwt)->postJson($base, $payload)
+            ->assertOk()->assertJsonPath('created', false)
+            ->assertJsonPath('data.id', $id);
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'payer_party_id' => $b->id,
+        ])->assertConflict();
+        $this->withToken($jwt)->getJson($base)->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.payment_enabled', false);
+        $this->withToken($jwt)->getJson("{$base}/{$id}")
+            ->assertOk()->assertJsonPath('data.snapshot_sha256', $hash);
+
+        $csv = $this->withToken($jwt)->get("{$base}/{$id}/export")
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('Proposta não exigível', $csv);
+        $this->assertStringContainsString('10001', $csv);
+        $this->assertDatabaseCount('repasse_obligation_proposals', 1);
+        $this->assertDatabaseCount('repasse_case_financial_entries', 0);
+
+        $this->withToken($jwt)->putJson("{$terms}/{$term}", [
+            ...$this->input($template, ['title' => 'Minuta alterada']),
+            'revision' => 1,
+        ])->assertOk();
+        $this->withToken($jwt)->getJson("{$base}/{$id}")
+            ->assertOk()->assertJsonPath('data.stale', true)
+            ->assertJsonPath('data.snapshot_sha256', $hash);
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'request_key' => (string) Str::uuid(),
+        ])->assertConflict();
+        $this->withToken($jwt)->postJson($base, $payload)
+            ->assertOk()->assertJsonPath('created', false);
+        DB::table('repasse_obligation_proposals')->where('id', $id)
+            ->update(['snapshot_sha256' => str_repeat('0', 64)]);
+        $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
+        $this->withToken($jwt)->get("{$base}/{$id}/export")->assertConflict();
+    }
+
+    public function test_internal_proposals_reject_cross_vehicle_payers_unknown_fields_and_missing_permissions(): void
+    {
+        $jwt = $this->token();
+        [$case, $template, , $a] = $this->fixture($jwt);
+        [$other, , , $otherParty] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $preparation = "{$terms}/{$term}/preparation";
+        $source = $this->withToken($jwt)->getJson($preparation)
+            ->assertOk()->json('data.snapshot_sha256');
+        $record = $this->withToken($jwt)->postJson("{$preparation}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $source,
+            'adjustments' => [],
+        ])->assertCreated()->json('data');
+        $base = "{$preparation}/proposals";
+        $payload = [
+            'request_key' => (string) Str::uuid(),
+            'preparation_record_id' => $record['id'],
+            'expected_record_sha256' => $record['snapshot_sha256'],
+            'payer_party_id' => $a->id,
+        ];
+        $this->getJson($base)->assertUnauthorized();
+        foreach ([[], ['cases.manage'], ['scenarios.manage']] as $grants) {
+            $weak = $this->token($grants);
+            $this->withToken($weak)->getJson($base)->assertForbidden();
+            $this->withToken($weak)->postJson($base, $payload)->assertForbidden();
+        }
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'payer_party_id' => $otherParty->id,
+        ])->assertUnprocessable()->assertJsonValidationErrors('payer_party_id');
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'payment_enabled' => true,
+        ])->assertUnprocessable();
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'due_on' => '2026-11-10', 'trigger_on' => '2026-11-17',
+        ])->assertUnprocessable()->assertJsonValidationErrors('due_on');
+        $this->withToken($jwt)->postJson(
+            "/api/v1/repasse-cases/{$other}/commercial-terms/{$term}/preparation/proposals",
+            $payload
+        )->assertNotFound();
+        $this->withToken($jwt)->postJson($base, $payload)->assertCreated();
+        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
+            'status' => 'archived',
+        ])->assertOk();
+        $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'request_key' => (string) Str::uuid(),
+        ])->assertUnprocessable();
     }
 
 }
