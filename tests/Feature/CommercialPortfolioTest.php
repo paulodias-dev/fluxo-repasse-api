@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\CommercialTermsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class CommercialPortfolioTest extends TestCase
@@ -207,6 +208,137 @@ final class CommercialPortfolioTest extends TestCase
             ->assertJsonPath('data.summary.reviewed_current_revision', 0)
             ->assertJsonPath('data.summary.reference_missing', 1);
         $this->assertNotSame($first, $second);
+    }
+
+
+    public function test_proposal_counters_filters_and_csv_use_the_same_full_portfolio(): void
+    {
+        $jwt = $this->token(['cases.manage', 'scenarios.manage']);
+        [$case, $template, $term] = $this->fixture($jwt, 'Frota com proposta');
+        [$otherCase, , $otherTerm] = $this->fixture($jwt, 'Frota sem proposta');
+        $preparation = "/api/v1/repasse-cases/{$case}/commercial-terms/{$term}/preparation";
+        $sourceSha = $this->withToken($jwt)->getJson($preparation)->assertOk()
+            ->json('data.snapshot_sha256');
+        $record = $this->withToken($jwt)->postJson("{$preparation}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $sourceSha,
+            'adjustments' => [],
+        ])->assertCreated()->json('data');
+        $payer = DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+            ->orderBy('id')->value('party_id');
+        $proposalBase = "{$preparation}/proposals";
+        for ($i = 0; $i < 2; $i++) {
+            $this->withToken($jwt)->postJson($proposalBase, [
+                'request_key' => (string) Str::uuid(),
+                'preparation_record_id' => $record['id'],
+                'expected_record_sha256' => $record['snapshot_sha256'],
+                'payer_party_id' => $payer,
+                'operator_note' => "Registro {$i}",
+            ])->assertCreated();
+        }
+
+        $base = '/api/v1/commercial-portfolio';
+        $result = $this->withToken($jwt)->getJson($base)->assertOk()
+            ->assertJsonPath('data.summary.total', 2)
+            ->assertJsonPath('data.summary.terms_with_proposals', 1)
+            ->assertJsonPath('data.summary.terms_without_proposals', 1)
+            ->assertJsonPath('data.summary.proposal_records_total', 2)
+            ->assertJsonPath('data.terms.total', 2);
+        $rows = collect($result->json('data.terms.data'))->keyBy('id');
+        $this->assertSame(2, $rows[$term]['proposal_count']);
+        $this->assertSame(125001, $rows[$term]['last_proposal_net_cents']);
+        $this->assertSame('verify_in_detail', $rows[$term]['proposal_source_state']);
+        $this->assertNull($rows[$otherTerm]['last_proposal_id']);
+        $this->assertSame('none', $rows[$otherTerm]['proposal_source_state']);
+
+        $this->withToken($jwt)->getJson("{$base}?proposals=with_proposals")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.id', $term)
+            ->assertJsonPath('data.summary.proposal_records_total', 2);
+        $this->withToken($jwt)->getJson("{$base}?proposals=without_proposals")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.id', $otherTerm);
+        $this->withToken($jwt)->getJson("{$base}?proposals=paid")
+            ->assertUnprocessable()->assertJsonValidationErrors('proposals');
+
+        $csv = $this->withToken($jwt)->get("{$base}/export?proposals=with_proposals")
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('Frota com proposta', $csv);
+        $this->assertStringNotContainsString('Frota sem proposta', $csv);
+        $this->assertStringContainsString('125001', $csv);
+        $this->assertStringContainsString('VERIFICAR SHA NA FICHA', $csv);
+
+        // Revisão real da minuta muda a fotografia de origem; o instante é
+        // afastado para não depender da resolução de segundos do banco.
+        $this->withToken($jwt)->putJson(
+            "/api/v1/repasse-cases/{$case}/commercial-terms/{$term}",
+            [
+                'revision' => 1,
+                'title' => 'Minuta alterada após proposta',
+                'description' => null,
+                'template_id' => $template, 'template_revision' => 1,
+                'reference_cents' => 125002,
+                'conditions' => array_fill_keys(array_keys(CommercialTermsService::FIELDS), null),
+                'evidence_ids' => [],
+            ]
+        )->assertOk();
+        DB::table('repasse_commercial_terms')->where('id', $term)
+            ->update(['updated_at' => now()->addMinute()]);
+        $this->withToken($jwt)->getJson("{$base}?proposals=term_edited")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.id', $term)
+            ->assertJsonPath('data.terms.data.0.proposal_source_state', 'term_edited')
+            ->assertJsonPath('data.summary.terms_edited_after_proposal', 1);
+        $csvEdited = $this->withToken($jwt)->get("{$base}/export?proposals=term_edited")
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('MINUTA ALTERADA APÓS PROPOSTA', $csvEdited);
+        $this->assertNotSame($case, $otherCase);
+    }
+
+    public function test_proposal_summary_is_global_before_pagination(): void
+    {
+        $jwt = $this->token(['cases.manage', 'scenarios.manage']);
+        [$case, $template, $term] = $this->fixture($jwt, 'Principal');
+        $base = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        // Cria 20 outras minutas usando o mesmo veículo/modelo; as propostas
+        // pertencem só à minuta inicial, que não deve contaminar a paginação.
+        for ($i = 0; $i < 20; $i++) {
+            $this->withToken($jwt)->postJson($base, [
+                'title' => 'Minuta adicional '.$i,
+                'description' => null,
+                'template_id' => $template,
+                'template_revision' => 1,
+                'reference_cents' => 125001,
+                'conditions' => array_fill_keys(array_keys(CommercialTermsService::FIELDS), null),
+                'evidence_ids' => [],
+            ])->assertCreated();
+        }
+        $sha = $this->withToken($jwt)->getJson("{$base}/{$term}/preparation")
+            ->assertOk()->json('data.snapshot_sha256');
+        $record = $this->withToken($jwt)->postJson("{$base}/{$term}/preparation/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $sha,
+            'adjustments' => [],
+        ])->assertCreated()->json('data');
+        $payer = DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+            ->orderBy('id')->value('party_id');
+        $this->withToken($jwt)->postJson("{$base}/{$term}/preparation/proposals", [
+            'request_key' => (string) Str::uuid(),
+            'preparation_record_id' => $record['id'],
+            'expected_record_sha256' => $record['snapshot_sha256'],
+            'payer_party_id' => $payer,
+        ])->assertCreated();
+
+        $central = '/api/v1/commercial-portfolio';
+        $this->withToken($jwt)->getJson($central)->assertOk()
+            ->assertJsonPath('data.terms.total', 21)
+            ->assertJsonPath('data.terms.last_page', 2)
+            ->assertJsonPath('data.summary.terms_with_proposals', 1)
+            ->assertJsonPath('data.summary.terms_without_proposals', 20)
+            ->assertJsonPath('data.summary.proposal_records_total', 1);
+        $this->withToken($jwt)->getJson("{$central}?proposals=with_proposals")
+            ->assertOk()->assertJsonPath('data.terms.total', 1)
+            ->assertJsonPath('data.terms.data.0.id', $term);
     }
 
 }
