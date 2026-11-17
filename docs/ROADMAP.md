@@ -602,3 +602,12 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [ ] Homologação futura: PHPUnit/Pint/MySQL, build/lint React, QA autenticado e inspeção de mobile/desktop. Não confundir testes escritos com testes executados.
 
 **Progresso de código estimado da matriz proposta:** ~84% depois da Macro 45, independente da homologação e sem declarar mecanismo de dinheiro real pronto.
+
+## Macroentrega 46 — acompanhamento consolidado de propostas
+- [x] Central Comercial 360 recebe filtro propostas com/sem/minuta editada depois, sem nova tela ou tabela, e contadores do universo filtrado antes da paginação.
+- [x] Última proposta por minuta, valor hipotético da apuração, responsável declarado, ID e data, sem confundir "verificar na ficha" com "fonte íntegra".
+- [x] Exportação CSV privada preserva busca/filtros e inclui propostas, com proteção anti-fórmula; OpenAPI 1.22.
+- [x] React usa o Metronic existente, cards mobile, tabela desktop e deep link à proposta e apuração exatas, inclusive fora da página atual.
+- [x] Testes feature de filtros, agregação/paginação, edição posterior e CSV escritos; verificação visual estrutural ampliada.
+- [ ] Testes efetivos e homologação pós-código MVP. Regras de pagamento/obrigações continuam sem aprovação, e nenhum recurso executável foi ativado.
+- Métrica editorial do código de MVP preservada em ~84%, sem avanço artificial de motor bancário.
