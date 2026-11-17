@@ -35,7 +35,7 @@ final class CommercialTermsController extends Controller
             'template_revision' => ['required', 'integer', 'min:1'],
             'reference_cents' => ['present', 'nullable', 'integer', 'min:1', 'max:1000000000000'],
             'conditions' => ['required', 'array:'.$keys],
-            'evidence_ids' => ['required', 'array', 'max:25'],
+            'evidence_ids' => ['present', 'array', 'max:25'],
             'evidence_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
         ];
         foreach (CommercialTermsService::FIELDS as $field => $label) {
