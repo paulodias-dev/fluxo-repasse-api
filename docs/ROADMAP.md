@@ -428,3 +428,18 @@ Nesta etapa foi concluído, em um bloco integrado API+React, **um módulo funcio
 - [ ] Homologar com PHPUnit/Pint/MySQL, build React e navegador real.
 
 A Etapa 5 continua **parcial**: o motor de dinheiro real depende de condições financeiras aprovadas. A central usa as minutas da Macro 30, sem inventar contratos. Ver docs/MACRO_31_CENTRAL_COMERCIAL_360.md.
+
+
+## Macroentrega 32 — Conferência documental independente de minutas comerciais
+
+- [x] Solicitação por versão exata com request_key UUID idempotente e SHA-256 histórico.
+- [x] Dupla autorização técnica cases.manage + scenarios.manage e revisor com scenario_reviews.manage.
+- [x] Fila global e individual, filtros, busca, paginação e indicadores.
+- [x] Atribuição, comentários, retirada pelo solicitante, decisões reviewed/changes_requested com justificativas.
+- [x] Segregação contra auto-revisão do autor/editor, proteção de versão desatualizada e vínculo inválido.
+- [x] Snapshot histórico verificável, eventos SHA encadeados, conferência interna de integridade, timeline do veículo.
+- [x] React Metronic na sidebar, dashboard, Central Comercial e Veículo 360, sem layout duplicado.
+- [x] Migration aditiva, endpoints e testes de regressão escritos.
+- [ ] Executar PHPUnit/Pint, migrations MySQL, lint/build React e QA mobile/desktop.
+
+Estas conferências comerciais não aprovam juridicamente a minuta nem concedem autorização financeira. O motor de pagamentos reais permanece bloqueado por regras não aprovadas. Ver docs/MACRO_32_REVISAO_COMERCIAL.md.

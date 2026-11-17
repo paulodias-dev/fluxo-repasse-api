@@ -35,6 +35,7 @@ final class OperationalAcceptance
         'commercial' => [
             'repasse_commercial_terms', 'repasse_commercial_term_versions',
             'repasse_commercial_term_evidence',
+            'repasse_commercial_reviews', 'repasse_commercial_review_events',
         ],
         'documentary' => [
             'repasse_scenarios', 'repasse_scenario_allocations',
@@ -64,6 +65,10 @@ final class OperationalAcceptance
             'template_revision', 'template_sha256', 'content_sha256',
             'reference_cents', 'conditions', 'revision', 'archived_at',
         ],
+        'repasse_commercial_reviews' => [
+            'term_revision', 'term_sha256', 'term_version_sha256', 'status',
+            'request_key', 'revision', 'assigned_to', 'decided_at',
+        ],
     ];
 
     public const REQUIRED_MIGRATIONS = [
@@ -71,6 +76,7 @@ final class OperationalAcceptance
         '2026_11_16_000009_add_vehicle_360_profile_and_financial_entries',
         '2026_11_16_000010_create_vehicle_finance_workspace',
         '2026_11_17_000001_create_commercial_terms_module',
+        '2026_11_17_000002_create_commercial_term_reviews',
     ];
 
     public function inspect(): array

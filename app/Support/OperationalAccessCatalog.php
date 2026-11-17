@@ -25,6 +25,8 @@ final class OperationalAccessCatalog
         'operations' => ['name' => 'Central operacional', 'requires' => ['cases.manage']],
         'cases' => ['name' => 'Veículos — ambiente 360', 'requires' => ['cases.manage']],
         'scenarios' => ['name' => 'Cenários de repasse', 'requires' => ['cases.manage', 'scenarios.manage']],
+        'commercial' => ['name' => 'Central comercial', 'requires' => ['cases.manage', 'scenarios.manage']],
+        'commercial_reviews' => ['name' => 'Revisões comerciais documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
         'reviews' => ['name' => 'Revisões documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
         'packages' => ['name' => 'Pacotes documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
     ];

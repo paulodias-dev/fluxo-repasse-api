@@ -58,3 +58,7 @@ O sistema agora permite **registrar propostas de condições por veículo** sem 
 **Dados inseridos em campos de texto não viram regra computável ou aprovada.** Mesmo que a matriz mostre 'documentary_complete=true', isso representa somente preenchimento e vínculos ativos, não assinatura, alçada, exigibilidade, dívida, direito de recebimento ou autorização de pagamento.
 
 Para construir a **etapa executável**, o operador ainda precisa definir e aprovar explicitamente: quem compra/vende, titularidade/pagador/beneficiário, valor-base contratual, impostos, comissão, momento e forma de liquidação, segregação entre organizações, alçada de aprovação, PSP/banco, estorno, reembolso e conciliação.
+
+
+## Após Macro 32 — Parecer comercial exclusivamente documental
+Um operador pode solicitar conferência de revisão histórica de minuta e outro, com permissão, registrar reviewed (conferência de completude documental) ou changes_requested. Não equivale a aceite jurídico, assinatura, aprovação de condição comercial ou liberação financeira. Atualizar minuta, modelo ou vínculos bloqueia decisões antigas. Continuam sem definição aprovada: titularidade, pagador/favorecido legal, evento financeiro, base/cálculos, comissão, tributos, alçadas monetárias, liquidação, PSP/contas, estornos, conciliação e isolamento entre organizações.
