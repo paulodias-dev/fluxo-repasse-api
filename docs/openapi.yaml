@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.15.0
+  version: 1.16.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -734,13 +734,18 @@ paths:
         pelos filtros de pendência. sale_result_cents só é calculado quando
         sold_on, compra e venda estão informados, sem considerar valores previstos.
         Não atesta liquidação ou recebimento bancário.
+        Ordenação opcional sort=priority usa apenas indicadores já existentes:
+        veículos ativos com tarefas vencidas, tarefas abertas, despesas previstas,
+        identificação incompleta, demais ativos e por último arquivados.
+        Ordenação executada no SQL antes da paginação, com desempate estável;
+        não cria prazo financeiro, obrigação de anexos ou alerta inventado.
       security:
         - BearerAuth: []
       parameters:
         - { name: search, in: query, schema: { type: string, maxLength: 100 }, description: 'Busca em título, placa, chassi, marca, modelo, vendedor e origem' }
         - { name: status, in: query, schema: { type: string, enum: [all, draft, archived], default: all } }
         - { name: attention, in: query, schema: { type: string, enum: [all, overdue, open_tasks, missing_documents, incomplete_profile, planned_expenses], default: all } }
-        - { name: sort, in: query, schema: { type: string, enum: [updated, oldest, purchase_desc, overdue], default: updated } }
+        - { name: sort, in: query, schema: { type: string, enum: [updated, oldest, purchase_desc, overdue, priority], default: updated }, description: 'priority ordena trabalho operacional primeiro; a API mantém updated por padrão para compatibilidade' }
         - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
       responses:
         '200':
