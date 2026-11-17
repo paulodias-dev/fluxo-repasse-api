@@ -47,7 +47,23 @@ final class VehiclePortfolioController extends Controller
                  OR c.model IS NULL OR c.model = '')
                 THEN 1 ELSE 0 END), 0) AS vehicles_incomplete_profile,
             COALESCE(SUM(CASE WHEN c.status = 'draft' AND COALESCE(f.planned_expenses, 0) > 0
-                THEN 1 ELSE 0 END), 0) AS vehicles_with_planned_expenses
+                THEN 1 ELSE 0 END), 0) AS vehicles_with_planned_expenses,
+            COALESCE(SUM(COALESCE(c.purchase_amount_cents, 0)), 0) AS purchase_total_cents,
+            COALESCE(SUM(COALESCE(c.sale_amount_cents, 0)), 0) AS sale_total_cents,
+            COALESCE(SUM(COALESCE(f.realized_expenses, 0)), 0) AS expense_realized_total_cents,
+            COALESCE(SUM(COALESCE(f.planned_expenses, 0)), 0) AS expense_planned_total_cents,
+            COALESCE(SUM(COALESCE(f.realized_income, 0)), 0) AS income_realized_total_cents,
+            COALESCE(SUM(COALESCE(f.planned_income, 0)), 0) AS income_planned_total_cents,
+            COALESCE(SUM(CASE WHEN c.purchase_amount_cents IS NOT NULL
+                AND c.sale_amount_cents IS NOT NULL THEN 1 ELSE 0 END), 0)
+                AS vehicles_with_projected_result,
+            COALESCE(SUM(CASE WHEN c.purchase_amount_cents IS NOT NULL
+                AND c.sale_amount_cents IS NOT NULL THEN
+                CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+                + COALESCE(f.realized_income, 0) + COALESCE(f.planned_income, 0)
+                - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                - COALESCE(f.realized_expenses, 0) - COALESCE(f.planned_expenses, 0)
+                ELSE 0 END), 0) AS projected_result_known_total_cents
         ")->first();
 
         $query = $this->joined($today)->select([
