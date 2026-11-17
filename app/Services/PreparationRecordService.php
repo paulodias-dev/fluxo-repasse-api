@@ -194,6 +194,11 @@ final class PreparationRecordService
             // Reutilizamos seus pesos explícitos, SEM reaplicar regras de taxas
             // ou tentar reinterpretar manualmente o JSON do banco.
             $allocations = $this->calculator->calculate($net, $current['allocations']);
+            $names = collect($current['allocations'])->keyBy('party_id');
+            foreach ($allocations as &$allocation) {
+                $allocation['party_name'] = $names[$allocation['party_id']]['party_name'] ?? null;
+            }
+            unset($allocation);
 
             $snapshot = [
                 'case_id' => $case, 'term_id' => $term,
