@@ -739,4 +739,50 @@ final class CommercialTermsModuleTest extends TestCase
         ])->assertUnprocessable();
     }
 
+
+    public function test_internal_proposals_paginate_and_keep_history_after_archive(): void
+    {
+        $jwt = $this->token();
+        [$case, $template, , $payer] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $preparation = "{$terms}/{$term}/preparation";
+        $hash = $this->withToken($jwt)->getJson($preparation)
+            ->assertOk()->json('data.snapshot_sha256');
+        $record = $this->withToken($jwt)->postJson("{$preparation}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $hash,
+            'adjustments' => [],
+        ])->assertCreated()->json('data');
+        $base = "{$preparation}/proposals";
+
+        for ($i = 0; $i < 17; $i++) {
+            $this->withToken($jwt)->postJson($base, [
+                'request_key' => (string) Str::uuid(),
+                'preparation_record_id' => $record['id'],
+                'expected_record_sha256' => $record['snapshot_sha256'],
+                'payer_party_id' => $payer->id,
+                'operator_note' => 'Versão hipotética interna '.$i,
+            ])->assertCreated();
+        }
+
+        $this->withToken($jwt)->getJson($base)
+            ->assertOk()->assertJsonPath('total', 17)
+            ->assertJsonPath('last_page', 2)->assertJsonCount(15, 'data');
+        $secondPage = $this->withToken($jwt)->getJson("{$base}?page=2")
+            ->assertOk()->assertJsonCount(2, 'data');
+        $id = $secondPage->json('data.0.id');
+
+        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
+            'status' => 'archived',
+        ])->assertOk();
+        $this->withToken($jwt)->getJson("{$base}/{$id}")
+            ->assertOk()->assertJsonPath('data.stale', true)
+            ->assertJsonPath('data.snapshot.obligation_created', false);
+        $this->withToken($jwt)->get("{$base}/{$id}/export")
+            ->assertOk();
+        $this->assertDatabaseCount('repasse_obligation_proposals', 17);
+    }
+
 }
