@@ -3737,6 +3737,8 @@ components:
         vehicles_without_sale: { type: integer, minimum: 0, description: 'Sem data de venda, mesmo quando preço estimado foi preenchido' }
         vehicles_missing_purchase: { type: integer, minimum: 0, description: 'Compra NULL (zero informado conta como valor conhecido)' }
         vehicles_sold_profit: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada maior que zero' }
+        sale_profit_total_cents: { type: integer, format: int64, minimum: 0, description: 'Soma separada de margens positivas de vendas com data e custo conhecido' }
+        sale_loss_total_cents: { type: integer, format: int64, maximum: 0, description: 'Soma assinada de prejuízos apurados de vendas com data e custo conhecido' }
         vehicles_sold_loss: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada menor que zero' }
         vehicles_sold_break_even: { type: integer, minimum: 0, description: 'Vendas com margem gerencial realizada igual a zero' }
         vehicles_sold_without_result: { type: integer, minimum: 0, description: 'Venda datada ainda sem custo da compra ou valor de venda para apurar margem' }
