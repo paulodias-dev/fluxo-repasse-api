@@ -62,3 +62,16 @@ Para construir a **etapa executável**, o operador ainda precisa definir e aprov
 
 ## Após Macro 32 — Parecer comercial exclusivamente documental
 Um operador pode solicitar conferência de revisão histórica de minuta e outro, com permissão, registrar reviewed (conferência de completude documental) ou changes_requested. Não equivale a aceite jurídico, assinatura, aprovação de condição comercial ou liberação financeira. Atualizar minuta, modelo ou vínculos bloqueia decisões antigas. Continuam sem definição aprovada: titularidade, pagador/favorecido legal, evento financeiro, base/cálculos, comissão, tributos, alçadas monetárias, liquidação, PSP/contas, estornos, conciliação e isolamento entre organizações.
+
+
+## Macroentrega 43 — Pré-repasse verificável (uma entrega API + APP)
+- [x] Consulta `GET /api/v1/repasse-cases/{case}/commercial-terms/{term}/preparation` reúne minuta íntegra (SHA), modelo congelado, rateio em centavos, 10 condições, partes/evidências atuais, parecer documental da **mesma revisão e SHA**, valor de referência manual e margem gerencial da venda.
+- [x] Motor de bloqueios documentais: condições ausentes, minuta/veículo arquivados, modelo desatualizado, partes/evidências inativas, valor manual ausente e falta de parecer current reviewed. Mesmo se sem pendências, `financial_policy_approved=false`, `obligation_created=false`, `payment_enabled=false` e `executable=false` são invariantes.
+- [x] SHA-256 da fotografia de leitura (sem assinatura jurídica/bancária), CSV privado anti-fórmula por minuta, sem tabelas/migrations/autorizações/gateway/ledger ou transferências.
+- [x] Central Comercial: filtros globais por `preparation` antes de paginar, contadores de parecer atual/pendente e referência ausente, CSV com o mesmo recorte. Parecer histórico é ignorado quando a minuta muda de revisão/SHA.
+- [x] React Metronic: cartões mobile `col-6`, tabela desktop preservada, deeplink por minuta e pré-repasse aberto sob demanda dentro da ficha, com exportação, pendências e acesso aos controles existentes.
+- [x] OpenAPI 1.19, testes feature adicionados aos módulos de minutas e central comercial, script de regressão do layout ampliado.
+- [ ] Sem pagamentos reais: faltam decisões APROVADAS de titularidade, fato gerador, comissão/base, retenções, alçadas, PSP/conta, conciliação, estorno, isolamento organizacional. Não inferir com base nas dez declarações livres.
+- [ ] PHPUnit, Pint/MySQL, npm build/lint e inspeção browser NÃO executados nesta sessão; homologação expressamente fora da métrica de código.
+
+**Estimativa de código MVP completo:** ~82% em matriz PROPOSTA de pesos (10/20/20/15/30/5), versus ~80% da medição anterior; etapa 5 vai de ~33% para ~40% de cobertura preparatória, sem implicar motor executável. Matriz em `docs/PROGRESSO_CODIGO_MVP.md`. Não usar o histórico técnico antigo 6/12.
