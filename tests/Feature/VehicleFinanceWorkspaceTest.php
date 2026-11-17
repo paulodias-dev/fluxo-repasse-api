@@ -155,6 +155,123 @@ final class VehicleFinanceWorkspaceTest extends TestCase
             ->assertJsonPath('data.documents.0.id', $document);
     }
 
+    public function test_repeated_camera_or_pdf_upload_is_idempotent_only_within_same_entry(): void
+    {
+        $token = $this->token();
+        $vehicle = $this->vehicle($token);
+        $first = $this->entry($token, $vehicle, ['status' => 'planned']);
+        $second = $this->entry($token, $vehicle, [
+            'description' => 'Outra despesa', 'amount_cents' => 45000,
+        ]);
+        $base = "/api/v1/repasse-cases/$vehicle/finance/entries";
+        $pdf = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n";
+
+        $upload = static fn () => UploadedFile::fake()
+            ->createWithContent('camera-ou-arquivo.pdf', $pdf);
+
+        $firstResponse = $this->withToken($token)->post("$base/$first/documents", [
+            'file' => $upload(),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('created', true)
+            ->assertJsonCount(1, 'data.documents');
+        $documentId = $firstResponse->json('data.documents.0.id');
+
+        $this->withToken($token)->post("$base/$first/documents", [
+            'file' => $upload(),
+        ], ['Accept' => 'application/json'])->assertOk()
+            ->assertJsonPath('created', false)
+            ->assertJsonPath('data.documents.0.id', $documentId)
+            ->assertJsonCount(1, 'data.documents');
+
+        $this->assertSame(1, DB::table('repasse_case_financial_events')
+            ->where('repasse_case_id', $vehicle)->where('entry_id', $first)
+            ->where('event_type', 'document_attached')->count());
+        $this->assertDatabaseCount('repasse_case_financial_documents', 1);
+        $this->assertDatabaseCount('repasse_case_evidence', 1);
+        $this->assertCount(1, Storage::disk('local')->allFiles("repasse-evidence/$vehicle"));
+
+        // Identical bytes on a DIFFERENT entry are permitted as separate,
+        // properly scoped private evidence: dedupe cannot leak other entries.
+        $this->withToken($token)->post("$base/$second/documents", [
+            'file' => $upload(),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('created', true);
+        $this->assertDatabaseCount('repasse_case_financial_documents', 2);
+        $this->assertDatabaseCount('repasse_case_evidence', 2);
+        $this->assertCount(2, Storage::disk('local')->allFiles("repasse-evidence/$vehicle"));
+
+        // Mesmo conteúdo, mas arquivo já adulterado no disco:
+        // jamais responder sucesso idempotente sobre evidência corrompida.
+        $stored = DB::table('repasse_case_evidence')
+            ->where('id', $documentId)->value('storage_path');
+        Storage::disk('local')->put($stored, 'conteudo-corrompido');
+        $this->withToken($token)->post("$base/$first/documents", [
+            'file' => $upload(),
+        ], ['Accept' => 'application/json'])->assertConflict();
+        $this->assertDatabaseCount('repasse_case_financial_documents', 2);
+        $this->assertDatabaseCount('repasse_case_evidence', 2);
+    }
+
+    public function test_mobile_photo_png_upload_is_private_and_retains_mime(): void
+    {
+        $token = $this->token();
+        $vehicle = $this->vehicle($token);
+        $entry = $this->entry($token, $vehicle);
+        $png = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/jXcAAAAASUVORK5CYII=',
+            true
+        );
+        $this->assertNotFalse($png);
+        $base = "/api/v1/repasse-cases/$vehicle/finance/entries/$entry";
+        $response = $this->withToken($token)->post("$base/documents", [
+            'file' => UploadedFile::fake()->createWithContent('foto-celular.png', $png),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('data.documents.0.mime', 'image/png')
+            ->assertJsonMissingPath('data.documents.0.storage_path');
+        $document = $response->json('data.documents.0.id');
+        $this->withToken($token)->get("$base/documents/$document/download")
+            ->assertOk()->assertHeader('Content-Type', 'application/octet-stream');
+    }
+
+    public function test_quick_receipt_upload_rejects_invalid_files_and_unauthorized_access(): void
+    {
+        $path = '/api/v1/repasse-cases/1/finance/entries/1/documents';
+        $this->post($path, [
+            'file' => UploadedFile::fake()->createWithContent('invalid.txt', 'plain text'),
+        ], ['Accept' => 'application/json'])->assertUnauthorized();
+
+        $withoutGrant = $this->token(false);
+        $this->withToken($withoutGrant)->post($path, [
+            'file' => UploadedFile::fake()->createWithContent('invalid.txt', 'plain text'),
+        ], ['Accept' => 'application/json'])->assertForbidden();
+
+        $token = $this->token();
+        $vehicle = $this->vehicle($token);
+        $entry = $this->entry($token, $vehicle);
+        $path = "/api/v1/repasse-cases/$vehicle/finance/entries/$entry/documents";
+
+        $this->withToken($token)->post($path, [
+            'file' => UploadedFile::fake()->createWithContent('nota.txt', 'plain text'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+        $this->withToken($token)->post($path, [
+            'file' => UploadedFile::fake()->create('grande.pdf', 10241, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+        $this->withToken($token)->post($path, [
+            'file' => UploadedFile::fake()->createWithContent('nota.txt', 'plain text'),
+            'evidence_id' => 3,
+        ], ['Accept' => 'application/json'])->assertUnprocessable()
+            ->assertJsonValidationErrors(['file', 'evidence_id']);
+        $this->withToken($token)->post($path, [
+            'file' => UploadedFile::fake()->createWithContent('nota.txt', 'plain text'),
+            'other_vehicle_id' => $vehicle,
+        ], ['Accept' => 'application/json'])->assertUnprocessable()
+            ->assertJsonValidationErrors('other_vehicle_id');
+        $this->assertDatabaseCount('repasse_case_financial_documents', 0);
+        $this->assertDatabaseCount('repasse_case_evidence', 0);
+    }
+
     public function test_existing_receipt_cannot_be_linked_across_vehicles_or_two_entries(): void
     {
         $token = $this->token();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\AttachVehicleFinanceDocumentRequest;
 use App\Services\CaseOperations;
 use App\Services\VehicleFinanceWorkspace;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -22,14 +23,10 @@ final class VehicleFinanceDocumentController extends Controller
         private readonly VehicleFinanceWorkspace $finance,
     ) {}
 
-    public function attach(Request $request, int $case, int $entry): JsonResponse
+    public function attach(AttachVehicleFinanceDocumentRequest $request, int $case, int $entry): JsonResponse
     {
         $this->operations->restrict($request, ['file', 'evidence_id']);
-        $data = $request->validate([
-            'file' => ['required_without:evidence_id', 'prohibited_with:evidence_id',
-                'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp'],
-            'evidence_id' => ['required_without:file', 'prohibited_with:file', 'integer', 'min:1'],
-        ]);
+        $data = $request->validated();
 
         $file = $data['file'] ?? null;
         $path = null;
@@ -70,6 +67,31 @@ final class VehicleFinanceDocumentController extends Controller
                     throw ValidationException::withMessages([
                         'entry' => 'Não é possível anexar comprovantes a lançamento estornado.',
                     ]);
+                }
+
+                // Duplo toque ou reenvio da mesma foto ao MESMO lançamento:
+                // retorna o vínculo atual, sem nova cópia e sem novo evento.
+                // Lock no lançamento serializa uploads concorrentes deste ID.
+                if ($file) {
+                    $alreadyLinked = DB::table('repasse_case_financial_documents as link')
+                        ->join('repasse_case_evidence as evidence', 'evidence.id', '=', 'link.evidence_id')
+                        ->where('link.repasse_case_id', $case)
+                        ->where('link.entry_id', $entry)
+                        ->where('evidence.sha256', $sha)
+                        ->whereNull('evidence.archived_at')
+                        ->select('evidence.storage_path', 'evidence.sha256')
+                        ->first();
+                    if ($alreadyLinked) {
+                        $disk = Storage::disk('local');
+                        $originalPath = $disk->path($alreadyLinked->storage_path);
+                        if (! $disk->exists($alreadyLinked->storage_path) ||
+                            ! is_file($originalPath) ||
+                            ! hash_equals($alreadyLinked->sha256, hash_file('sha256', $originalPath))) {
+                            abort(409, 'Comprovante anterior indisponível ou com integridade divergente.');
+                        }
+
+                        return false;
+                    }
                 }
 
                 if ($file) {
