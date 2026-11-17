@@ -417,3 +417,14 @@ Nesta etapa foi concluído, em um bloco integrado API+React, **um módulo funcio
 - [ ] Validar migration, PHPUnit, lint/build React e navegação em ambiente autorizado; a pedido do usuário não foi executada uma rodada de testes nesta sessão.
 
 **Próximo bloqueio funcional:** motor de obrigações/liquidação/repasses reais exige validar evento gerador, titularidade/pagador, base, taxas/comissões/tributos, condições e alçadas, integração e isolamento multi-organização. Esta macro **não** afirma que há saldo, Pix, repasse bancário ou comissão calculada automaticamente.
+
+
+## Macroentrega 31 — Central Comercial 360 (código em PR)
+
+- [x] Visão comercial cross-veículo e indicadores de status/modelo, paginação e busca.
+- [x] Flags de preenchimento declaratório e modelo desatualizado sem falsas autorizações financeiras.
+- [x] Exportação CSV protegida, integração React/Metronic e navegação à ficha do veículo.
+- [x] RBAC técnico duplo e sem alteração de permissões, migrations ou saldo.
+- [ ] Homologar com PHPUnit/Pint/MySQL, build React e navegador real.
+
+A Etapa 5 continua **parcial**: o motor de dinheiro real depende de condições financeiras aprovadas. A central usa as minutas da Macro 30, sem inventar contratos. Ver docs/MACRO_31_CENTRAL_COMERCIAL_360.md.

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.9.0
+  version: 1.10.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -22,8 +22,77 @@ tags:
   - name: Cenários de repasse
   - name: Modelos e lotes
   - name: Revisão documental
+  - name: Central comercial
   - name: Pacotes documentais
 paths:
+  /commercial-portfolio:
+    get:
+      tags: [Central comercial]
+      operationId: listCommercialPortfolio
+      summary: Central comercial de minutas entre veículos (somente leitura)
+      description: |
+        Requer JWT, session.current, cases.manage E scenarios.manage.
+        O relatório lista campos preenchidos e modelos alterados. Não substitui
+        verificações SHA, partes, evidências ou aprovação de condições jurídicas.
+        Nunca autoriza pagar, gerar obrigação ou transferir dinheiro.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Indicadores e minutas paginadas, sem autorização financeira
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [summary, terms, financial_authorization, payment_enabled]
+                    properties:
+                      summary:
+                        type: object
+                        properties:
+                          total: { type: integer }
+                          active: { type: integer }
+                          archived: { type: integer }
+                          model_outdated: { type: integer }
+                          vehicle_archived: { type: integer }
+                      terms:
+                        type: object
+                        description: Paginador Laravel; cada item traz campos, revisão e alertas.
+                      financial_authorization: { type: boolean, enum: [false] }
+                      payment_enabled: { type: boolean, enum: [false] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-portfolio/export:
+    get:
+      tags: [Central comercial]
+      operationId: exportCommercialPortfolio
+      summary: Exportação privada da carteira comercial filtrada
+      description: |
+        CSV UTF-8 com BOM; neutraliza fórmulas e não inclui credenciais.
+        Requer JWT, session.current, cases.manage E scenarios.manage.
+        Não representa pagamento nem aprovação bancária.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Relatório CSV sem cache
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /health:
     get:
       summary: Verificar disponibilidade básica da API

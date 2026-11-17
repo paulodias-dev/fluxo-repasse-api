@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\V1\RepasseScenarioController;
 use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
+use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
@@ -64,6 +65,17 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.parties.links.update');
         Route::get('/{party}/events', PartyEventController::class)
             ->middleware('throttle:repasse-admin-read')->name('api.v1.parties.events');
+    });
+
+    // Single-org commercial portfolio, documentary triage only; never a payment queue.
+    Route::prefix('commercial-portfolio')->middleware([
+        'bearer.only', 'auth:api', 'session.current',
+        'permission:cases.manage', 'permission:scenarios.manage',
+    ])->group(function (): void {
+        Route::get('/', [CommercialPortfolioController::class, 'index'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.portfolio');
+        Route::get('/export', [CommercialPortfolioController::class, 'export'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.portfolio.export');
     });
 
     Route::prefix('repasse-cases')->middleware([
