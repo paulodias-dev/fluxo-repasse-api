@@ -199,6 +199,38 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         $this->assertDatabaseCount('repasse_case_financial_documents', 2);
         $this->assertDatabaseCount('repasse_case_evidence', 2);
         $this->assertCount(2, Storage::disk('local')->allFiles("repasse-evidence/$vehicle"));
+
+        // Mesmo conteúdo, mas arquivo já adulterado no disco:
+        // jamais responder sucesso idempotente sobre evidência corrompida.
+        $stored = DB::table('repasse_case_evidence')
+            ->where('id', $documentId)->value('storage_path');
+        Storage::disk('local')->put($stored, 'conteudo-corrompido');
+        $this->withToken($token)->post("$base/$first/documents", [
+            'file' => $upload(),
+        ], ['Accept' => 'application/json'])->assertConflict();
+        $this->assertDatabaseCount('repasse_case_financial_documents', 2);
+        $this->assertDatabaseCount('repasse_case_evidence', 2);
+    }
+
+    public function test_mobile_photo_png_upload_is_private_and_retains_mime(): void
+    {
+        $token = $this->token();
+        $vehicle = $this->vehicle($token);
+        $entry = $this->entry($token, $vehicle);
+        $png = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/jXcAAAAASUVORK5CYII=',
+            true
+        );
+        $this->assertNotFalse($png);
+        $base = "/api/v1/repasse-cases/$vehicle/finance/entries/$entry";
+        $response = $this->withToken($token)->post("$base/documents", [
+            'file' => UploadedFile::fake()->createWithContent('foto-celular.png', $png),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('data.documents.0.mime', 'image/png')
+            ->assertJsonMissingPath('data.documents.0.storage_path');
+        $document = $response->json('data.documents.0.id');
+        $this->withToken($token)->get("$base/documents/$document/download")
+            ->assertOk()->assertHeader('Content-Type', 'application/octet-stream');
     }
 
     public function test_quick_receipt_upload_rejects_invalid_files_and_unauthorized_access(): void
