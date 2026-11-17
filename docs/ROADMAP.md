@@ -443,3 +443,24 @@ A Etapa 5 continua **parcial**: o motor de dinheiro real depende de condições 
 - [ ] Executar PHPUnit/Pint, migrations MySQL, lint/build React e QA mobile/desktop.
 
 Estas conferências comerciais não aprovam juridicamente a minuta nem concedem autorização financeira. O motor de pagamentos reais permanece bloqueado por regras não aprovadas. Ver docs/MACRO_32_REVISAO_COMERCIAL.md.
+
+
+## Macroentrega 33 — Operação simples e funcional de veículos e financeiro
+
+**Diretriz de produto:** o fluxo principal do usuário é cadastrar veículo → registrar despesa/receita extra → consultar custo, receita e resultado. Robustez deve ficar na validação do backend, retificação, estorno, auditoria, comprovantes e controles de acesso, não em excesso de telas ou campos obrigatórios. Antes de criar módulo/tabela/rota nova, priorizar a reutilização do cadastro, financeiro e central já existentes.
+
+**Entregue em código nesta macro:**
+- Cadastro inicial com apenas identificação obrigatória; placa e compra opcionais à vista; demais campos em seção expansível.
+- Acesso direto à inclusão de despesa ou receita a partir da frota, reutilizando o formulário financeiro do veículo.
+- Um campo de categoria com sugestões existentes e possibilidade de texto livre; o backend continua validando categorias inativas/tipo e mantém snapshots auditáveis.
+- Default do lançamento como "realizado", com possibilidade explícita de optar por "previsto", jamais presumindo que existe comprovante bancário.
+- Frota e dashboard com totais reais de compra, despesas, receitas extras e resultados gerenciais. Resultado projetado global soma SOMENTE veículos com valores de compra e venda conhecidos; valores ausentes não viram lucro zero.
+- Abas de uso cotidiano: Ficha, Financeiro, Pendências, Anexos. Participantes, relatórios técnicos, modelos e revisões continuam acessíveis em opções avançadas sem perder funcionalidade.
+- Redução de consultas redundantes do resumo financeiro na ficha. Filtros históricos e gestão de categorias preservados, mas recolhidos.
+- **Zero tabelas, migrations ou novos grants**; usa REST/Metronic existentes.
+
+**Segurança e semântica:** receitas extras não incluem valor de venda do perfil, e compra não é lançamento duplicado de despesa. Totais financeiros são gerenciais; não são comprovação de liquidação. Nada cria pagamentos ou repasses. A operação permanece single-org até a aprovação do modelo de isolamento.
+
+**Homologação:** testes de regressão do endpoint de frota foram ampliados para cenários sem venda, despesas estornadas, receitas, custos previstos e prejuízo. Testes e build não executados nesta sessão, seguindo a prioridade por macroentregas; requer QA real antes da produção.
+
+**Próxima direção:** completar jornada operacional com mínimo de dados obrigatórios e menos cliques; não construir novas centrais/filas por reflexo.
