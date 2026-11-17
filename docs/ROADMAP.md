@@ -400,3 +400,20 @@ Não consiste em uma nova sequência de microtestes. Inclui correções visívei
 - [ ] Validação final no navegador real desktop/mobile, backup/restore, autorização de deploy e aceite humano.
 
 **Limite:** etapa 6 ainda NÃO homologada. O motor de pagamentos reais da etapa 5 segue bloqueado até regras financeiras formais. Não declarar percentual total do produto apenas pela implementação de scripts.
+
+## Macroentrega 30 — Etapa 5: Módulo de Condições Comerciais de Repasse (não executável)
+
+Nesta etapa foi concluído, em um bloco integrado API+React, **um módulo funcional de formalização de regras comerciais**, sem inventar regras jurídicas ou bancárias:
+- [x] Minutas por veículo com título, observações, valor manual de referência e modelo de distribuição existente vinculado por ID/revisão.
+- [x] Snapshot SHA-256 íntegro do modelo com origem/participantes/pesos explícitos, validando vínculos e partes ativas.
+- [x] Dez questões comerciais declarativas livres, iniciadas em branco; matriz automática de preenchimento sem equivaler à aprovação.
+- [x] Associação de evidências privadas do veículo (até 25), com SHA-256 e barreiras cross-case.
+- [x] CRUD de minutas com revisão otimista, arquivamento, reabertura, cópia de versão histórica com proveniência.
+- [x] Histórico SHA de todas as versões, eventos na linha do tempo do veículo e detecção de modelo/participante/documento desatualizado.
+- [x] Simulação em centavos por modelo congelado e valor informado pelo operador, **sem gerar obrigação nem pagamento**.
+- [x] Busca, filtros, paginação e CSV anti-fórmula; dez rotas sob JWT, cases.manage e scenarios.manage, OpenAPI 1.9.
+- [x] Nova aba Condições Comerciais no Veículo 360 + módulo visível no dashboard Metronic adquirido.
+- [x] Migration 2026_11_17_000001, diagnóstico de instalação atualizado, 8 testes feature escritos e documentação de implantação.
+- [ ] Validar migration, PHPUnit, lint/build React e navegação em ambiente autorizado; a pedido do usuário não foi executada uma rodada de testes nesta sessão.
+
+**Próximo bloqueio funcional:** motor de obrigações/liquidação/repasses reais exige validar evento gerador, titularidade/pagador, base, taxas/comissões/tributos, condições e alçadas, integração e isolamento multi-organização. Esta macro **não** afirma que há saldo, Pix, repasse bancário ou comissão calculada automaticamente.

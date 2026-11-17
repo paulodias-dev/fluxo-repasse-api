@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.8.0
+  version: 1.9.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -946,6 +946,279 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Veículo não encontrado }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: listCommercialTerms
+      summary: Listar minutas comerciais do veículo
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Condições comerciais do veículo]
+      operationId: createCommercialTerm
+      summary: Cadastrar minuta com modelo congelado
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommercialTermInput' }
+      responses:
+        '201':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/export:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: exportCommercialTerms
+      summary: Exportar minutas filtradas em CSV protegido
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: CSV sem cache, com proteção anti-fórmula
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: showCommercialTerm
+      summary: Consultar minuta com matriz de pendências e hash
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: '#/components/schemas/CommercialTerm' } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    put:
+      tags: [Condições comerciais do veículo]
+      operationId: updateCommercialTerm
+      summary: Revisar minuta com revisão otimista
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommercialTermInput' }
+              description: Adicionar revision positiva ao corpo para controle de concorrência.
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/state:
+    patch:
+      tags: [Condições comerciais do veículo]
+      operationId: stateCommercialTerm
+      summary: Arquivar ou reabrir minuta com histórico
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, action]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                action: { type: string, enum: [archive, reopen] }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/versions:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: listCommercialVersions
+      summary: Listar histórico versionado da minuta
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/versions/{revision}:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: showCommercialVersion
+      summary: Consultar snapshot histórico SHA-256
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: revision, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preview:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: previewCommercialTerm
+      summary: Simular valor informado sobre modelo congelado, sem execução
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/fork:
+    post:
+      tags: [Condições comerciais do veículo]
+      operationId: forkCommercialTerm
+      summary: Copiar uma revisão histórica sem alterar a origem
+      description: |
+        Requer JWT e session.current, cases.manage E scenarios.manage.
+        Os documentos são privados, as minutas não criam obrigações financeiras.
+        Não há pagamento, comissão ou tributação automática.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, title]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                title: { type: string, minLength: 2, maxLength: 180 }
+      responses:
+        '201':
+          description: Recurso documental sem aprovação monetária
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta, veículo ou revisão inexistente }
+        '409': { description: Revisão concorrente ou integridade/versionamento divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
   /operations/dashboard:
     get:
@@ -2481,6 +2754,73 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    CommercialTermInput:
+      type: object
+      additionalProperties: false
+      required: [title, description, template_id, template_revision,
+        reference_cents, conditions, evidence_ids]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 180 }
+        description: { type: string, nullable: true, maxLength: 4000 }
+        template_id: { type: integer, minimum: 1 }
+        template_revision: { type: integer, minimum: 1 }
+        reference_cents: { type: integer, format: int64, nullable: true, minimum: 1, maximum: 1000000000000 }
+        evidence_ids:
+          type: array
+          maxItems: 25
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        conditions:
+          type: object
+          additionalProperties: false
+          description: |
+            Declarações manuais, sem valores padrão. Mesmo todas preenchidas não
+            autorizam execução, comissões, imposto ou ordem bancária.
+          properties:
+            event_trigger: { type: string, nullable: true, maxLength: 2000 }
+            calculation_basis: { type: string, nullable: true, maxLength: 2000 }
+            fees_commissions: { type: string, nullable: true, maxLength: 2000 }
+            taxes_withholdings: { type: string, nullable: true, maxLength: 2000 }
+            eligibility: { type: string, nullable: true, maxLength: 2000 }
+            authorization: { type: string, nullable: true, maxLength: 2000 }
+            settlement: { type: string, nullable: true, maxLength: 2000 }
+            cancellation: { type: string, nullable: true, maxLength: 2000 }
+            banking: { type: string, nullable: true, maxLength: 2000 }
+            organization: { type: string, nullable: true, maxLength: 2000 }
+    CommercialTerm:
+      type: object
+      required: [id, case_id, title, revision, template_id, template_revision,
+        template_snapshot, conditions, checks, evidence, payment_enabled,
+        financial_authorization]
+      properties:
+        id: { type: integer, minimum: 1 }
+        case_id: { type: integer, minimum: 1 }
+        title: { type: string }
+        revision: { type: integer, minimum: 1 }
+        archived_at: { type: string, nullable: true }
+        template_id: { type: integer, minimum: 1 }
+        template_revision: { type: integer, minimum: 1 }
+        template_sha256: { type: string }
+        template_snapshot: { type: object }
+        reference_cents: { type: integer, format: int64, nullable: true }
+        conditions: { type: object }
+        evidence:
+          type: array
+          items: { type: object }
+        checks:
+          type: object
+          description: "Completude DOCUMENTAL apenas, sem aprovação financeira"
+          properties:
+            filled: { type: integer, minimum: 0 }
+            total: { type: integer }
+            missing_conditions: { type: array, items: { type: string } }
+            model_changed_or_archived: { type: boolean }
+            missing_active_parties: { type: array, items: { type: integer } }
+            archived_evidence: { type: array, items: { type: integer } }
+            case_archived: { type: boolean }
+            documentary_complete: { type: boolean }
+        financial_authorization: { type: boolean, enum: [false] }
+        payment_enabled: { type: boolean, enum: [false] }
     VehicleDocumentaryScenario:
       type: object
       required: [id, title, revision, gross_amount_cents, allocated_cents,

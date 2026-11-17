@@ -32,6 +32,10 @@ final class OperationalAcceptance
             'repasse_case_financial_entries', 'repasse_financial_categories',
             'repasse_case_financial_documents', 'repasse_case_financial_events',
         ],
+        'commercial' => [
+            'repasse_commercial_terms', 'repasse_commercial_term_versions',
+            'repasse_commercial_term_evidence',
+        ],
         'documentary' => [
             'repasse_scenarios', 'repasse_scenario_allocations',
             'repasse_scenario_versions', 'repasse_distribution_templates',
@@ -56,12 +60,17 @@ final class OperationalAcceptance
             'scenario_revision', 'scenario_digest', 'status', 'assigned_to',
         ],
         'repasse_case_packages' => ['manifest_sha256', 'request_key'],
+        'repasse_commercial_terms' => [
+            'template_revision', 'template_sha256', 'content_sha256',
+            'reference_cents', 'conditions', 'revision', 'archived_at',
+        ],
     ];
 
     public const REQUIRED_MIGRATIONS = [
         '2026_11_16_000008_backfill_existing_platform_admin_modules',
         '2026_11_16_000009_add_vehicle_360_profile_and_financial_entries',
         '2026_11_16_000010_create_vehicle_finance_workspace',
+        '2026_11_17_000001_create_commercial_terms_module',
     ];
 
     public function inspect(): array
