@@ -3723,7 +3723,8 @@ components:
         vehicles_with_open_tasks, vehicles_without_documents, vehicles_incomplete_profile,
         vehicles_with_planned_expenses, vehicles_sold, vehicles_without_sale,
         vehicles_missing_purchase, vehicles_sold_profit, vehicles_sold_loss,
-        vehicles_sold_break_even, vehicles_sold_without_result]
+        vehicles_sold_break_even, vehicles_sold_without_result,
+        sale_profit_total_cents, sale_loss_total_cents]
       properties:
         vehicles_total: { type: integer, minimum: 0 }
         vehicles_active: { type: integer, minimum: 0 }
