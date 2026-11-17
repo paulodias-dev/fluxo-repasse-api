@@ -234,3 +234,19 @@ Realizado significa ocorrência gerencial declarada; NÃO é confirmação de pa
 - [ ] QA ainda não executado: composer test/lint, PHPUnit SQLite/MySQL, build/lint React e inspeção visual real mobile/desktop.
 
 Nenhuma mutação financeira nova ou integração bancária. Medição global de conclusão não pode ser derivada destas etapas sem reavaliar requisitos e homologação. Não executar migrate:fresh --seed: esta macro não tem migration.
+
+
+## Macroentrega 41 — Comparativo de rentabilidade REAL da frota (etapa integrada API + React)
+
+**Status do código:** implementado em branch; testes PHPUnit/MySQL e homologação de navegador ainda pendentes. O frontend correspondente integra a MESMA macro no repositório `fluxo-repasse-app`, sem subdividir em pequenas etapas.
+
+- [x] Extensão do endpoint existente `GET /api/v1/operations/vehicles` com filtro `performance`: all, sold_profit, sold_loss, sold_break_even, sold_unknown, not_sold e purchase_missing.
+- [x] Margem de venda datada = venda + receitas extras realizadas − compra − despesas realizadas. Não inclui previstos, estornados, recebimentos bancários nem lucros presumidos. Compra ausente (NULL) é distinta de compra zero.
+- [x] Ordenações `sale_result_desc` e `sale_result_asc` no SQL **antes da paginação**, apenas margens conhecidas primeiro, NULL por último, desempate determinístico por id.
+- [x] Indicadores globais: vendas datadas/sem venda, compra não informada, margens positivas/negativas/zero, venda sem margem apurável e somatório SEPARADO de margens positivas/prejuízos, preservando o total líquido anterior.
+- [x] Busca, atenção operacional, situação draft/archived e filtro de rentabilidade combináveis. Indicadores sempre do portfólio autorizado inteiro, independentemente da página e do filtro. Arquivado pode ser venda lucrativa/prejuízo, mas não participa de filtro operacional de pendência.
+- [x] Mesmo JWT/sessão vigente e `cases.manage` (sem permissões novas); apenas leitura. Sem tabelas, migrations, endpoints, escrita financeira ou código bancário novo.
+- [x] OpenAPI atualizado para 1.17.0 e feature tests adicionados para classificação, concorrência lógica com despesas realizadas/previstas/estornadas, saldo assinado, filtros combinados, arquivados, 19 veículos em 2 páginas, NULL, validação 422, JWT 401 e acesso 403.
+- [ ] **QA obrigatório ainda não executado:** `composer test`, `composer lint`, teste MySQL 8/SQLite QA e smoke HTTP autenticado. Não atestar produção sem esses gates.
+
+**Progresso:** entrega funcional codificada em ambos repositórios, mas % global de conclusão do produto não é inferível desta macro.
