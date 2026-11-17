@@ -346,4 +346,161 @@ final class VehiclePortfolioTest extends TestCase
         $this->withToken($token)->getJson("$base?status=deleted")
             ->assertUnprocessable()->assertJsonValidationErrors('status');
     }
+    public function test_rentability_classifies_real_sales_with_zero_missing_and_archived_independently(): void
+    {
+        $token = $this->token();
+        $profit = $this->vehicle($token, [
+            'title' => 'Venda com margem positiva', 'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 120000, 'sold_on' => '2026-11-14',
+        ]);
+        $expense = $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$profit}/finance/entries",
+            ['kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
+                'description' => 'Serviço executado', 'amount_cents' => 5000]
+        )->assertCreated()->json('data.id');
+        $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$profit}/finance/entries",
+            ['kind' => 'expense', 'status' => 'planned', 'category' => 'Transporte',
+                'description' => 'Serviço ainda previsto', 'amount_cents' => 40000]
+        )->assertCreated();
+        $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$profit}/finance/entries",
+            ['kind' => 'income', 'status' => 'realized', 'category' => 'Receita extra',
+                'description' => 'Serviço adicional', 'amount_cents' => 2000]
+        )->assertCreated();
+        $voided = $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$profit}/finance/entries",
+            ['kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
+                'description' => 'Lançamento a estornar', 'amount_cents' => 30000]
+        )->assertCreated()->json('data.id');
+        $this->withToken($token)->postJson(
+            "/api/v1/repasse-cases/{$profit}/finance/entries/{$voided}/void", []
+        )->assertOk();
+
+        $loss = $this->vehicle($token, [
+            'title' => 'Venda com margem negativa', 'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 90000, 'sold_on' => '2026-11-14',
+        ]);
+        $zero = $this->vehicle($token, [
+            'title' => 'Venda empatada', 'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 100000, 'sold_on' => '2026-11-14',
+        ]);
+        $unknown = $this->vehicle($token, [
+            'title' => 'Venda sem compra conhecida', 'sale_amount_cents' => 70000,
+            'sold_on' => '2026-11-14',
+        ]);
+        $notSold = $this->vehicle($token, [
+            'title' => 'Ainda sem venda', 'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 150000,
+        ]);
+        $missing = $this->vehicle($token, ['title' => 'Sem valor de compra']);
+        $archived = $this->vehicle($token, [
+            'title' => 'Venda arquivada com margem', 'purchase_amount_cents' => 100000,
+            'sale_amount_cents' => 115000, 'sold_on' => '2026-11-14',
+        ]);
+        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$archived}", [
+            'status' => 'archived',
+        ])->assertOk();
+
+        $base = '/api/v1/operations/vehicles';
+        $this->withToken($token)->getJson($base)->assertOk()
+            ->assertJsonPath('summary.vehicles_total', 7)
+            ->assertJsonPath('summary.vehicles_sold', 5)
+            ->assertJsonPath('summary.vehicles_without_sale', 2)
+            ->assertJsonPath('summary.vehicles_missing_purchase', 2)
+            ->assertJsonPath('summary.vehicles_sold_profit', 2)
+            ->assertJsonPath('summary.sale_profit_total_cents', 32000)
+            ->assertJsonPath('summary.sale_loss_total_cents', -10000)
+            ->assertJsonPath('summary.vehicles_sold_loss', 1)
+            ->assertJsonPath('summary.vehicles_sold_break_even', 1)
+            ->assertJsonPath('summary.vehicles_sold_without_result', 1)
+            ->assertJsonPath('summary.vehicles_with_sale_result', 4)
+            ->assertJsonPath('summary.sale_result_known_total_cents', 22000);
+
+        $good = $this->withToken($token)->getJson("$base?performance=sold_profit&sort=sale_result_desc")
+            ->assertOk()->assertJsonPath('total', 2)->json('data');
+        $this->assertSame([$profit, $archived], array_column($good, 'id'));
+        $this->assertSame([17000, 15000], array_column($good, 'sale_result_cents'));
+
+        $this->withToken($token)->getJson("$base?performance=sold_loss")
+            ->assertOk()->assertJsonPath('data.0.id', $loss)
+            ->assertJsonPath('data.0.sale_result_cents', -10000)
+            ->assertJsonPath('total', 1);
+        $this->withToken($token)->getJson("$base?performance=sold_break_even")
+            ->assertOk()->assertJsonPath('data.0.id', $zero)
+            ->assertJsonPath('data.0.sale_result_cents', 0)
+            ->assertJsonPath('total', 1);
+        $this->withToken($token)->getJson("$base?performance=sold_unknown")
+            ->assertOk()->assertJsonPath('data.0.id', $unknown)
+            ->assertJsonPath('data.0.sale_result_cents', null)
+            ->assertJsonPath('total', 1);
+        $this->withToken($token)->getJson("$base?performance=not_sold")
+            ->assertOk()->assertJsonPath('total', 2);
+        $this->withToken($token)->getJson("$base?performance=purchase_missing")
+            ->assertOk()->assertJsonPath('total', 2);
+        $this->withToken($token)->getJson("$base?status=draft&performance=sold_profit")
+            ->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $profit)
+            ->assertJsonPath('summary.vehicles_sold_profit', 2);
+        $this->withToken($token)->getJson("$base?status=archived&performance=sold_profit")
+            ->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $archived);
+        $this->withToken($token)->getJson("$base?search=Ainda&performance=not_sold")
+            ->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $notSold);
+        $this->withToken($token)->getJson("$base?search=compra&performance=purchase_missing")
+            ->assertOk()->assertJsonPath('total', 2);
+
+        // A realização já foi contabilizada uma vez; valores previstos e
+        // estornados não alteram a classificação nem inflam a margem.
+        $this->withToken($token)->getJson("/api/v1/repasse-cases/{$profit}/finance/summary")
+            ->assertOk()->assertJsonPath('data.sale_result_cents', 17000);
+        $this->assertNotSame($expense, $voided);
+        $this->assertNotSame($missing, $unknown);
+    }
+
+    public function test_margin_sort_is_global_before_pagination_and_leaves_null_last(): void
+    {
+        $token = $this->token();
+        $ids = [];
+        foreach (range(1, 17) as $i) {
+            $ids[$i] = $this->vehicle($token, [
+                'title' => "Venda comparável {$i}",
+                'purchase_amount_cents' => 100000,
+                'sale_amount_cents' => 100000 + ($i * 1000),
+                'sold_on' => '2026-11-14',
+            ]);
+        }
+        $withoutSale = $this->vehicle($token, ['title' => 'Sem venda registrada']);
+        $withoutPurchase = $this->vehicle($token, [
+            'title' => 'Venda não apurável',
+            'sale_amount_cents' => 200000, 'sold_on' => '2026-11-14',
+        ]);
+
+        $base = '/api/v1/operations/vehicles';
+        $top = $this->withToken($token)->getJson("$base?sort=sale_result_desc&page=1")
+            ->assertOk()->assertJsonPath('total', 19)
+            ->assertJsonPath('last_page', 2)->assertJsonCount(15, 'data')->json('data');
+        $this->assertSame($ids[17], $top[0]['id']);
+        $this->assertSame($ids[3], $top[14]['id']);
+        $bottom = $this->withToken($token)->getJson("$base?sort=sale_result_desc&page=2")
+            ->assertOk()->assertJsonCount(4, 'data')->json('data');
+        $this->assertSame([$ids[2], $ids[1], $withoutPurchase, $withoutSale],
+            array_column($bottom, 'id'));
+
+        $ascending = $this->withToken($token)->getJson("$base?sort=sale_result_asc")
+            ->assertOk()->assertJsonCount(15, 'data')->json('data');
+        $this->assertSame($ids[1], $ascending[0]['id']);
+        $this->assertSame($ids[15], $ascending[14]['id']);
+        $this->withToken($token)->getJson("$base?performance=unpaid")
+            ->assertUnprocessable()->assertJsonValidationErrors('performance');
+        $this->withToken($token)->getJson("$base?sort=profit_estimated")
+            ->assertUnprocessable()->assertJsonValidationErrors('sort');
+        $this->withToken('invalid-jwt')->getJson("$base?performance=sold_profit")
+            ->assertUnauthorized();
+        $withoutGrant = $this->token(false);
+        $this->withToken($withoutGrant)->getJson("$base?performance=sold_loss")
+            ->assertForbidden();
+    }
+
 }

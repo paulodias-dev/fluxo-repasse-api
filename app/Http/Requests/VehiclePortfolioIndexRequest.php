@@ -25,8 +25,13 @@ final class VehiclePortfolioIndexRequest extends FormRequest
                 'all', 'overdue', 'open_tasks', 'missing_documents',
                 'incomplete_profile', 'planned_expenses',
             ])],
+            'performance' => ['sometimes', Rule::in([
+                'all', 'sold_profit', 'sold_loss', 'sold_break_even',
+                'sold_unknown', 'not_sold', 'purchase_missing',
+            ])],
             'sort' => ['sometimes', Rule::in([
                 'updated', 'oldest', 'purchase_desc', 'overdue', 'priority',
+                'sale_result_desc', 'sale_result_asc',
             ])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];
