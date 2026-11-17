@@ -115,7 +115,7 @@ final class AccessManagementController extends Controller
                 throw ValidationException::withMessages(['role_ids' => 'Um ou mais papéis não podem ser concedidos.']);
             }
             if ($target->roles()->whereHas('permissions', fn ($q) => $q->whereNotIn('key', $allowed))->exists()) {
-                return abort(403);
+                abort(403);
             }
             $currentIds = $target->roles()->pluck('roles.id')->all();
             $newIds = $selected->pluck('id')->all();
