@@ -500,3 +500,19 @@ Estas conferências comerciais não aprovam juridicamente a minuta nem concedem 
 - [ ] Homologação pendente: PHPUnit SQLite/MySQL, Pint, build/lint React e conferência visual desktop/mobile.
 
 Realizado significa ocorrência gerencial declarada; NÃO é confirmação de pagamento, Pix, recebimento em banco ou liquidação. Endpoint devolve payment_executed=false. Sem regras financeiras reais aprovadas, não habilita transações.
+
+
+## Macro 36 — Comprovantes rápidos no celular (sem inflar)
+
+- [x] Na ficha do veículo → Financeiro, cada lançamento ativo mostra **Foto** (câmera, quando suportada) e **Arquivo** (galeria, foto ou PDF) nos cards mobile de duas colunas Metronic.
+- [x] O desktop mantém a tabela original, com **Anexar** direto na linha; o detalhe oferece as mesmas opções sem criar página/modal/fluxo paralelo.
+- [x] Após selecionar, o arquivo é enviado ao lançamento atual, com feedback de envio, erro local no card, detalhes e comprovantes atualizados e scroll para o registro selecionado.
+- [x] Formatos aceitos: PDF, JPEG/JPG, PNG, WebP até 10 MiB. Arquivo HEIC não é aceito; apresentar instrução de formato compatível. Sem conversão automática e sem armazenamento em browser.
+- [x] API conserva JWT + session.current + cases.manage, veículo ativo, lançamento não estornado, armazenamento privado, nome higienizado e SHA-256 para verificação de download.
+- [x] Upload **idempotente por SHA-256 dentro do mesmo lançamento ativo**, com lock existente e 200 created=false para foto/PDF repetido; sem nova cópia, tabela ou evento.
+- [x] Isolamento: uploads iguais em lançamentos diferentes continuam documentos privados separados, sem reutilizar vínculo de outro lançamento.
+- [x] Um componente local reutiliza os controles Foto/Arquivo em card, tabela e detalhe; **vínculo de documento anterior** fica recolhido como opção avançada.
+- [x] Comprovantes são exibidos em duas colunas no celular e em tabela no desktop; download com autenticação e desvinculação protegida preservados.
+- [x] FormRequest de upload, OpenAPI 1.15 e testes feature escritos para duplicidade, vínculo por lançamento, limite, formato e 401/403.
+- [x] **Zero novos endpoints, tabelas, migrations, permissões, páginas ou dependências.**
+- [ ] QA real e homologação: PHPUnit SQLite/MySQL, Pint, build/lint/Vitest React e conferência visual em Android/iPhone/desktop.
