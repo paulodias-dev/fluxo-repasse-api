@@ -238,6 +238,111 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         $this->assertDatabaseCount('repasse_case_financial_entries', 2);
     }
 
+    public function test_planned_finance_is_realized_in_place_preserving_receipts_and_totals(): void
+    {
+        $jwt = $this->token();
+        $vehicle = $this->vehicle($jwt);
+        $base = "/api/v1/repasse-cases/{$vehicle}/finance";
+
+        $expense = $this->entry($jwt, $vehicle, [
+            'status' => 'planned', 'amount_cents' => 150000, 'effective_on' => '2026-11-15',
+        ]);
+        $income = $this->entry($jwt, $vehicle, [
+            'kind' => 'income', 'status' => 'planned', 'category' => 'Frete extra',
+            'description' => 'Receita prevista', 'amount_cents' => 25000,
+        ]);
+        $document = $this->withToken($jwt)->post("$base/entries/$expense/documents", [
+            'file' => UploadedFile::fake()->create('recibo-previsto.pdf', 24, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertCreated()->json('data.documents.0.id');
+        $today = now()->toDateString();
+
+        $this->withToken($jwt)->postJson("$base/entries/$expense/realize", [
+            'effective_on' => $today,
+        ])->assertOk()->assertJsonPath('changed', true)
+            ->assertJsonPath('payment_executed', false)
+            ->assertJsonPath('data.id', $expense)
+            ->assertJsonPath('data.status', 'realized')
+            ->assertJsonPath('data.effective_on', $today)
+            ->assertJsonPath('data.amount_cents', 150000);
+
+        $this->withToken($jwt)->postJson("$base/entries/$income/realize", [
+            'effective_on' => $today,
+        ])->assertOk()->assertJsonPath('changed', true)
+            ->assertJsonPath('data.id', $income);
+
+        // Double-tap or retry cannot create a second event or entry.
+        $this->withToken($jwt)->postJson("$base/entries/$expense/realize", [
+            'effective_on' => $today,
+        ])->assertOk()->assertJsonPath('changed', false);
+        $this->assertSame(1, DB::table('repasse_case_financial_events')
+            ->where('entry_id', $expense)->where('event_type', 'realized')->count());
+
+        $this->withToken($jwt)->postJson("$base/entries/$expense/realize", [
+            'effective_on' => '2026-11-16',
+        ])->assertConflict();
+        $this->withToken($jwt)->getJson("$base/entries/$expense")
+            ->assertOk()->assertJsonPath('data.documents.0.id', $document)
+            ->assertJsonPath('data.entry.voided_at', null);
+        $this->withToken($jwt)->getJson("$base/summary")
+            ->assertOk()
+            ->assertJsonPath('data.expense_planned_cents', 0)
+            ->assertJsonPath('data.expense_realized_cents', 150000)
+            ->assertJsonPath('data.income_planned_cents', 0)
+            ->assertJsonPath('data.income_realized_cents', 25000);
+        $this->assertDatabaseCount('repasse_case_financial_entries', 2);
+        $this->assertDatabaseHas('repasse_case_events', [
+            'repasse_case_id' => $vehicle, 'event_type' => 'vehicle_entry_realized',
+        ]);
+    }
+
+    public function test_realization_rejects_other_vehicles_voids_future_dates_and_unprivileged_users(): void
+    {
+        $this->postJson('/api/v1/repasse-cases/1/finance/entries/1/realize', [
+            'effective_on' => now()->toDateString(),
+        ])->assertUnauthorized();
+        $unprivileged = $this->token(false);
+        $this->withToken($unprivileged)
+            ->postJson('/api/v1/repasse-cases/1/finance/entries/1/realize', [
+                'effective_on' => now()->toDateString(),
+            ])->assertForbidden();
+
+        $jwt = $this->token();
+        $first = $this->vehicle($jwt, 'Primeiro veículo');
+        $second = $this->vehicle($jwt, 'Outro veículo');
+        $planned = $this->entry($jwt, $first, ['status' => 'planned']);
+        $base = "/api/v1/repasse-cases/$first/finance/entries/$planned/realize";
+
+        $this->withToken($jwt)->postJson($base, [])->assertUnprocessable()
+            ->assertJsonValidationErrors('effective_on');
+        $this->withToken($jwt)->postJson($base, [
+            'effective_on' => now()->addDay()->toDateString(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('effective_on');
+        $this->withToken($jwt)->postJson($base, [
+            'effective_on' => now()->toDateString(), 'payment_confirmation' => 'fake',
+        ])->assertUnprocessable()->assertJsonValidationErrors('payment_confirmation');
+        $this->withToken($jwt)->postJson(
+            "/api/v1/repasse-cases/$second/finance/entries/$planned/realize",
+            ['effective_on' => now()->toDateString()]
+        )->assertNotFound();
+
+        $this->withToken($jwt)->postJson(
+            "/api/v1/repasse-cases/$first/finance/entries/$planned/void",
+            ['reason' => 'Lançamento cancelado antes de ser realizado']
+        )->assertOk();
+        $this->withToken($jwt)->postJson($base, [
+            'effective_on' => now()->toDateString(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('entry');
+
+        $other = $this->entry($jwt, $first, ['status' => 'planned']);
+        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/$first", [
+            'status' => 'archived',
+        ])->assertOk();
+        $this->withToken($jwt)->postJson(
+            "/api/v1/repasse-cases/$first/finance/entries/$other/realize",
+            ['effective_on' => now()->toDateString()]
+        )->assertUnprocessable();
+    }
+
     public function test_reports_filter_precise_cents_and_export_sanitizes_spreadsheet_cells(): void
     {
         $token = $this->token();
