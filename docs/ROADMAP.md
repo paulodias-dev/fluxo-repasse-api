@@ -591,3 +591,14 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] OpenAPI 1.20, documentação/roadmap e baseline de evolução **somente código** atualizados.
 - [ ] Regras de obrigação/pagamento real, comissões legais, retenções, alçadas e banco continuam **sem aprovação de escopo**; o código mantém todos os campos financeiros executáveis como false.
 - [ ] PHPUnit/Pint/MySQL, npm lint/build, browser e aceite ficam na fase de homologação após MVP, conforme orientação do usuário.
+
+## Macroentrega 45 — Propostas documentais internas, sem execução monetária
+- [x] A partir da fotografia de apuração da Macro 44, registrar uma proposta interna não exigível, com responsável escolhido explicitamente entre participantes ativos do próprio veículo, datas/nota opcionais e histórico.
+- [x] Uma migration aditiva e mínima de propostas append-only. SHA-256 da origem, da intenção e do snapshot; idempotência UUID por ator/escopo/conteúdo; bloqueios 409 para fonte desatualizada, integridade ou chave divergente.
+- [x] Cinco endpoints REST no prefixo da minuta: opções, histórico paginado, gravação, leitura e CSV seguro, sempre JWT, session.current, cases.manage e scenarios.manage.
+- [x] UI Metronic mobile-first na mesma ficha do veículo, mantendo o layout oficial e sem menu/dashboard/rota duplicada. Não cria títulos exigíveis, contas a pagar/receber, pagamento, saldo ou ledger.
+- [x] OpenAPI 1.21, testes feature escritos e documentação da entrega.
+- [ ] Regras financeiras de execução e isolamento organizacional continuam pendentes de aprovação; nenhum texto livre da minuta constitui política bancária.
+- [ ] Homologação futura: PHPUnit/Pint/MySQL, build/lint React, QA autenticado e inspeção de mobile/desktop. Não confundir testes escritos com testes executados.
+
+**Progresso de código estimado da matriz proposta:** ~84% depois da Macro 45, independente da homologação e sem declarar mecanismo de dinheiro real pronto.
