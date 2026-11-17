@@ -84,6 +84,47 @@ final class Vehicle360Test extends TestCase
         ]);
     }
 
+    public function test_sale_is_a_dated_profile_value_not_a_duplicate_financial_entry(): void
+    {
+        $jwt = $this->token();
+        $base = '/api/v1/repasse-cases';
+        $case = $this->withToken($jwt)->postJson($base, [
+            'title' => 'Veículo com venda rápida',
+            'purchased_on' => '2026-11-10', 'purchase_amount_cents' => 2500000,
+        ])->assertCreated()->json('data.id');
+        $url = "$base/$case";
+
+        $this->withToken($jwt)->patchJson($url, [
+            'sold_on' => '2026-11-17',
+        ])->assertUnprocessable()->assertJsonValidationErrors('sale_amount_cents');
+        $this->withToken($jwt)->patchJson($url, [
+            'sale_amount_cents' => 3000000,
+        ])->assertOk();
+        $this->withToken($jwt)->getJson("$url/finance/summary")
+            ->assertOk()->assertJsonPath('data.projected_result_cents', 500000)
+            ->assertJsonPath('data.sale_result_cents', null);
+
+        $this->withToken($jwt)->patchJson($url, [
+            'sold_on' => '2026-11-09',
+        ])->assertUnprocessable()->assertJsonValidationErrors('sold_on');
+
+        $this->withToken($jwt)->patchJson($url, [
+            'sold_on' => '2026-11-17', 'sale_amount_cents' => 3000000,
+        ])->assertOk()->assertJsonPath('data.sold_on', '2026-11-17');
+        $this->withToken($jwt)->getJson("$url/finance/summary")
+            ->assertOk()->assertJsonPath('data.sale_result_cents', 500000);
+        $this->assertDatabaseCount('repasse_case_financial_entries', 0);
+
+        $this->withToken($jwt)->patchJson($url, [
+            'sale_amount_cents' => null,
+        ])->assertUnprocessable()->assertJsonValidationErrors('sale_amount_cents');
+        $this->withToken($jwt)->patchJson($url, [
+            'sold_on' => null,
+        ])->assertOk();
+        $this->withToken($jwt)->getJson("$url/finance/summary")
+            ->assertOk()->assertJsonPath('data.sale_result_cents', null);
+    }
+
     public function test_permissions_validation_archiving_and_case_ownership(): void
     {
         $this->getJson('/api/v1/repasse-cases/1/finance/summary')->assertUnauthorized();
