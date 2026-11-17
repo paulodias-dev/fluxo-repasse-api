@@ -126,6 +126,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}/finance/summary', [VehicleFinanceController::class, 'summary'])->name('api.v1.cases.finance.summary');
         Route::get('/{case}/finance/entries', [VehicleFinanceController::class, 'index'])->name('api.v1.cases.finance.entries');
         Route::post('/{case}/finance/entries', [VehicleFinanceController::class, 'store'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.store');
+        Route::post('/{case}/finance/entries/{entry}/realize', [VehicleFinanceController::class, 'realize'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.realize');
         Route::post('/{case}/finance/entries/{entry}/void', [VehicleFinanceController::class, 'void'])->middleware('throttle:repasse-admin-write')->name('api.v1.cases.finance.entries.void');
 
         // Financeiro 360: categoria operacional, documentos privados, correção e relatórios.

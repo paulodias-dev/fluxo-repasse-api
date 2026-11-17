@@ -44,3 +44,20 @@ A evolução a partir da macro 27 passa a ser acompanhada por **etapas completas
 - [ ] Executar testes PHP/MySQL, build/lint TypeScript e inspeção visual real em iPhone/Android/desktop para homologação.
 
 **Limite:** resultado da venda é gerencial, não constitui lucro contábil nem confirmação de recebimento bancário. O estado 'arquivado' é independente de ter registrado data de venda. Nenhum pagamento, PSP ou Pix é produzido.
+
+
+## Macro 35 — Marcar despesa/receita prevista como realizada
+
+- [x] Jornada simples: veículo → Financeiro → lançamento previsto → marcar realizado → confirmar data.
+- [x] API usa FormRequest e operação transacional protegida por JWT + sessão vigente + cases.manage, lock e status.
+- [x] Atualiza o MESMO lançamento, preservando ID, valor, categoria, descrição e comprovantes. Não cria segunda linha de receita/despesa.
+- [x] Auditoria específica 'realized' guarda status/data anteriores, operador e data nova; caso também registra evento.
+- [x] Double-tap/retry com mesma data retorna changed=false. Data diferente depois da realização responde 409 e indica Retificar.
+- [x] Bloqueia lançamento estornado/substituído, veículo arquivado e datas futuras; 404 para outro veículo.
+- [x] API recalcula demonstrativos existentes por status, sem novo SQL de totais nem migration.
+- [x] React no financeiro Metronic: filtros Todos/Previstos/Realizados, ação rápida, confirmação compacta com data e acesso a comprovantes.
+- [x] Cards de resumo e lançamentos em duas colunas mobile (col-6), botões compactos e fidelidade ao Demo 1.
+- [x] Swagger/OpenAPI 1.14, testes de regressão escritos e sem novos grants financeiros.
+- [ ] Homologação pendente: PHPUnit SQLite/MySQL, Pint, build/lint React e conferência visual desktop/mobile.
+
+Realizado significa ocorrência gerencial declarada; NÃO é confirmação de pagamento, Pix, recebimento em banco ou liquidação. Endpoint devolve payment_executed=false. Sem regras financeiras reais aprovadas, não habilita transações.
