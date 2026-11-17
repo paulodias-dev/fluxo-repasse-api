@@ -182,3 +182,20 @@ Detalhes: `docs/MACRO_11_QA_REACT_LOCAL.md`; relatórios de execução do fronte
 **Escritos mas NÃO executados:** 7 testes Laravel de 404/405/401/422/preflight OPTIONS e 3 Vitest React de corrida offline/login/refresh/logout. O smoke CORS do APP ganhou 404; seus testes modificados não foram executados aqui.
 
 **Aceite Mac:** `QA_MODE=sqlite bash qa/run-local.sh` na API, `npm ci && npm run qa:local` no APP, e `QA_INTEGRATION=1 npm run qa:local` com Laravel/MySQL local em execução. Depois validar offline/reconexão/PWA no navegador. Documento `docs/MACRO_12_SESSAO_CORRELACAO.md`.
+
+
+## Macro 35 — Marcar despesa/receita prevista como realizada
+
+- [x] Jornada simples: veículo → Financeiro → lançamento previsto → marcar realizado → confirmar data.
+- [x] API usa FormRequest e operação transacional protegida por JWT + sessão vigente + cases.manage, lock e status.
+- [x] Atualiza o MESMO lançamento, preservando ID, valor, categoria, descrição e comprovantes. Não cria segunda linha de receita/despesa.
+- [x] Auditoria específica 'realized' guarda status/data anteriores, operador e data nova; caso também registra evento.
+- [x] Double-tap/retry com mesma data retorna changed=false. Data diferente depois da realização responde 409 e indica Retificar.
+- [x] Bloqueia lançamento estornado/substituído, veículo arquivado e datas futuras; 404 para outro veículo.
+- [x] API recalcula demonstrativos existentes por status, sem novo SQL de totais nem migration.
+- [x] React no financeiro Metronic: filtros Todos/Previstos/Realizados, ação rápida, confirmação compacta com data e acesso a comprovantes.
+- [x] Cards de resumo e lançamentos em duas colunas mobile (col-6), botões compactos e fidelidade ao Demo 1.
+- [x] Swagger/OpenAPI 1.14, testes de regressão escritos e sem novos grants financeiros.
+- [ ] Homologação pendente: PHPUnit SQLite/MySQL, Pint, build/lint React e conferência visual desktop/mobile.
+
+Realizado significa ocorrência gerencial declarada; NÃO é confirmação de pagamento, Pix, recebimento em banco ou liquidação. Endpoint devolve payment_executed=false. Sem regras financeiras reais aprovadas, não habilita transações.
