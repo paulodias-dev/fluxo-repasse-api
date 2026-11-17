@@ -124,6 +124,13 @@ final class VehicleFinanceController extends Controller
             : $sale + $values['income_realized_cents'] + $values['income_planned_cents']
                 - $values['projected_cost_cents'];
 
+        // Margem gerencial de uma venda DATADA: só custos e receitas realizados.
+        // Não confundir sold_on com efetivo recebimento bancário.
+        $values['sale_result_cents'] = $vehicle->sold_on === null || $purchase === null
+            || $sale === null ? null
+            : $sale + $values['income_realized_cents'] - $purchase
+                - $values['expense_realized_cents'];
+
         return response()->json(['data' => $values])
             ->header('Cache-Control', 'no-store, private');
     }

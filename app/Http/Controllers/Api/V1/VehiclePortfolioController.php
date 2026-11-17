@@ -57,6 +57,16 @@ final class VehiclePortfolioController extends Controller
             COALESCE(SUM(CASE WHEN c.purchase_amount_cents IS NOT NULL
                 AND c.sale_amount_cents IS NOT NULL THEN 1 ELSE 0 END), 0)
                 AS vehicles_with_projected_result,
+            COALESCE(SUM(CASE WHEN c.sold_on IS NOT NULL AND c.purchase_amount_cents IS NOT NULL
+                AND c.sale_amount_cents IS NOT NULL THEN 1 ELSE 0 END), 0)
+                AS vehicles_with_sale_result,
+            COALESCE(SUM(CASE WHEN c.sold_on IS NOT NULL AND c.purchase_amount_cents IS NOT NULL
+                AND c.sale_amount_cents IS NOT NULL THEN
+                CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+                + COALESCE(f.realized_income, 0)
+                - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                - COALESCE(f.realized_expenses, 0)
+                ELSE 0 END), 0) AS sale_result_known_total_cents,
             COALESCE(SUM(CASE WHEN c.purchase_amount_cents IS NOT NULL
                 AND c.sale_amount_cents IS NOT NULL THEN
                 CAST(c.sale_amount_cents AS DECIMAL(25, 0))
@@ -93,7 +103,14 @@ final class VehiclePortfolioController extends Controller
                     + COALESCE(f.realized_income, 0) + COALESCE(f.planned_income, 0)
                     - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
                     - COALESCE(f.realized_expenses, 0) - COALESCE(f.planned_expenses, 0)
-                END AS projected_result_cents
+                END AS projected_result_cents,
+            CASE WHEN c.sold_on IS NULL OR c.purchase_amount_cents IS NULL
+                OR c.sale_amount_cents IS NULL THEN NULL
+                ELSE CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+                    + COALESCE(f.realized_income, 0)
+                    - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
+                    - COALESCE(f.realized_expenses, 0)
+                END AS sale_result_cents
         ');
 
         if (($filters['status'] ?? 'all') !== 'all') {
@@ -160,6 +177,7 @@ final class VehiclePortfolioController extends Controller
                 'expense_realized_cents', 'expense_planned_cents',
                 'income_realized_cents', 'income_planned_cents',
                 'current_cost_cents', 'projected_cost_cents', 'projected_result_cents',
+                'sale_result_cents',
             ] as $field) {
                 if ($row->{$field} !== null) {
                     $row->{$field} = (int) $row->{$field};

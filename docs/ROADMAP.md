@@ -464,3 +464,22 @@ Estas conferências comerciais não aprovam juridicamente a minuta nem concedem 
 **Homologação:** testes de regressão do endpoint de frota foram ampliados para cenários sem venda, despesas estornadas, receitas, custos previstos e prejuízo. Testes e build não executados nesta sessão, seguindo a prioridade por macroentregas; requer QA real antes da produção.
 
 **Próxima direção:** completar jornada operacional com mínimo de dados obrigatórios e menos cliques; não construir novas centrais/filas por reflexo.
+
+
+## Macro 34 — Mobile-first: veículo → despesa/receita → venda → resultado
+
+**Critério obrigatório de produto:** o usuário resolve o uso principal no celular. Não multiplicar módulos, navegações, formulários ou tabelas de domínio sem benefício operacional. Priorizar componentes de toque, decisões claras, campos essenciais e estados de erro/vazio preservados; funções avançadas ficam disponíveis sob demanda.
+
+- [x] Frota no celular em cards (não tabela horizontal) com ações diretas +Despesa, +Receita, Registrar/Revisar venda e Ver ficha.
+- [x] Visão móvel resumida de compra, despesas e resultado, com busca direta e filtros avançados recolhidos.
+- [x] Veículo 360 com ações rápidas de toque e modal curto para valor/data de venda; comprador opcional, sem outro módulo ou tela de vendas.
+- [x] Entrada financeira mobile com tipo em botões, valor, descrição, categoria com sugestões reais, situação e data opcional recolhida.
+- [x] Lançamentos financeiros em cards no mobile; comprovantes e estornos mantidos, com rolagem para detalhes abertos e preservação da experiência de desktop.
+- [x] URL de ação rápida limpa ao salvar/cancelar, evitando reabertura acidental.
+- [x] Resultado de venda datada considerado à parte da projeção; despesas/receitas previstas não entram no resultado de venda, somente no projetado. Sem dupla contagem da venda como receita extra.
+- [x] API valida preço positivo e data da venda não anterior à compra, usando PATCH do veículo já existente.
+- [x] OpenAPI atualizado, testes de regressão de venda e agregação escritos.
+- [x] **Zero migrações, zero módulos e zero novos endpoints**.
+- [ ] Executar testes PHP/MySQL, build/lint TypeScript e inspeção visual real em iPhone/Android/desktop para homologação.
+
+**Limite:** resultado da venda é gerencial, não constitui lucro contábil nem confirmação de recebimento bancário. O estado 'arquivado' é independente de ter registrado data de venda. Nenhum pagamento, PSP ou Pix é produzido.
