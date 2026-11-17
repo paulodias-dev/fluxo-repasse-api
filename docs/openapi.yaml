@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.19.0
+  version: 1.20.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -1629,6 +1629,125 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Minuta inexistente/fora do veículo }
         '409': { description: Minuta ou modelo com integridade inválida }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/records:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: listPreparationRecords
+      summary: Histórico paginado de apurações hipotéticas imutáveis
+      security: [{ BearerAuth: [] }]
+      description: |
+        Exige JWT/sessão vigente, cases.manage e scenarios.manage.
+        Retorna até 15 fotografias por página, em ordem id decrescente.
+        "stale" indica divergência da preparação comercial ATUAL.
+        Não contém obrigações, quitações ou saldos executáveis.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Paginador Laravel com registros somente leitura, no-store }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou minuta não encontrado }
+        '409': { description: Minuta atual com integridade inválida }
+    post:
+      tags: [Condições comerciais do veículo]
+      operationId: savePreparationRecord
+      summary: Salvar fotografia hipotética, sem criar obrigação ou pagar
+      description: |
+        Requer JWT, cases.manage e scenarios.manage. A ficha e a minuta
+        devem estar ativas e a minuta deve ter referência manual.
+        Usa lock do veículo, UUID idempotente, expected_snapshot_sha256,
+        JSON canônico, hash SHA-256 e somente uma linha append-only.
+        Nenhum default de comissão, imposto ou evento financeiro é inferido.
+        Dedução/acréscimo MANUAIS são apenas simulação, não regra contratual.
+        Net = referência + acréscimos - deduções; deve ser positivo e
+        no máximo 10^12 centavos. O rateio usa DistributionCalculator
+        existente, em centavos inteiros e 10000 bps declarados.
+        Não escreve ledger, lançamentos gerenciais, aprovação ou pagamentos.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_key, expected_snapshot_sha256, adjustments]
+              additionalProperties: false
+              properties:
+                request_key: { type: string, format: uuid }
+                expected_snapshot_sha256: { type: string, minLength: 64, maxLength: 64 }
+                replaces_record_id: { type: integer, minimum: 1, nullable: true }
+                adjustments:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [kind, label, amount_cents]
+                    additionalProperties: false
+                    properties:
+                      kind: { type: string, enum: [addition, deduction] }
+                      label: { type: string, minLength: 2, maxLength: 100 }
+                      amount_cents: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+      responses:
+        '201':
+          description: Fotografia criada, created=true
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreparationRecordResponse' }
+        '200':
+          description: Retry de UUID+payload+usuário existentes, created=false
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreparationRecordResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta ou fotografia substituída fora de escopo }
+        '409': { description: Revisão desatualizada, UUID reaproveitado com outro conteúdo ou SHA inválido }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/records/{record}:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: showPreparationRecord
+      summary: Ler fotografia imutável com integridade SHA e indicação stale
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: record, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Fotografia e verificação de comparação com a preparação atual
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/PreparationRecord' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Registro não pertence ao veículo/minuta }
+        '409': { description: Snapshot armazenado ou minuta atual com integridade inválida }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/records/{record}/export:
+    get:
+      tags: [Condições comerciais do veículo]
+      operationId: exportPreparationRecord
+      summary: CSV anti-fórmula da fotografia não executável
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: record, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: CSV com SHA e "NÃO AUTORIZA PAGAMENTO", no-store e nosniff }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Registro não pertence ao veículo/minuta }
+        '409': { description: Snapshot armazenado ou minuta atual com integridade inválida }
   /repasse-cases/{case}/commercial-terms/{term}/fork:
     post:
       tags: [Condições comerciais do veículo]
@@ -3230,6 +3349,41 @@ components:
             cancellation: { type: string, nullable: true, maxLength: 2000 }
             banking: { type: string, nullable: true, maxLength: 2000 }
             organization: { type: string, nullable: true, maxLength: 2000 }
+    PreparationRecordResponse:
+      type: object
+      required: [data, created]
+      properties:
+        created: { type: boolean }
+        data: { $ref: '#/components/schemas/PreparationRecord' }
+    PreparationRecord:
+      type: object
+      required: [id, case_id, term_id, created_at, created_by, replaces_record_id,
+        source_snapshot_sha256, snapshot_sha256, stale, snapshot,
+        financial_authorization, obligation_created, payment_enabled, executable]
+      properties:
+        id: { type: integer, minimum: 1 }
+        case_id: { type: integer, minimum: 1 }
+        term_id: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        created_by: { type: integer, nullable: true }
+        replaces_record_id: { type: integer, minimum: 1, nullable: true }
+        source_snapshot_sha256: { type: string, minLength: 64, maxLength: 64 }
+        snapshot_sha256: { type: string, minLength: 64, maxLength: 64 }
+        stale: { type: boolean }
+        snapshot:
+          type: object
+          description: |
+            Fonte imutável com term_revision, term_sha256, template_revision,
+            template_sha256, source_snapshot_sha256, reference_cents,
+            adjustments (kind, label, amount_cents), additions_cents,
+            deductions_cents, net_cents, allocations (party_id, party_name,
+            basis_points, amount_cents, memo), allocated_cents, difference_cents,
+            documentary_preparation_complete, documentary_issues, review_state,
+            e flags financeiras fixadas em false. JSON histórico, não obrigação.
+        financial_authorization: { type: boolean, enum: [false] }
+        obligation_created: { type: boolean, enum: [false] }
+        payment_enabled: { type: boolean, enum: [false] }
+        executable: { type: boolean, enum: [false] }
     FinancialPreparation:
       type: object
       required: [case_id, case_title, case_status, term_id, term_title,
