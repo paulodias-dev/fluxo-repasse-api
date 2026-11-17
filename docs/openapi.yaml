@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.21.0
+  version: 1.22.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -231,9 +231,12 @@ paths:
     get:
       tags: [Central comercial]
       operationId: listCommercialPortfolio
-      summary: Central comercial de minutas entre veículos (somente leitura)
+      summary: Central comercial de minutas e propostas internas entre veículos (somente leitura)
       description: |
         Requer JWT, session.current, cases.manage E scenarios.manage.
+        Agrega propostas por minuta antes de paginar, sem multiplicar linhas.
+        Detecta alterações na minuta posteriores à proposta, mas isto NÃO
+        substitui o SHA integral de parecer/financeiro/documentos na ficha.
         O relatório lista campos preenchidos e modelos alterados. Não substitui
         verificações SHA, partes, evidências ou aprovação de condições jurídicas.
         Nunca autoriza pagar, gerar obrigação ou transferir dinheiro.
@@ -243,6 +246,7 @@ paths:
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
         - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
         - { name: preparation, in: query, schema: { type: string, enum: [all, reviewed, needs_review, reference_missing, model_outdated], default: all }, description: 'Filtro de parecer da revisão exata, sem implicar autorização de pagamento' }
+        - { name: proposals, in: query, schema: { type: string, enum: [all, with_proposals, without_proposals, term_edited], default: all }, description: 'Filtro por presença de proposta ou minuta editada; verificação SHA integral na ficha' }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
       responses:
         '200':
@@ -268,9 +272,13 @@ paths:
                           reviewed_current_revision: { type: integer }
                           needs_documentary_review: { type: integer }
                           reference_missing: { type: integer }
+                          terms_with_proposals: { type: integer }
+                          terms_without_proposals: { type: integer }
+                          terms_edited_after_proposal: { type: integer }
+                          proposal_records_total: { type: integer }
                       terms:
                         type: object
-                        description: Paginador Laravel; cada item traz campos, revisão e alertas.
+                        description: Paginador; cada item inclui proposal_count, last_proposal_id, last_proposal_net_cents, last_proposal_created_at, last_proposal_payer_name e proposal_source_state (none, term_edited, verify_in_detail).
                       financial_authorization: { type: boolean, enum: [false] }
                       payment_enabled: { type: boolean, enum: [false] }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -290,6 +298,8 @@ paths:
         - { name: status, in: query, schema: { type: string, enum: [all, active, archived] } }
         - { name: search, in: query, schema: { type: string, maxLength: 100 } }
         - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: preparation, in: query, schema: { type: string, enum: [all, reviewed, needs_review, reference_missing, model_outdated], default: all } }
+        - { name: proposals, in: query, schema: { type: string, enum: [all, with_proposals, without_proposals, term_edited], default: all } }
       responses:
         '200':
           description: Relatório CSV sem cache
