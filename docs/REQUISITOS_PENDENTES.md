@@ -51,3 +51,10 @@ O produto agora possui um fluxo de fotografias históricas de dossiê com manife
 Políticas de compartilhamento externo, retenção LGPD e isolamento entre organizações seguem pendentes. Nesta macro, pacotes são **privados a operadores internos** com permissões explícitas, e não há convites públicos ou links assinados.
 
 O ZIP é gerado somente com evidências ainda íntegras no armazenamento local privado. Assinatura digital externa, timestamp de terceiro, guarda WORM e certificação jurídica não foram implementados nem presumidos.
+
+## Macro 30 — Condições comerciais declaradas, sem operação financeira
+O sistema agora permite **registrar propostas de condições por veículo** sem inventar sua validade ou taxas: dez campos de decisão manual (fato gerador, base, comissões, retenções, elegibilidade, alçadas, liquidação, cancelamentos, integração e isolamento) podem ficar em branco. Cada minuta referencia revisão SHA de um modelo existente e pode ser copiada, revisada, arquivada e consultada historicamente.
+
+**Dados inseridos em campos de texto não viram regra computável ou aprovada.** Mesmo que a matriz mostre 'documentary_complete=true', isso representa somente preenchimento e vínculos ativos, não assinatura, alçada, exigibilidade, dívida, direito de recebimento ou autorização de pagamento.
+
+Para construir a **etapa executável**, o operador ainda precisa definir e aprovar explicitamente: quem compra/vende, titularidade/pagador/beneficiário, valor-base contratual, impostos, comissão, momento e forma de liquidação, segregação entre organizações, alçada de aprovação, PSP/banco, estorno, reembolso e conciliação.
