@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.14.0
+  version: 1.15.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -1069,11 +1069,18 @@ paths:
     post:
       tags: [Financeiro 360 do veículo]
       operationId: vehicleFinanceDocumentAttach
-      summary: Enviar ou vincular comprovante privado ao lançamento
+      summary: Enviar foto/PDF privado ou vincular documento ao lançamento
       description: |
         Requer bearer JWT vigente, session.current e cases.manage. Operações
-        de escrita exigem veículo ativo. O módulo registra valores gerenciais,
-        sem executar pagamento, cobrança, transferência ou liquidação.
+        de escrita exigem veículo ativo. Upload multipart permite PDF, JPEG,
+        PNG ou WebP até 10 MiB. O arquivo é armazenado no disco privado com
+        SHA-256, vinculado exclusivamente ao lançamento autorizado e só pode
+        ser baixado com token válido, escopo e conferência de integridade.
+        Reenvio do mesmo conteúdo ao mesmo lançamento retorna 200,
+        created=false, sem outro arquivo ou evento; documento de lançamento
+        diferente não é reutilizado nem revelado. Arquivos HEIC não são aceitos
+        e a interface deve orientar o usuário a escolher formato compatível.
+        Sem efetuar pagamento, cobrança, transferência ou liquidação.
       security: [{ BearerAuth: [] }]
       parameters:
         - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -1091,7 +1098,16 @@ paths:
           content:
             application/json:
               schema: { type: object }
-        '200': { description: Documento já associado ao mesmo lançamento; operação idempotente }
+        '200':
+          description: Documento já associado ao mesmo lançamento, operação idempotente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, created]
+                properties:
+                  data: { type: object }
+                  created: { type: boolean, enum: [false] }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Veículo, lançamento ou comprovante não localizado }
