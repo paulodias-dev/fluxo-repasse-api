@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
 use App\Http\Controllers\Api\V1\FinancialPreparationController;
+use App\Http\Controllers\Api\V1\PreparationRecordController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
@@ -205,6 +206,15 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preparation');
                 Route::get('/{term}/preparation/export', [FinancialPreparationController::class, 'export'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.preparation.export');
+                // Apuração MANUAL e imutável, nunca registro de obrigação/ledger.
+                Route::get('/{term}/preparation/records', [PreparationRecordController::class, 'index'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.records.index');
+                Route::post('/{term}/preparation/records', [PreparationRecordController::class, 'store'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.records.store');
+                Route::get('/{term}/preparation/records/{record}', [PreparationRecordController::class, 'show'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.records.show');
+                Route::get('/{term}/preparation/records/{record}/export', [PreparationRecordController::class, 'export'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.terms.records.export');
                 Route::post('/{term}/fork', [CommercialTermsController::class, 'fork'])
                     ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.fork');
             });

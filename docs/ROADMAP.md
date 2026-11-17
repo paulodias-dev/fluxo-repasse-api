@@ -579,3 +579,15 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [ ] PHPUnit, Pint/MySQL, npm build/lint e inspeção browser NÃO executados nesta sessão; homologação expressamente fora da métrica de código.
 
 **Estimativa de código MVP completo:** ~82% em matriz PROPOSTA de pesos (10/20/20/15/30/5), versus ~80% da medição anterior; etapa 5 vai de ~33% para ~40% de cobertura preparatória, sem implicar motor executável. Matriz em `docs/PROGRESSO_CODIGO_MVP.md`. Não usar o histórico técnico antigo 6/12.
+
+
+## Macroentrega 44 — Apuração manual versionada e imutável do pré-repasse
+- [x] `POST /repasse-cases/{case}/commercial-terms/{term}/preparation/records`: congela referência manual da minuta e até 20 acréscimos/deduções em centavos; net = referência + acréscimos − deduções, positivo e <= 10^12, alocado via DistributionCalculator existente (10000 bps e maior resto). **Não cria obrigação real, saldo, lançamento gerencial ou transferência.**
+- [x] `GET .../records`, `GET .../records/{record}`, `GET .../records/{record}/export`: histórico paginado e somente leitura, SHA-256 canônico cross-MySQL/SQLite, fonte `stale` quando referência, contrato, parecer ou valores mudam; CSV UTF-8 privado anti-fórmula.
+- [x] Uma tabela aditiva **append-only** `repasse_preparation_records` com request_key UUID UNIQUE, payload_digest, snapshot JSON/SHA, source SHA, soma de centavos, origem de revisão, autor, timestamp; nenhuma edição/exclusão de snapshots.
+- [x] Segurança JWT + session.current + cases.manage E scenarios.manage + throttles existentes. Criação só se ficha/minuta ativas, referência explícita, SHA esperado atual, fonte íntegra e percentuais explícitos do modelo já existente; reuso de request_key com payload divergente retorna 409, retry com conteúdo e ator iguais não duplica.
+- [x] FormRequest para contratos, validação estrita e 4 novos testes feature escritos: centavos, replay idempotente, staleness, integridade, multi-veículo, RBAC, valores inválidos e paginação de 17 itens.
+- [x] Frontend React na aba já existente da ficha comercial, formulário compacto, histórico imutável, indicadores de valores, navegação por páginas, exportação CSV e integração mobile-first.
+- [x] OpenAPI 1.20, documentação/roadmap e baseline de evolução **somente código** atualizados.
+- [ ] Regras de obrigação/pagamento real, comissões legais, retenções, alçadas e banco continuam **sem aprovação de escopo**; o código mantém todos os campos financeiros executáveis como false.
+- [ ] PHPUnit/Pint/MySQL, npm lint/build, browser e aceite ficam na fase de homologação após MVP, conforme orientação do usuário.

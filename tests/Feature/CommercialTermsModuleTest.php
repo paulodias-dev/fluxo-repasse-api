@@ -407,4 +407,203 @@ final class CommercialTermsModuleTest extends TestCase
         $this->assertDatabaseCount('repasse_scenarios', 0);
     }
 
+
+    public function test_manual_preparation_record_is_immutable_idempotent_and_allocates_net_cents(): void
+    {
+        $jwt = $this->token();
+        [$case, $template, , $a, $b] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $base = "{$terms}/{$term}/preparation";
+        $hash = $this->withToken($jwt)->getJson($base)->assertOk()->json('data.snapshot_sha256');
+
+        $payload = [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $hash,
+            'adjustments' => [
+                ['kind' => 'addition', 'label' => 'Adição manual', 'amount_cents' => 1000],
+                ['kind' => 'deduction', 'label' => 'Dedução declarada', 'amount_cents' => 100],
+            ],
+        ];
+        $created = $this->withToken($jwt)->postJson("{$base}/records", $payload)
+            ->assertCreated()
+            ->assertJsonPath('created', true)
+            ->assertJsonPath('data.snapshot.reference_cents', 10001)
+            ->assertJsonPath('data.snapshot.additions_cents', 1000)
+            ->assertJsonPath('data.snapshot.deductions_cents', 100)
+            ->assertJsonPath('data.snapshot.net_cents', 10901)
+            ->assertJsonPath('data.snapshot.allocated_cents', 10901)
+            ->assertJsonPath('data.snapshot.difference_cents', 0)
+            ->assertJsonPath('data.snapshot.allocations.0.party_id', $a->id)
+            ->assertJsonPath('data.snapshot.allocations.0.amount_cents', 6541)
+            ->assertJsonPath('data.snapshot.allocations.1.party_id', $b->id)
+            ->assertJsonPath('data.snapshot.allocations.1.amount_cents', 4360)
+            ->assertJsonPath('data.snapshot.documentary_preparation_complete', false)
+            ->assertJsonPath('data.financial_authorization', false)
+            ->assertJsonPath('data.snapshot.obligation_created', false)
+            ->assertJsonPath('data.snapshot.payment_enabled', false)
+            ->assertJsonPath('data.snapshot.executable', false)
+            ->assertJsonPath('data.stale', false);
+        $id = $created->json('data.id');
+        $sha = $created->json('data.snapshot_sha256');
+        $this->assertSame(64, strlen($sha));
+
+        $this->withToken($jwt)->postJson("{$base}/records", $payload)
+            ->assertOk()->assertJsonPath('created', false)
+            ->assertJsonPath('data.id', $id);
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            ...$payload, 'adjustments' => [],
+        ])->assertConflict();
+        $this->withToken($jwt)->getJson("{$base}/records")
+            ->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $id)
+            ->assertJsonPath('data.0.payment_enabled', false);
+        $this->withToken($jwt)->getJson("{$base}/records/{$id}")
+            ->assertOk()->assertJsonPath('data.snapshot_sha256', $sha);
+        $csv = $this->withToken($jwt)->get("{$base}/records/{$id}/export")
+            ->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->streamedContent();
+        $this->assertStringContainsString('Adição manual', $csv);
+        $this->assertStringContainsString('10901', $csv);
+        $this->assertStringContainsString('NÃO', $csv);
+        $this->assertDatabaseCount('repasse_preparation_records', 1);
+        $this->assertDatabaseCount('repasse_scenarios', 0);
+
+        // Atualizar a minuta invalida o vínculo atual, mas NÃO altera passado.
+        $this->withToken($jwt)->putJson("{$terms}/{$term}", [
+            ...$this->input($template, ['title' => 'Revisão posterior']),
+            'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+        $this->withToken($jwt)->getJson("{$base}/records/{$id}")
+            ->assertOk()->assertJsonPath('data.stale', true)
+            ->assertJsonPath('data.snapshot_sha256', $sha)
+            ->assertJsonPath('data.snapshot.net_cents', 10901);
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            ...$payload, 'request_key' => (string) Str::uuid(),
+        ])->assertConflict();
+        // Retry exato permanece idempotente mesmo depois da mudança da fonte.
+        $this->withToken($jwt)->postJson("{$base}/records", $payload)
+            ->assertOk()->assertJsonPath('created', false)
+            ->assertJsonPath('data.stale', true);
+    }
+
+    public function test_preparation_records_require_both_grants_and_never_cross_vehicle_scope(): void
+    {
+        $jwt = $this->token();
+        [$case, $template] = $this->fixture($jwt);
+        [$other] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $base = "{$terms}/{$term}/preparation/records";
+        $payload = [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => str_repeat('a', 64),
+            'adjustments' => [],
+        ];
+        $this->withToken('invalid-jwt')->getJson($base)->assertUnauthorized();
+        foreach ([[], ['cases.manage'], ['scenarios.manage']] as $grants) {
+            $weak = $this->token($grants);
+            $this->withToken($weak)->getJson($base)->assertForbidden();
+            $this->withToken($weak)->postJson($base, $payload)->assertForbidden();
+        }
+        $this->withToken($jwt)->getJson(
+            "/api/v1/repasse-cases/{$other}/commercial-terms/{$term}/preparation/records"
+        )->assertNotFound();
+        $this->withToken($jwt)->postJson(
+            "/api/v1/repasse-cases/{$other}/commercial-terms/{$term}/preparation/records",
+            $payload
+        )->assertNotFound();
+        $source = $this->withToken($jwt)->getJson("{$terms}/{$term}/preparation")
+            ->assertOk()->json('data.snapshot_sha256');
+        $row = $this->withToken($jwt)->postJson($base, [
+            ...$payload, 'expected_snapshot_sha256' => $source,
+        ])->assertCreated()->json('data.id');
+        $this->withToken($jwt)->getJson(
+            "/api/v1/repasse-cases/{$other}/commercial-terms/{$term}/preparation/records/{$row}"
+        )->assertNotFound();
+        $this->withToken($jwt)->getJson("{$base}/99999")->assertNotFound();
+        $this->withToken($jwt)->getJson("{$base}/{$row}")
+            ->assertOk()->assertJsonPath('data.financial_authorization', false);
+        $this->assertDatabaseCount('repasse_preparation_records', 1);
+    }
+
+    public function test_preparation_record_rejects_missing_reference_bad_adjustments_and_archived_writes(): void
+    {
+        $jwt = $this->token();
+        [$case, $template] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson(
+            $terms, $this->input($template, ['reference_cents' => null])
+        )->assertCreated()->json('data.id');
+        $base = "{$terms}/{$term}/preparation";
+        $hash = $this->withToken($jwt)->getJson($base)->assertOk()->json('data.snapshot_sha256');
+        $input = [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $hash, 'adjustments' => [],
+        ];
+        $this->withToken($jwt)->postJson("{$base}/records", $input)
+            ->assertUnprocessable()->assertJsonValidationErrors('reference_cents');
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            ...$input, 'request_key' => (string) Str::uuid(),
+            'adjustments' => [['kind' => 'addition', 'label' => 'A', 'amount_cents' => 0]],
+        ])->assertUnprocessable();
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            ...$input, 'request_key' => (string) Str::uuid(), 'payment_enabled' => true,
+        ])->assertUnprocessable();
+
+        $this->withToken($jwt)->putJson("{$terms}/{$term}", [
+            ...$this->input($template), 'revision' => 1,
+        ])->assertOk()->assertJsonPath('data.revision', 2);
+        $hash2 = $this->withToken($jwt)->getJson($base)->assertOk()->json('data.snapshot_sha256');
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $hash2,
+            'adjustments' => [[
+                'kind' => 'deduction', 'label' => 'Valor acima da referência',
+                'amount_cents' => 20000,
+            ]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('adjustments');
+
+        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
+            'status' => 'archived',
+        ])->assertOk();
+        $newHash = $this->withToken($jwt)->getJson($base)->assertOk()
+            ->json('data.snapshot_sha256');
+        $this->withToken($jwt)->postJson("{$base}/records", [
+            'request_key' => (string) Str::uuid(),
+            'expected_snapshot_sha256' => $newHash, 'adjustments' => [],
+        ])->assertUnprocessable();
+        $this->assertDatabaseCount('repasse_preparation_records', 0);
+    }
+
+    public function test_preparation_record_detects_tampering_and_paginates_complete_history(): void
+    {
+        $jwt = $this->token();
+        [$case, $template] = $this->fixture($jwt);
+        $terms = "/api/v1/repasse-cases/{$case}/commercial-terms";
+        $term = $this->withToken($jwt)->postJson($terms, $this->input($template))
+            ->assertCreated()->json('data.id');
+        $base = "{$terms}/{$term}/preparation";
+        $hash = $this->withToken($jwt)->getJson($base)->assertOk()->json('data.snapshot_sha256');
+        for ($i = 0; $i < 17; $i++) {
+            $this->withToken($jwt)->postJson("{$base}/records", [
+                'request_key' => (string) Str::uuid(),
+                'expected_snapshot_sha256' => $hash,
+                'adjustments' => [],
+            ])->assertCreated();
+        }
+        $this->withToken($jwt)->getJson("{$base}/records")
+            ->assertOk()->assertJsonPath('total', 17)->assertJsonPath('last_page', 2)
+            ->assertJsonCount(15, 'data');
+        $page = $this->withToken($jwt)->getJson("{$base}/records?page=2")
+            ->assertOk()->assertJsonCount(2, 'data');
+        $id = $page->json('data.0.id');
+        DB::table('repasse_preparation_records')->where('id', $id)
+            ->update(['snapshot_sha256' => str_repeat('0', 64)]);
+        $this->withToken($jwt)->getJson("{$base}/records/{$id}")->assertConflict();
+        $this->withToken($jwt)->get("{$base}/records/{$id}/export")->assertConflict();
+    }
+
 }

@@ -26,3 +26,18 @@ A etapa 5 não foi confundida com pagamento efetivo. A Macro 43 acrescentou à b
 
 ## Diferença para o indicador antigo
 O histórico `docs/PROGRESSO_GERAL.md` (6/12=50%) mede marcos técnicos com homologação; **não** deve aparecer como progresso de código MVP. Estimativa anterior baseada nestes pesos: ~80%; após Macro 43, ~82%, mantendo QA completamente fora do cálculo.
+
+## Após Macroentrega 44 — atualização proposta do CÓDIGO (sem homologação)
+| Etapa | Peso | Cobertura estimada | Contribuição |
+|---|---:|---:|---:|
+| 1. Acesso/cadastros | 10% | 100% | 10% |
+| 2. Veículos 360 | 20% | 100% | 20% |
+| 3. Financeiro gerencial | 20% | 100% | 20% |
+| 4. Cenários/prestação documental | 15% | 100% | 15% |
+| 5. Preparação e motor executável | 30% | **43% (estimativa)** | 12,9% |
+| 6. Dashboard/integração | 5% | 100% | 5% |
+| **Total de código estimado** | **100%** | — | **82,9% ≈ 83%** |
+
+A macro 44 acrescentou uma nova capacidade concreta, o registro interno versionado e imutável de apurações **hipotéticas**, reutilizando minutas e rateio. Não a contar como obrigação, pagamento, aprovação monetária ou motor bancário. O indicador continua uma ponderação provisória, não auditoria funcional automatizada. O valor da `main` antes da integração da macro 44 é 82%; com os PRs API/APP integrados fica estimado em **83%**, sem QA na fórmula.
+
+**Prioridades de código restantes:** aprovar fonte de regras financeiras, titularidade e fatos geradores, política executável de taxas/tributos, alçadas e aprovações, eventuais obrigações/ledger, integração PSP, conciliação, reembolsos e isolamento organizacional se exigido. Uma decisão explícita por MVP sem dinheiro real mudaria o denominador e exigiria recalcular a métrica.
