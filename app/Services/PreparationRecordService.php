@@ -22,9 +22,25 @@ final class PreparationRecordService
         return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
+    private function canonical(array $data): array
+    {
+        // MySQL JSON may reorder object keys; hashes must remain stable
+        // across SQLite and MySQL. Lists preserve their declared order.
+        if (! array_is_list($data)) {
+            ksort($data, SORT_STRING);
+        }
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->canonical($value);
+            }
+        }
+
+        return $data;
+    }
+
     private function digest(array $data): string
     {
-        return hash('sha256', $this->encode($data));
+        return hash('sha256', $this->encode($this->canonical($data)));
     }
 
     private function row(int $case, int $term, int $record): object
@@ -174,15 +190,10 @@ final class PreparationRecordService
                     'adjustments' => 'A apuração deve produzir valor hipotético positivo, dentro do limite permitido.',
                 ]);
             }
-            // Reutiliza o rateador determinístico de 10000 bps da etapa 19.
-            $commercial = $current; // Fonte já verificada, NÃO política contratual.
-            $termDetails = DB::table('repasse_commercial_terms')
-                ->where('id', $term)->where('repasse_case_id', $case)->firstOrFail();
-            $template = json_decode($termDetails->template_snapshot, true, 512, JSON_THROW_ON_ERROR);
-            if (! hash_equals($termDetails->template_sha256, $this->digest($template))) {
-                abort(409, 'Modelo congelado da minuta com hash inválido.');
-            }
-            $allocations = $this->calculator->calculate($net, $template['lines']);
+            // preview() da Macro 43 já verificou o modelo congelado.
+            // Reutilizamos seus pesos explícitos, SEM reaplicar regras de taxas
+            // ou tentar reinterpretar manualmente o JSON do banco.
+            $allocations = $this->calculator->calculate($net, $current['allocations']);
 
             $snapshot = [
                 'case_id' => $case, 'term_id' => $term,
