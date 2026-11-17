@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RealizeVehicleFinanceEntryRequest;
 use App\Services\CaseOperations;
 use App\Services\VehicleFinanceWorkspace;
 use Illuminate\Http\JsonResponse;
@@ -212,15 +213,10 @@ final class VehicleFinanceController extends Controller
      * Keep the SAME entry and private evidence. An event records the prior
      * status/date. This is a declaration, not a bank settlement.
      */
-    public function realize(Request $request, int $case, int $entry): JsonResponse
+    public function realize(RealizeVehicleFinanceEntryRequest $request, int $case, int $entry): JsonResponse
     {
         $this->operations->restrict($request, ['effective_on']);
-        $data = $request->validate([
-            'effective_on' => [
-                'required', 'date_format:Y-m-d',
-                'before_or_equal:'.now()->toDateString(),
-            ],
-        ]);
+        $data = $request->validated();
 
         $changed = DB::transaction(function () use ($request, $case, $entry, $data): bool {
             $this->operations->editable($case);
