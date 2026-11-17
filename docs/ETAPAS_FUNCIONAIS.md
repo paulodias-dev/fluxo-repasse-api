@@ -77,3 +77,22 @@ Realizado significa ocorrência gerencial declarada; NÃO é confirmação de pa
 - [x] FormRequest de upload, OpenAPI 1.15 e testes feature escritos para duplicidade, vínculo por lançamento, limite, formato e 401/403.
 - [x] **Zero novos endpoints, tabelas, migrations, permissões, páginas ou dependências.**
 - [ ] QA real e homologação: PHPUnit SQLite/MySQL, Pint, build/lint/Vitest React e conferência visual em Android/iPhone/desktop.
+
+
+## Macro 37 — Rotina diária da frota (prioridade sem nova tela)
+
+- [x] Reutiliza GET /api/v1/operations/vehicles, indicadores existentes e PATCH de tarefas. **Não cria central, banco, endpoint ou grant novos.**
+- [x] Novo sort=priority é calculado no SQL ANTES da paginação: veículos ativos com tarefas vencidas → abertas → despesas previstas → identificação a completar → demais ativos → arquivados. Empate estável por quantidade de tarefas e atualização/ID.
+- [x] Nenhum prazo artificial para despesas, obrigação documental, pagamento, comissão ou SLA é criado pela ordenação.
+- [x] FormRequest específico para o filtro da carteira, preservando JWT Bearer, session.current, cases.manage e validações anteriores.
+- [x] A tela Meus veículos usa sort=priority como escolha padrão DO APP, mantendo sort=updated como padrão da API antiga para compatibilidade.
+- [x] Filtros de frota (busca, atenção, situação, ordenação e página) passam a ser lidos/escritos na URL, permitindo links diretos reais e navegação de voltar/avançar.
+- [x] Quatro filtros compactos com valores reais (vencidas, tarefas abertas, despesas previstas, identificação); contagens podem se sobrepor; estado de filtro é evidente.
+- [x] Nos cards mobile, cada veículo tem a próxima ação operacional baseada em contagens atuais; atalhos abrem a aba Pendências, Financeiro previsto ou Ficha. Ações de compra/venda/finanças permanecem.
+- [x] Ficha do veículo permite **Concluir tarefa** diretamente no celular, mantendo select de situação no desktop, ordem de tarefas abertas antes das concluídas e formulários compactos.
+- [x] Deep link 'financeStatus=planned' apresenta os lançamentos previstos na mesma aba Financeiro (sem nova tela).
+- [x] Dashboard Metronic mantém cards de indicadores col-6 no mobile e apresenta atalhos compactos vinculados à lista de frota filtrada; funções avançadas permanecem acessíveis.
+- [x] OpenAPI 1.16 documenta priority; feature tests escritos para ordem, arquivamento, paginação/filtros, conclusão de tarefa e realização de despesa.
+- [ ] QA ainda não executado: composer test/lint, PHPUnit SQLite/MySQL, build/lint React e inspeção visual real mobile/desktop.
+
+Nenhuma mutação financeira nova ou integração bancária. Medição global de conclusão não pode ser derivada destas etapas sem reavaliar requisitos e homologação. Não executar migrate:fresh --seed: esta macro não tem migration.
