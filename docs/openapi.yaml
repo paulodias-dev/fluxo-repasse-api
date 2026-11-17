@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.10.0
+  version: 1.11.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -22,9 +22,211 @@ tags:
   - name: Cenários de repasse
   - name: Modelos e lotes
   - name: Revisão documental
+  - name: Revisões comerciais
   - name: Central comercial
   - name: Pacotes documentais
 paths:
+  /commercial-reviews:
+    get:
+      tags: [Revisões comerciais]
+      summary: Consultar fila de pareceres documentais de condições comerciais
+      operationId: commercialReviewIndex
+      security: [{ BearerAuth: [] }]
+      description: Requer cases.manage e scenarios.manage. Não autoriza pagamentos.
+      parameters:
+        - { name: case_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: term_id, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, pending, reviewed, changes_requested, withdrawn] } }
+        - { name: scope, in: query, schema: { type: string, enum: [all, requested, assigned] } }
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Resumo e revisões paginadas; payment_enabled false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Revisões comerciais]
+      summary: Solicitar conferência humana de versão exata da minuta
+      operationId: commercialReviewStore
+      security: [{ BearerAuth: [] }]
+      description: |
+        Cria solicitação idempotente UUID, com versão e SHA históricos.
+        Sem autorização financeira ou decisão automática. Requer cases.manage e scenarios.manage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [case_id, term_id, term_revision, request_key, request_note]
+              properties:
+                case_id: { type: integer, minimum: 1 }
+                term_id: { type: integer, minimum: 1 }
+                term_revision: { type: integer, minimum: 1 }
+                request_key: { type: string, format: uuid }
+                request_note: { type: string, minLength: 10, maxLength: 5000 }
+                assigned_to: { type: integer, minimum: 1, nullable: true }
+                due_on: { type: string, format: date, nullable: true }
+      responses:
+        '201': { description: Solicitação documental criada }
+        '200': { description: Retry idempotente da solicitação existente }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Minuta não pertence ao veículo }
+        '409': { description: Revisão obsoleta, duplicada ou chave conflitante }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-reviews/{review}:
+    get:
+      tags: [Revisões comerciais]
+      summary: Consultar parecer comercial e verificações atuais
+      operationId: commercialReviewShow
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Parecer e flags de obsolescência e de conferência documental, payment_enabled false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Parecer inexistente }
+        '409': { description: Integridade da minuta inválida }
+  /commercial-reviews/{review}/assign:
+    post:
+      tags: [Revisões comerciais]
+      summary: Atribuir revisor independente habilitado
+      operationId: commercialReviewAssign
+      security: [{ BearerAuth: [] }]
+      description: Requer scenario_reviews.manage adicional e segregação contra autor/solicitante.
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, assigned_to]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                assigned_to: { type: integer, minimum: 1, nullable: true }
+      responses:
+        '200': { description: Revisor atualizado na análise documental }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Revisão desatualizada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-reviews/{review}/decide:
+    post:
+      tags: [Revisões comerciais]
+      summary: Registrar parecer documental, nunca aprovação financeira
+      operationId: commercialReviewDecide
+      security: [{ BearerAuth: [] }]
+      description: |
+        Requer scenario_reviews.manage adicional e segregação autor/editor/solicitante.
+        reviewed exige dez condições preenchidas, partes, modelo e documentos atuais.
+        changes_requested é pedido de correções, não recusa de operação financeira.
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, decision, note]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                decision: { type: string, enum: [reviewed, changes_requested] }
+                note: { type: string, minLength: 10, maxLength: 5000 }
+      responses:
+        '200': { description: Parecer documental registrado, financial_authorization false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Versão ou vínculos obsoletos }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-reviews/{review}/comment:
+    post:
+      tags: [Revisões comerciais]
+      summary: Inserir comentário auditável na análise pendente
+      operationId: commercialReviewComment
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 2, maxLength: 3000 }
+      responses:
+        '200': { description: Comentário registrado com evento SHA }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-reviews/{review}/withdraw:
+    post:
+      tags: [Revisões comerciais]
+      summary: Retirar solicitação pendente pelo solicitante
+      operationId: commercialReviewWithdraw
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, note]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                note: { type: string, minLength: 10, maxLength: 3000 }
+      responses:
+        '200': { description: Solicitação retirada, histórico preservado }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { description: Revisão da análise desatualizada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /commercial-reviews/{review}/events:
+    get:
+      tags: [Revisões comerciais]
+      summary: Listar eventos e hashes históricos da análise
+      operationId: commercialReviewEvents
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Eventos paginados de histórico privado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-reviews/{review}/snapshot:
+    get:
+      tags: [Revisões comerciais]
+      summary: Snapshot SHA-256 imutável da versão originalmente submetida
+      operationId: commercialReviewSnapshot
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Snapshot imutável, is_stale e financial_authorization false }
+        '409': { description: Integridade da versão histórica inválida }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-reviews/{review}/integrity:
+    get:
+      tags: [Revisões comerciais]
+      summary: Verificar hash chain interno e referência da versão histórica
+      operationId: commercialReviewIntegrity
+      security: [{ BearerAuth: [] }]
+      description: Verificação interna, não assinatura digital externa ou certificado.
+      parameters:
+        - { name: review, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Valid, checked_events e escopo de verificação interna }
+        '409': { description: Integridade documental inválida }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /commercial-portfolio:
     get:
       tags: [Central comercial]
