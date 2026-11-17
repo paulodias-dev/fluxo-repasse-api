@@ -14,7 +14,7 @@ Rota **existente** POST /api/v1/repasse-cases/{case}/finance/entries/{entry}/doc
 - Se novo, armazena em disco privado no prefixo do veículo, grava evidência, cria vínculo autorizado e evento document_attached, retorna 201 created=true.
 - Não deduplicar entre lançamentos/veículos e não permitir leitura cruzada; sem criação de arquivos públicos, URLs compartilháveis ou informações bancárias.
 - Evidências arquivadas não são baixadas; SHA-256 verificado antes de download.
-- API segue JWT, sessão corrente, cases.manage e CSRF/segurança padrão da aplicação.
+- API segue JWT Bearer, sessão corrente, cases.manage, throttling de escrita e cabeçalhos privados; não depende de cookies de autenticação.
 - A presença de comprovante não significa que uma obrigação financeira foi paga ou liquidada.
 
 ## React e Metronic Demo 1
@@ -25,7 +25,7 @@ Rota **existente** POST /api/v1/repasse-cases/{case}/finance/entries/{entry}/doc
 - Nenhum cache local de dados privados e nenhuma biblioteca de edição/conversão adicionada.
 
 ## Critérios de aceite e evidências
-- Feature tests incluídos: novo PDF, repetição idempotente no mesmo lançamento, dois lançamentos distintos, 401/403, arquivo inválido, tamanho máximo, campos proibidos e ausência de duplicata no banco/disco.
+- Feature tests incluídos: novo PDF, foto PNG privada, repetição idempotente no mesmo lançamento, bloqueio 409 em original adulterado, dois lançamentos distintos, 401/403, arquivo inválido, tamanho máximo, campos proibidos e ausência de duplicata no banco/disco.
 - QA manual: câmera Android/iOS, seleção de PDF/foto, arquivo HEIC e tamanho excedido, URL direta e consulta de comprovante, duas colunas em 320/375/390px, desktop e temas Metronic.
 - **Testes executados nesta macro: nenhum**. Build, testes automatizados e validação visual real pendentes para homologação. Não executar migrate:fresh --seed: sem migrations novas.
 
