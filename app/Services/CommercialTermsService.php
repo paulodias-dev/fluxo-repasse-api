@@ -143,6 +143,8 @@ final class CommercialTermsService
                 'reference_cents' => $fields['reference_cents'],
                 'conditions' => $this->encode($fields['conditions']),
                 'revision' => 1, 'content_sha256' => $this->sha($fields),
+                'forked_from_term_id' => $fork['term'] ?? null,
+                'forked_from_revision' => $fork['revision'] ?? null,
                 'created_by' => $request->user('api')->id,
                 'updated_by' => $request->user('api')->id,
                 'created_at' => $now, 'updated_at' => $now,
@@ -257,6 +259,8 @@ final class CommercialTermsService
     {
         return ['id' => (int) $row->id, 'case_id' => (int) $row->repasse_case_id,
             'revision' => (int) $row->revision, 'archived_at' => $row->archived_at,
+            'forked_from_term_id' => $row->forked_from_term_id,
+            'forked_from_revision' => $row->forked_from_revision,
             'content' => $this->fields($row)];
     }
 
@@ -281,7 +285,9 @@ final class CommercialTermsService
             ->where('t.repasse_case_id', $case)
             ->select('t.id', 't.title', 't.revision', 't.description',
                 't.template_id', 't.template_revision', 'm.name as template_name',
-                't.reference_cents', 't.archived_at', 't.created_at', 't.updated_at')
+                't.reference_cents', 't.archived_at',
+                't.forked_from_term_id', 't.forked_from_revision',
+                't.created_at', 't.updated_at')
             ->orderByDesc('t.updated_at')->orderByDesc('t.id');
 
         if (($filters['status'] ?? 'all') === 'active') $query->whereNull('t.archived_at');
@@ -340,6 +346,8 @@ final class CommercialTermsService
         return [
             'id' => (int) $row->id, 'case_id' => $case,
             'revision' => (int) $row->revision, 'archived_at' => $row->archived_at,
+            'forked_from_term_id' => $row->forked_from_term_id,
+            'forked_from_revision' => $row->forked_from_revision,
             'created_at' => $row->created_at, 'updated_at' => $row->updated_at,
             'content_sha256' => $row->content_sha256,
             ...$fields,
