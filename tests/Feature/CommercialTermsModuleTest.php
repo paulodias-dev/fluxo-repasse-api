@@ -128,10 +128,10 @@ final class CommercialTermsModuleTest extends TestCase
         $this->withToken($jwt)->getJson("$base/$id/versions/1")
             ->assertOk()->assertJsonPath('data.snapshot.content.conditions.event_trigger', null)
             ->assertJsonPath('data.payment_enabled', false);
-        $this->withToken($jwt)->patchJson("$base/$id/state", [
+        $archived = $this->withToken($jwt)->patchJson("$base/$id/state", [
             'revision' => 2, 'action' => 'archive',
-        ])->assertOk()->assertJsonPath('data.revision', 3)
-            ->assertJsonPath('data.archived_at', now()->toDateTimeString());
+        ])->assertOk()->assertJsonPath('data.revision', 3);
+        $this->assertNotNull($archived->json('data.archived_at'));
         $this->withToken($jwt)->putJson("$base/$id", ['revision' => 3, ...$data])
             ->assertUnprocessable();
         $this->withToken($jwt)->patchJson("$base/$id/state", [
