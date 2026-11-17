@@ -88,6 +88,8 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('summary.expense_realized_total_cents', 0)
             ->assertJsonPath('summary.projected_result_known_total_cents', 0)
             ->assertJsonPath('summary.vehicles_with_projected_result', 0)
+            ->assertJsonPath('summary.vehicles_with_sale_result', 0)
+            ->assertJsonPath('summary.sale_result_known_total_cents', 0)
             ->assertJsonCount(0, 'data')
             ->assertJsonPath('total', 0);
     }
@@ -142,6 +144,7 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('data.0.current_cost_cents', 5100000)
             ->assertJsonPath('data.0.projected_cost_cents', 5150000)
             ->assertJsonPath('data.0.projected_result_cents', 1880000)
+            ->assertJsonPath('data.0.sale_result_cents', null)
             ->assertJsonPath('summary.vehicles_total', 1)
             ->assertJsonPath('summary.vehicles_overdue', 1)
             ->assertJsonPath('summary.vehicles_with_open_tasks', 1)
@@ -155,7 +158,23 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonPath('summary.income_realized_total_cents', 20000)
             ->assertJsonPath('summary.income_planned_total_cents', 10000)
             ->assertJsonPath('summary.vehicles_with_projected_result', 1)
-            ->assertJsonPath('summary.projected_result_known_total_cents', 1880000);
+            ->assertJsonPath('summary.projected_result_known_total_cents', 1880000)
+            ->assertJsonPath('summary.vehicles_with_sale_result', 0)
+            ->assertJsonPath('summary.sale_result_known_total_cents', 0);
+
+        // Sale date explicitly distinguishes recorded sale from undated estimate,
+        // WITHOUT treating it as confirmation of receiving bank funds.
+        $this->withToken($token)->patchJson($base, [
+            'sold_on' => '2026-11-15',
+        ])->assertOk();
+        $this->withToken($token)->getJson('/api/v1/operations/vehicles')
+            ->assertOk()
+            ->assertJsonPath('data.0.sale_result_cents', 1920000)
+            ->assertJsonPath('data.0.projected_result_cents', 1880000)
+            ->assertJsonPath('summary.vehicles_with_sale_result', 1)
+            ->assertJsonPath('summary.sale_result_known_total_cents', 1920000);
+        $this->withToken($token)->getJson("$base/finance/summary")
+            ->assertOk()->assertJsonPath('data.sale_result_cents', 1920000);
     }
 
     public function test_attention_filters_ignore_archived_vehicles_and_do_not_conflate_null_with_zero(): void
@@ -200,7 +219,8 @@ final class VehiclePortfolioTest extends TestCase
             ->assertJsonCount(0, 'data');
         $response = $this->withToken($token)->getJson("$base?search=Toyota");
         $response->assertJsonPath('data.0.current_cost_cents', 0)
-            ->assertJsonPath('data.0.projected_result_cents', null);
+            ->assertJsonPath('data.0.projected_result_cents', null)
+            ->assertJsonPath('data.0.sale_result_cents', null);
         $response->assertJsonPath('summary.vehicles_with_projected_result', 0)
             ->assertJsonPath('summary.projected_result_known_total_cents', 0);
         $this->withToken($token)->getJson("$base?search=documenta%C3%A7%C3%A3o")

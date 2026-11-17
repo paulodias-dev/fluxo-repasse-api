@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.12.0
+  version: 1.13.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -731,7 +731,9 @@ paths:
         anexos e valores são pré-agregadas por veículo, sem multiplicação
         por joins. Custos são gerenciais e não geram pagamento ou liquidação.
         Veículos arquivados podem ser consultados, mas não são selecionados
-        pelos filtros de pendência.
+        pelos filtros de pendência. sale_result_cents só é calculado quando
+        sold_on, compra e venda estão informados, sem considerar valores previstos.
+        Não atesta liquidação ou recebimento bancário.
       security:
         - BearerAuth: []
       parameters:
@@ -3632,6 +3634,11 @@ components:
         current_cost_cents: { type: integer, format: int64, nullable: true }
         projected_cost_cents: { type: integer, format: int64, nullable: true }
         projected_result_cents: { type: integer, format: int64, nullable: true }
+        sale_result_cents:
+          type: integer
+          format: int64
+          nullable: true
+          description: Venda datada + receitas realizadas - compra - despesas realizadas; não comprova recebimento.
         updated_at: { type: string, format: date-time }
     VehiclePortfolioSummary:
       type: object
@@ -3654,6 +3661,11 @@ components:
         income_realized_total_cents: { type: integer, format: int64, minimum: 0 }
         income_planned_total_cents: { type: integer, format: int64, minimum: 0 }
         vehicles_with_projected_result: { type: integer, minimum: 0 }
+        vehicles_with_sale_result: { type: integer, minimum: 0 }
+        sale_result_known_total_cents:
+          type: integer
+          format: int64
+          description: Total gerencial SOMENTE das vendas datadas com compra e venda informadas, sem despesas/receitas previstas.
         projected_result_known_total_cents:
           type: integer
           format: int64
