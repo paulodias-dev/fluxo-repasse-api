@@ -193,3 +193,9 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - JWT + session.current + cases.manage E scenarios.manage. Nenhum papel técnico concede autorização monetária.
 - Continuar no layout Metronic oficial da main: cards mobile col-6, ações compactas, desktop preservado; sem CSS global ou novo shell.
 - QA de homologação apenas com evidência real; não declarar PHP/React/Pint/MySQL aprovados sem executar.
+
+## Macro 46 — consulta global sem afirmar validade financeira
+- A Central Comercial pode agregar número/última proposta por minuta, mas não pode declarar fotografia "atual" sem comparação integral de SHA. Timestamp t.updated_at posterior a op.created_at só comprova minuta editada depois, não outros motivos de obsolescência.
+- Filtros e CSV devem compartilhar a MESMA query SQL antes da paginação; agrupar propostas por term_id para não multiplicar contagens. Paginação de 20 minutas não limita indicadores globais.
+- JWT + session.current + cases.manage E scenarios.manage. Nenhuma permissão financeira, obrigação, banco, taxa ou comissão surge da Central.
+- Testes feature e OpenAPI necessários, executados somente com evidência real. O layout do app permanece mobile-first, sem novos menus.
