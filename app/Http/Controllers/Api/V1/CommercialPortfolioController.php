@@ -25,6 +25,7 @@ final class CommercialPortfolioController extends Controller
             'preparation' => ['sometimes', Rule::in([
                 'all', 'reviewed', 'needs_review', 'reference_missing', 'model_outdated',
             ])],
+            'proposals' => ['sometimes', Rule::in(['all', 'with_proposals', 'without_proposals', 'term_edited'])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
     }
@@ -37,6 +38,13 @@ final class CommercialPortfolioController extends Controller
             ->select('term_id', 'term_revision', 'term_sha256')
             ->selectRaw('MAX(id) AS review_id')
             ->groupBy('term_id', 'term_revision', 'term_sha256');
+        // Uma linha por minuta, contando propostas antes de paginar.
+        // Nada de N+1 nem multiplicação de linhas ao combinar revisões.
+        $proposalTotals = DB::table('repasse_obligation_proposals')
+            ->select('term_id')
+            ->selectRaw('COUNT(*) AS proposal_count')
+            ->selectRaw('MAX(id) AS latest_proposal_id')
+            ->groupBy('term_id');
         $query = DB::table('repasse_commercial_terms as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id')
@@ -45,7 +53,13 @@ final class CommercialPortfolioController extends Controller
                     ->on('lr.term_revision', '=', 't.revision')
                     ->on('lr.term_sha256', '=', 't.content_sha256');
             })
-            ->leftJoin('repasse_commercial_reviews as cr', 'cr.id', '=', 'lr.review_id');
+            ->leftJoin('repasse_commercial_reviews as cr', 'cr.id', '=', 'lr.review_id')
+            ->leftJoinSub($proposalTotals, 'pt', static function ($join): void {
+                $join->on('pt.term_id', '=', 't.id');
+            })
+            ->leftJoin('repasse_obligation_proposals as op', 'op.id', '=', 'pt.latest_proposal_id')
+            ->leftJoin('repasse_preparation_records as prep', 'prep.id', '=', 'op.preparation_record_id')
+            ->leftJoin('parties as payer', 'payer.id', '=', 'op.payer_party_id');
 
         if (($filters['status'] ?? 'all') === 'active') {
             $query->whereNull('t.archived_at');
@@ -81,7 +95,27 @@ final class CommercialPortfolioController extends Controller
                 break;
         }
 
+        switch ($filters['proposals'] ?? 'all') {
+            case 'with_proposals':
+                $query->whereNotNull('op.id');
+                break;
+            case 'without_proposals':
+                $query->whereNull('op.id');
+                break;
+            case 'term_edited':
+                $this->termEditedAfterProposal($query);
+                break;
+        }
+
         return $query;
+    }
+
+    // Sinal verificável de alteração da MINUTA. Alterações de parecer,
+    // financeiro e vínculos podem exigir revisão na ficha mesmo sem este sinal.
+    private function termEditedAfterProposal(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
+    {
+        return $query->whereNotNull('op.id')
+            ->whereColumn('t.updated_at', '>', 'op.created_at');
     }
 
     private function needsReview(\Illuminate\Database\Query\Builder $query): \Illuminate\Database\Query\Builder
@@ -109,6 +143,10 @@ final class CommercialPortfolioController extends Controller
             'm.name as template_name', 'm.archived_at as model_archived_at',
             't.reference_cents', 't.archived_at', 't.created_at', 't.updated_at',
             'cr.id as current_review_id', 'cr.status as current_review_status',
+            'pt.proposal_count', 'op.id as last_proposal_id',
+            'op.created_at as last_proposal_created_at',
+            'prep.net_cents as last_proposal_net_cents',
+            'payer.name as last_proposal_payer_name',
         ];
     }
 
@@ -124,6 +162,9 @@ final class CommercialPortfolioController extends Controller
         $modelOutdated = $row->current_template_revision === null
             || $row->model_archived_at !== null
             || (int) $row->current_template_revision !== (int) $row->template_revision;
+
+        $hasProposal = $row->last_proposal_id !== null;
+        $termEdited = $hasProposal && $row->updated_at > $row->last_proposal_created_at;
 
         return [
             'id' => (int) $row->id,
@@ -146,6 +187,14 @@ final class CommercialPortfolioController extends Controller
             'current_review_id' => $row->current_review_id === null ? null : (int) $row->current_review_id,
             'current_review_status' => $row->current_review_status ?? 'not_requested',
             'reference_missing' => $row->reference_cents === null,
+            'proposal_count' => (int) ($row->proposal_count ?? 0),
+            'last_proposal_id' => $hasProposal ? (int) $row->last_proposal_id : null,
+            'last_proposal_created_at' => $row->last_proposal_created_at,
+            'last_proposal_net_cents' => $row->last_proposal_net_cents === null
+                ? null : (int) $row->last_proposal_net_cents,
+            'last_proposal_payer_name' => $row->last_proposal_payer_name,
+            'proposal_source_state' => ! $hasProposal ? 'none'
+                : ($termEdited ? 'term_edited' : 'verify_in_detail'),
             'vehicle_archived' => $row->case_status !== 'draft',
             'full_documentary_checks_pending' => true,
             'financial_authorization' => false,
@@ -165,6 +214,10 @@ final class CommercialPortfolioController extends Controller
             'reviewed_current_revision' => (clone $query)->where('cr.status', 'reviewed')->count('t.id'),
             'needs_documentary_review' => $this->needsReview(clone $query)->count('t.id'),
             'reference_missing' => (clone $query)->whereNull('t.reference_cents')->count('t.id'),
+            'terms_with_proposals' => (clone $query)->whereNotNull('op.id')->count('t.id'),
+            'terms_without_proposals' => (clone $query)->whereNull('op.id')->count('t.id'),
+            'terms_edited_after_proposal' => $this->termEditedAfterProposal(clone $query)->count('t.id'),
+            'proposal_records_total' => (int) (clone $query)->sum('pt.proposal_count'),
         ];
         $terms = (clone $query)->select($this->columns())
             ->orderByDesc('t.updated_at')->orderByDesc('t.id')->paginate(20);
@@ -197,6 +250,8 @@ final class CommercialPortfolioController extends Controller
                 'Campos preenchidos', 'Campos pendentes', 'Modelo desatualizado',
                 'Veículo arquivado', 'Parecer documental da versão atual',
                 'Referência manual ausente', 'Atualizada em', 'Autorização financeira',
+                'Propostas documentais', 'Última proposta ID', 'Valor hipotético (centavos)',
+                'Responsável declarado', 'Data última proposta', 'Conferência da fonte',
             ], ';');
 
             $query->orderBy('t.id')->chunkById(100, function ($rows) use ($out): void {
@@ -214,6 +269,14 @@ final class CommercialPortfolioController extends Controller
                         $this->safe($item['current_review_status']),
                         $item['reference_missing'] ? 'Sim' : 'Não',
                         $item['updated_at'], 'NÃO AUTORIZA PAGAMENTO',
+                        $item['proposal_count'], $item['last_proposal_id'],
+                        $item['last_proposal_net_cents'],
+                        $this->safe($item['last_proposal_payer_name']),
+                        $item['last_proposal_created_at'],
+                        $item['proposal_source_state'] === 'term_edited'
+                            ? 'MINUTA ALTERADA APÓS PROPOSTA'
+                            : ($item['proposal_source_state'] === 'none'
+                                ? 'SEM PROPOSTAS' : 'VERIFICAR SHA NA FICHA'),
                     ], ';');
                 }
             }, 't.id', 'id');
