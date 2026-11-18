@@ -120,7 +120,21 @@ final class CommercialTermsService
 
     private function encode(array $value): string
     {
-        return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        return json_encode($this->canonical($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    private function canonical(array $value): array
+    {
+        if (! array_is_list($value)) {
+            ksort($value, SORT_STRING);
+        }
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = $this->canonical($item);
+            }
+        }
+
+        return $value;
     }
 
     private function sha(array $value): string
@@ -315,10 +329,12 @@ final class CommercialTermsService
         $row = TenantDB::table('repasse_commercial_terms')
             ->where('repasse_case_id', $case)->where('id', $term)->firstOrFail();
         $fields = $this->fields($row);
-        if (! hash_equals($row->content_sha256, $this->sha($fields))) {
+        if (! HistoricalHashCompatibility::commercialFields($fields, $row->content_sha256)) {
             abort(409, 'Minuta inconsistente. Integridade do conteúdo não confirmada.');
         }
-        if (! hash_equals($fields['template_sha256'], $this->sha($fields['template_snapshot']))) {
+        if (! HistoricalHashCompatibility::distributionTemplate(
+            $fields['template_snapshot'], $fields['template_sha256']
+        )) {
             abort(409, 'Snapshot do modelo de distribuição inconsistente.');
         }
         $model = TenantDB::table('repasse_distribution_templates')
@@ -409,7 +425,7 @@ final class CommercialTermsService
         $row = TenantDB::table('repasse_commercial_term_versions')
             ->where('term_id', $term)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
-        if (! hash_equals($row->sha256, $this->sha($snapshot))) {
+        if (! HistoricalHashCompatibility::commercialTerm($snapshot, $row->sha256)) {
             abort(409, 'Integridade da revisão histórica não confirmada.');
         }
         return ['revision' => (int) $row->revision,

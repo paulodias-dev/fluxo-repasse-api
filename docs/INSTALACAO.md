@@ -1,9 +1,11 @@
 # Instalação — Fluxo Repasse API (Macroentrega 03)
 
 ## Requisitos
+
 PHP >=8.3, Composer 2, extensões `pdo_mysql`, `mbstring`, `openssl`, `xml`, `sodium` e demais dependências exigidas pelo Laravel; MySQL 8+; servidor HTTPS para produção.
 
 ## Primeira instalação
+
 ```bash
 git clone https://github.com/paulodias-dev/fluxo-repasse-api.git
 cd fluxo-repasse-api
@@ -12,6 +14,7 @@ cp .env.example .env
 php artisan key:generate
 php artisan jwt:secret
 ```
+
 Criar banco e usuário MySQL com UTF8MB4 e privilégios mínimos. Configurar `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` no `.env`.
 
 ```bash
@@ -21,6 +24,7 @@ php artisan serve --host=127.0.0.1 --port=8000
 ```
 
 ## Atualização a partir da Macro 02
+
 1. Fazer backup restaurável do banco; não executar `migrate:fresh`.
 2. Atualizar código e instalar dependências com lockfile reproduzível.
 3. Validar `JWT_SECRET` e cache da blacklist compartilhado em instalações com múltiplas instâncias.
@@ -29,14 +33,17 @@ php artisan serve --host=127.0.0.1 --port=8000
 6. Validar a troca de senha, o bloqueio da conta e a consulta a perfil com JWT novo.
 
 ## Gestão de contas via terminal
+
 ```bash
 php artisan repasse:user:create
 php artisan repasse:user:status usuario@dominio.com inativo
 php artisan repasse:user:status usuario@dominio.com ativo
 ```
+
 Status pede confirmação; em scripts de manutenção supervisionados há `--yes`. Cada alteração incrementa `auth_version` e revoga todos os tokens anteriores. Não existe cadastro nem gestão administrativa pública de usuários.
 
 ## QA
+
 ```bash
 bash scripts/qa-preflight.sh
 composer validate --strict
@@ -45,9 +52,11 @@ composer lint
 php artisan migrate:status
 php artisan route:list --path=api
 ```
+
 O teste rápido PHPUnit usa SQLite em memória; execução MySQL real é obrigatória antes de homologação. `composer.lock` deve ser gerado e versionado em ambiente com Packagist/Composer; nunca inventar hash de dependência ou publicar sem lock.
 
 ## Configurações obrigatórias
+
 `APP_DEBUG=false` fora do desenvolvimento, `APP_KEY` e `JWT_SECRET` próprios do ambiente, `JWT_TTL=15`, `JWT_REFRESH_TTL=20160`, `JWT_REFRESH_IAT=true`, `JWT_BLACKLIST_ENABLED=true`, CORS com origem explícita e TLS. O access token dura 15 minutos; a renovação persistente fica limitada à janela de 14 dias desde a última atividade. Não inserir segredos em `VITE_*` do frontend.
 
 ## Habilitação da Macroentrega 04
@@ -157,11 +166,13 @@ php artisan migrate:fresh --seed
 ```
 
 O `DatabaseSeeder` cadastra o catálogo de permissões global e os papéis funcionais independentes em cada empresa de demonstração:
+
 - `platform_admin`: papel técnico global, somente via CLI autorizada, nunca concedido no seeder aos usuários DEMO.
 - `tenant_admin` → **Administrador:** gerencia sua própria empresa, usuários, frota, participantes e módulos permitidos.
 - `tenant_user` → **Usuário:** frota, participantes e cenários sem gerenciar usuários/papéis.
 
 Somente local, `SaasDemoSeeder` cria **duas empresas fictícias**:
+
 - **Revenda Alfa — DEMONSTRAÇÃO**: `admin.demo-alfa@example.invalid` e `usuario.demo-alfa@example.invalid`
 - **Repasse Beta — DEMONSTRAÇÃO**: `admin.demo-beta@example.invalid` e `usuario.demo-beta@example.invalid`
 
@@ -170,17 +181,13 @@ Cada empresa possui 5 participantes, 3 veículos (estoque/vendido/arquivado), de
 **Senha:** o seeder gera uma senha aleatória e a exibe **uma vez no terminal na criação dos usuários**; ela não depende de `.env`, não é gravada em código e não é enviada por e-mail.
 
 Provisionamento de empresa real (terminal administrativo; senha solicitada sem eco):
+
 ```bash
 php artisan repasse:tenant:create repasse-nova "Repasse Nova Ltda." admin@exemplo.com.br
 php artisan repasse:user:create
 ```
-O segundo comando pergunta o slug da empresa e cria um usuário funcional. Cadastrar outros usuários via admin React também os vincula ao tenant da sessão, sem aceitar tenant_id do cliente.
 
-Para preparar rapidamente o tenant de desenvolvimento usado pela interface:
-```bash
-php artisan repasse:tenant:seed
-```
-O comando é bloqueado fora de `local/testing`, é idempotente e cria o administrador `admin.repasse@fluxosistemas.com.br` com a senha de teste definida para o ambiente local. Não executar nem reutilizar essa credencial em produção.
+O segundo comando pergunta o slug da empresa e cria um usuário funcional. Cadastrar outros usuários via admin React também os vincula ao tenant da sessão, sem aceitar tenant_id do cliente.
 
 **QA de isolamento:** testar dois logins de empresas diferentes, listagens, detalhe por ID de outra empresa (404), upload/download de documentos, filtros, dashboard, segurança de roles, JWT antigo e empresa desativada. `php artisan test --filter=SaasTenantIsolationTest`, `composer test`, `composer lint`. Estes comandos **não foram executados** via conector GitHub.
 

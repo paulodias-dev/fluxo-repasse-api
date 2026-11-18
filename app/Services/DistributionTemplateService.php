@@ -30,7 +30,31 @@ final class DistributionTemplateService
 
     public function digest(array $fields): string
     {
-        return hash('sha256', json_encode($fields, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        return $this->sha($fields);
+    }
+
+    private function encode(array $value): string
+    {
+        return json_encode($this->canonical($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    private function canonical(array $value): array
+    {
+        if (! array_is_list($value)) {
+            ksort($value, SORT_STRING);
+        }
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $value[$key] = $this->canonical($item);
+            }
+        }
+
+        return $value;
+    }
+
+    private function sha(array $value): string
+    {
+        return hash('sha256', $this->encode($value));
     }
 
     public function ensureCaseEditable(int $caseId): void
@@ -245,8 +269,7 @@ final class DistributionTemplateService
         $row = TenantDB::table('repasse_distribution_versions')
             ->where('template_id', $id)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
-        $serialized = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        if (! hash_equals($row->sha256, hash('sha256', $serialized))) {
+        if (! HistoricalHashCompatibility::distributionTemplate($snapshot, $row->sha256)) {
             abort(500, 'Integridade da revisão não confirmada.');
         }
         return [
@@ -277,11 +300,11 @@ final class DistributionTemplateService
     private function record(int $id, Request $request, string $event): void
     {
         $data = $this->show($id);
-        $serialized = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $serialized = $this->encode($data);
         TenantDB::table('repasse_distribution_versions')->insert([
             'template_id' => $id, 'revision' => $data['revision'],
             'event_type' => $event, 'snapshot' => $serialized,
-            'sha256' => hash('sha256', $serialized),
+            'sha256' => $this->sha($data),
             'actor_user_id' => $request->user('api')->id, 'created_at' => now(),
         ]);
         TenantDB::table('repasse_case_events')->insert([
