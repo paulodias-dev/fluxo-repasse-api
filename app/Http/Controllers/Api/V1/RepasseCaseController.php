@@ -543,6 +543,11 @@ final class RepasseCaseController extends Controller
         if ($soldOn === null) {
             return; // An undated sale amount remains a projection, not a recorded sale.
         }
+        if ($soldOn > now()->toDateString()) {
+            throw ValidationException::withMessages([
+                'sold_on' => 'A venda realizada não pode ter data futura.',
+            ]);
+        }
         if ($saleCents === null || (int) $saleCents < 1) {
             throw ValidationException::withMessages([
                 'sale_amount_cents' => 'Informe um valor de venda maior que zero para registrar a venda.',
