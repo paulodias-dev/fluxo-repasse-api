@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Services\ScenarioReviewQueries;
 use App\Services\ScenarioReviewService;
@@ -42,7 +44,7 @@ final class ScenarioReviewController extends Controller
 
     public function forScenario(Request $request, int $scenario): JsonResponse
     {
-        DB::table('repasse_scenarios')->where('id', $scenario)->firstOrFail();
+        TenantDatabase::table('repasse_scenarios')->where('id', $scenario)->firstOrFail();
         $filters = $this->filters($request);
         $filters['scenario_id'] = $scenario;
         return $this->json($this->queries->list($filters, (int) $request->user('api')->id));
@@ -150,7 +152,7 @@ final class ScenarioReviewController extends Controller
                     $this->csv($allocation['party_name'] ?? null),
                     '', 'CENTAVOS: '.$allocation['amount_cents'].'; SEM AUTORIZAÇÃO FINANCEIRA'], ';');
             }
-            $events = DB::table('repasse_scenario_review_events as e')
+            $events = TenantDatabase::table('repasse_scenario_review_events as e')
                 ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
                 ->where('e.review_id', $review)->select('e.sequence', 'e.event_type',
                     'e.created_at', 'e.body', 'e.event_hash', 'u.name as actor_name')

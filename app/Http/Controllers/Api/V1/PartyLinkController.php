@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Models\Party;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +16,7 @@ final class PartyLinkController extends Controller
 {
     public function index(Party $party): JsonResponse
     {
-        $links = DB::table('party_links as links')
+        $links = TenantDatabase::table('party_links as links')
             ->join('parties as related', 'related.id', '=', 'links.related_party_id')
             ->where('links.party_id', $party->id)
             ->select('links.id', 'links.party_id', 'links.related_party_id',
@@ -43,13 +45,13 @@ final class PartyLinkController extends Controller
             if (! $party->fresh()->is_active || ! $related->is_active) {
                 throw ValidationException::withMessages(['related_party_id' => 'Ambos os cadastros devem estar ativos.']);
             }
-            $exists = DB::table('party_links')->where('party_id', $party->id)
+            $exists = TenantDatabase::table('party_links')->where('party_id', $party->id)
                 ->where('related_party_id', $related->id)->where('description', $description)->exists();
             if ($exists) {
                 throw ValidationException::withMessages(['description' => 'Este vínculo já existe.']);
             }
             $now = now();
-            $id = DB::table('party_links')->insertGetId([
+            $id = TenantDatabase::table('party_links')->insertGetId([
                 'party_id' => $party->id,
                 'related_party_id' => $related->id,
                 'description' => $description,
@@ -78,7 +80,7 @@ final class PartyLinkController extends Controller
         }
 
         $changed = DB::transaction(function () use ($request, $party, $link, $data): bool {
-            $row = DB::table('party_links')->where('party_id', $party->id)
+            $row = TenantDatabase::table('party_links')->where('party_id', $party->id)
                 ->where('id', $link)->lockForUpdate()->first();
             if (! $row) abort(404);
             $description = array_key_exists('description', $data) ? trim($data['description']) : $row->description;
@@ -91,13 +93,13 @@ final class PartyLinkController extends Controller
                 throw ValidationException::withMessages(['is_active' => 'Cadastros inativos não podem ter vínculos ativados.']);
             }
             if ($description === $row->description && $active === (bool) $row->is_active) return false;
-            $duplicate = DB::table('party_links')->where('party_id', $party->id)
+            $duplicate = TenantDatabase::table('party_links')->where('party_id', $party->id)
                 ->where('related_party_id', $row->related_party_id)
                 ->where('description', $description)->where('id', '!=', $link)->exists();
             if ($duplicate) {
                 throw ValidationException::withMessages(['description' => 'Este vínculo já existe.']);
             }
-            DB::table('party_links')->where('id', $link)->update([
+            TenantDatabase::table('party_links')->where('id', $link)->update([
                 'description' => $description, 'is_active' => $active,
                 'updated_by' => $request->user('api')->getAuthIdentifier(), 'updated_at' => now(),
             ]);
@@ -120,7 +122,7 @@ final class PartyLinkController extends Controller
 
     private function find(Party $party, int $id): object
     {
-        return DB::table('party_links as links')->join('parties as related', 'related.id', '=', 'links.related_party_id')
+        return TenantDatabase::table('party_links as links')->join('parties as related', 'related.id', '=', 'links.related_party_id')
             ->where('links.party_id', $party->id)->where('links.id', $id)
             ->select('links.id', 'links.party_id', 'links.related_party_id', 'links.description',
                 'links.is_active', 'links.created_at', 'links.updated_at',
@@ -130,7 +132,7 @@ final class PartyLinkController extends Controller
 
     private function event(int $partyId, Request $request, string $type): void
     {
-        DB::table('party_events')->insert([
+        TenantDatabase::table('party_events')->insert([
             'party_id' => $partyId, 'actor_user_id' => $request->user('api')->getAuthIdentifier(),
             'event_type' => $type, 'created_at' => now(),
         ]);

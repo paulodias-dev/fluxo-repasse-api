@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +34,7 @@ final class VehicleAccountabilityController extends Controller
             'review_state' => ['sometimes', Rule::in(self::REVIEW_STATES)],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
-        $vehicle = DB::table('repasse_cases')->where('id', $case)
+        $vehicle = TenantDatabase::table('repasse_cases')->where('id', $case)
             ->select('id', 'title', 'status', 'plate', 'brand', 'model', 'updated_at')
             ->firstOrFail();
 
@@ -71,20 +73,20 @@ final class VehicleAccountabilityController extends Controller
             return $row;
         });
 
-        $documents = DB::table('repasse_case_evidence')->where('repasse_case_id', $case)
+        $documents = TenantDatabase::table('repasse_case_evidence')->where('repasse_case_id', $case)
             ->whereNull('archived_at')->count();
-        $parties = DB::table('repasse_case_parties as cp')
+        $parties = TenantDatabase::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $case)->where('p.is_active', true)->count();
-        $pendingTasks = DB::table('repasse_case_tasks')
+        $pendingTasks = TenantDatabase::table('repasse_case_tasks')
             ->where('repasse_case_id', $case)->whereIn('status', ['pending', 'doing'])->count();
-        $pendingChecklist = DB::table('repasse_case_checklist')
+        $pendingChecklist = TenantDatabase::table('repasse_case_checklist')
             ->where('repasse_case_id', $case)->whereNull('checked_at')->count();
-        $packages = DB::table('repasse_case_packages')
+        $packages = TenantDatabase::table('repasse_case_packages')
             ->where('repasse_case_id', $case)
             ->select('id', 'title', 'manifest_sha256', 'created_at')
             ->orderByDesc('id')->first();
-        $packageCount = DB::table('repasse_case_packages')
+        $packageCount = TenantDatabase::table('repasse_case_packages')
             ->where('repasse_case_id', $case)->count();
 
         return response()->json([
@@ -115,10 +117,10 @@ final class VehicleAccountabilityController extends Controller
         // Each scenario receives at most one latest review and one allocation
         // aggregate. Filtering occurs OUTSIDE this projection so the same
         // review-state logic is used for KPIs and paginated table rows.
-        $latestReview = DB::table('repasse_scenario_reviews')
+        $latestReview = TenantDatabase::table('repasse_scenario_reviews')
             ->select('scenario_id')->selectRaw('MAX(id) AS latest_id')
             ->groupBy('scenario_id');
-        $allocations = DB::table('repasse_scenario_allocations')
+        $allocations = TenantDatabase::table('repasse_scenario_allocations')
             ->select('repasse_scenario_id')->selectRaw('COUNT(*) AS allocation_count')
             ->selectRaw('COALESCE(SUM(amount_cents), 0) AS allocated_cents')
             ->groupBy('repasse_scenario_id');
@@ -133,7 +135,7 @@ final class VehicleAccountabilityController extends Controller
             WHEN r.status = 'withdrawn' THEN 'withdrawn'
             ELSE 'not_requested' END";
 
-        return DB::table('repasse_scenarios as s')
+        return TenantDatabase::table('repasse_scenarios as s')
             ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
             ->leftJoinSub($latestReview, 'last_review', static function ($join): void {
                 $join->on('last_review.scenario_id', '=', 's.id');
@@ -186,7 +188,7 @@ final class VehicleAccountabilityController extends Controller
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'review_state' => ['sometimes', Rule::in(self::REVIEW_STATES)],
         ]);
-        DB::table('repasse_cases')->where('id', $case)->firstOrFail();
+        TenantDatabase::table('repasse_cases')->where('id', $case)->firstOrFail();
         $query = $this->filtered($this->portfolio($case), $input);
 
         return response()->streamDownload(function () use ($query): void {

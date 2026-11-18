@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AttachVehicleFinanceDocumentRequest;
 use App\Services\CaseOperations;
@@ -60,7 +62,7 @@ final class VehicleFinanceDocumentController extends Controller
                 $request, $case, $entry, $data, $file, $path, $original, $mime, $sha
             ): bool {
                 $this->operations->editable($case);
-                $item = DB::table('repasse_case_financial_entries')
+                $item = TenantDatabase::table('repasse_case_financial_entries')
                     ->where('repasse_case_id', $case)->where('id', $entry)
                     ->lockForUpdate()->firstOrFail();
                 if ($item->voided_at !== null) {
@@ -73,7 +75,7 @@ final class VehicleFinanceDocumentController extends Controller
                 // retorna o vínculo atual, sem nova cópia e sem novo evento.
                 // Lock no lançamento serializa uploads concorrentes deste ID.
                 if ($file) {
-                    $alreadyLinked = DB::table('repasse_case_financial_documents as link')
+                    $alreadyLinked = TenantDatabase::table('repasse_case_financial_documents as link')
                         ->join('repasse_case_evidence as evidence', 'evidence.id', '=', 'link.evidence_id')
                         ->where('link.repasse_case_id', $case)
                         ->where('link.entry_id', $entry)
@@ -105,7 +107,7 @@ final class VehicleFinanceDocumentController extends Controller
                     } finally {
                         if (is_resource($resource)) fclose($resource);
                     }
-                    $evidence = DB::table('repasse_case_evidence')->insertGetId([
+                    $evidence = TenantDatabase::table('repasse_case_evidence')->insertGetId([
                         'repasse_case_id' => $case, 'original_name' => $original,
                         'storage_path' => $path, 'mime' => $mime,
                         'size_bytes' => $file->getSize(), 'sha256' => $sha,
@@ -114,7 +116,7 @@ final class VehicleFinanceDocumentController extends Controller
                     ]);
                 } else {
                     $evidence = (int) $data['evidence_id'];
-                    $document = DB::table('repasse_case_evidence')
+                    $document = TenantDatabase::table('repasse_case_evidence')
                         ->where('id', $evidence)->where('repasse_case_id', $case)
                         ->lockForUpdate()->first();
                     if (! $document || $document->archived_at !== null) {
@@ -122,7 +124,7 @@ final class VehicleFinanceDocumentController extends Controller
                             'evidence_id' => 'Documento não localizado ou arquivado neste veículo.',
                         ]);
                     }
-                    $existing = DB::table('repasse_case_financial_documents')
+                    $existing = TenantDatabase::table('repasse_case_financial_documents')
                         ->where('evidence_id', $evidence)->first();
                     if ($existing) {
                         if ((int) $existing->entry_id === $entry &&
@@ -133,7 +135,7 @@ final class VehicleFinanceDocumentController extends Controller
                     }
                 }
 
-                DB::table('repasse_case_financial_documents')->insert([
+                TenantDatabase::table('repasse_case_financial_documents')->insert([
                     'repasse_case_id' => $case, 'entry_id' => $entry,
                     'evidence_id' => $evidence,
                     'linked_by' => $request->user('api')->getAuthIdentifier(),
@@ -167,7 +169,7 @@ final class VehicleFinanceDocumentController extends Controller
         $this->operations->restrict($request, []);
         DB::transaction(function () use ($request, $case, $entry, $evidence): void {
             $this->operations->editable($case);
-            $record = DB::table('repasse_case_financial_entries')
+            $record = TenantDatabase::table('repasse_case_financial_entries')
                 ->where('repasse_case_id', $case)->where('id', $entry)
                 ->lockForUpdate()->firstOrFail();
             if ($record->voided_at !== null) {
@@ -175,10 +177,10 @@ final class VehicleFinanceDocumentController extends Controller
                     'entry' => 'O lançamento estornado não pode ser alterado.',
                 ]);
             }
-            $link = DB::table('repasse_case_financial_documents')
+            $link = TenantDatabase::table('repasse_case_financial_documents')
                 ->where('repasse_case_id', $case)->where('entry_id', $entry)
                 ->where('evidence_id', $evidence)->lockForUpdate()->firstOrFail();
-            DB::table('repasse_case_financial_documents')->where('id', $link->id)->delete();
+            TenantDatabase::table('repasse_case_financial_documents')->where('id', $link->id)->delete();
             $this->finance->event($case, $entry, $request, 'document_detached', [
                 'evidence_id' => $evidence,
             ]);
@@ -194,7 +196,7 @@ final class VehicleFinanceDocumentController extends Controller
     {
         $this->operations->ensureExists($case);
         $this->finance->entry($case, $entry);
-        $document = DB::table('repasse_case_financial_documents as l')
+        $document = TenantDatabase::table('repasse_case_financial_documents as l')
             ->join('repasse_case_evidence as e', 'e.id', '=', 'l.evidence_id')
             ->where('l.repasse_case_id', $case)->where('l.entry_id', $entry)
             ->where('l.evidence_id', $evidence)->whereNull('e.archived_at')
