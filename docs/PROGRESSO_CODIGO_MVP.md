@@ -77,3 +77,8 @@ Comparado ao baseline de ~84%, a Macro 48 adiciona **registro, anexação de pro
 
 ## Após Macro 51 — revisão de escopo SaaS aprovado
 Arquitetura SaaS multiempresa com tenant_id e seeders faz parte do novo escopo obrigatório e não estava contabilizada na matriz antiga. **O percentual anterior (~86%) deixa de ser uma medição suficiente** do MVP revisado. Não elevar o indicador sem matriz atualizada, validação do isolamento e conclusão do motor financeiro real conforme decisões.
+
+
+## Macro 52 — código de repasse manual aprovado (estimativa pendente de revisão)
+Foram implementadas tabelas, API, permissões, cálculo por centavos e interface existente para obrigação interna, aprovação, parcelas externas opcionais com comprovante e estornos. O componente React não substitui o Metronic.
+**Não declarar 100% do código** sem evidência de integração, cobertura de contratos e matriz SaaS recalibrada. Índice anterior (86%) NÃO é comparável ao escopo multiempresa ampliado. PHPUnit/Pint/MySQL, npm lint/build e QA visual ainda não executados nesta entrega via conector; homologação permanece fase posterior.

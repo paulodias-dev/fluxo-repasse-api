@@ -56,7 +56,11 @@ final class RepasseManualCalculator
         }
 
         $remaining = $base - $total;
-        if ($remaining < 0 || $remaining > count($remainders)) {
+        // A diferença aceitável não pode ser inventada para completar
+        // uma base mal distribuída. Só distribuir centavos de arredondamento.
+        $fractionTotal = array_sum($remainders);
+        $maxRounding = intdiv($fractionTotal + 5000, 10000);
+        if ($remaining < 0 || $remaining > $maxRounding || $remaining > count($remainders)) {
             throw ValidationException::withMessages([
                 'lines' => 'A distribuição deve totalizar exatamente a base manual, sem excedente ou saldo implícito.',
             ]);

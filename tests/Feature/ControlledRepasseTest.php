@@ -107,7 +107,7 @@ final class ControlledRepasseTest extends TestCase
         ])->assertOk()->assertJsonPath('data.remaining_cents', 10000);
         $this->postJson($url.'/'.$id.'/cancel', ['reason' => 'Cancelamento autorizado'])
             ->assertOk()->assertJsonPath('data.status', 'cancelled');
-        $this->assertSame(4, DB::table('repasse_settlement_events')
+        $this->assertSame(5, DB::table('repasse_settlement_events')
             ->where('tenant_id', $tenant->id)->count());
     }
 

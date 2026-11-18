@@ -201,9 +201,17 @@ final class ControlledRepasseService
     public function approve(int $case, int $id, int $actor): array
     {
         DB::transaction(function () use ($case, $id, $actor): void {
-            $this->vehicle($case, true);
+            $vehicle = $this->vehicle($case, true);
             $row = $this->settlement($case, $id, true);
             if ($row->status !== 'draft') abort(409, 'Somente rascunhos podem ser aprovados.');
+            if ($vehicle->sold_on === null || $vehicle->sale_amount_cents === null) {
+                abort(409, 'Venda datada precisa permanecer registrada.');
+            }
+            $this->participant($case, (int) $row->payer_party_id);
+            $lines = TenantDB::table('repasse_settlement_lines')->where('settlement_id', $id)->get();
+            foreach ($lines as $line) {
+                $this->participant($case, (int) $line->beneficiary_party_id);
+            }
             TenantDB::table('repasse_settlements')->where('id', $id)->update([
                 'status' => 'approved', 'approved_by' => $actor,
                 'approved_at' => now(), 'updated_at' => now(),
@@ -227,7 +235,7 @@ final class ControlledRepasseService
         $path = null;
         try {
             $result = DB::transaction(function () use ($case, $id, $data, $actor, $proof, $proofSha, $intent, $digest, &$path): array {
-                $this->vehicle($case, true);
+                $vehicle = $this->vehicle($case, true);
                 $settlement = $this->settlement($case, $id, true);
                 $previous = TenantDB::table('repasse_settlement_payments')
                     ->where('request_key', $data['request_key'])->first();
@@ -242,9 +250,17 @@ final class ControlledRepasseService
                 if ($settlement->status !== 'approved') {
                     abort(409, 'A distribuição precisa ser aprovada antes de registrar um pagamento.');
                 }
+                if ($vehicle->sold_on === null || $vehicle->sale_amount_cents === null
+                    || $intent['paid_on'] < substr((string) $vehicle->sold_on, 0, 10)) {
+                    throw ValidationException::withMessages([
+                        'paid_on' => 'Informe um pagamento externo ocorrido na data da venda ou depois dela.',
+                    ]);
+                }
                 $line = TenantDB::table('repasse_settlement_lines')
                     ->where('settlement_id', $id)->where('id', $intent['line_id'])->first();
                 if (! $line) abort(404);
+                $this->participant($case, (int) $settlement->payer_party_id);
+                $this->participant($case, (int) $line->beneficiary_party_id);
                 $already = (int) TenantDB::table('repasse_settlement_payments')
                     ->where('settlement_id', $id)->where('line_id', $line->id)
                     ->whereNull('voided_at')->sum('amount_cents');
