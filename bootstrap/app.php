@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ApiSecurityHeaders;
 use App\Http\Middleware\EnsureCurrentSession;
+use App\Http\Middleware\EnsureTenantContext;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\RequireBearerToken;
@@ -22,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Executa antes do roteamento para correlacionar também 404/405 da API.
         $middleware->prepend(RequestCorrelationId::class);
+        // O escopo tenant deve ser aplicado ANTES do SubstituteBindings para
+        // que model binding nunca encontre um cadastro de outra empresa.
+        $middleware->prependToGroup('api', EnsureTenantContext::class);
         $middleware->api(append: [ApiSecurityHeaders::class]);
         $middleware->alias(['bearer.only' => RequireBearerToken::class,
             'session.current' => EnsureCurrentSession::class,
