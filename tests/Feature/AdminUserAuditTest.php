@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -45,7 +47,7 @@ final class AdminUserAuditTest extends TestCase
 
     private function event(User $user, string $type, ?User $actor = null): void
     {
-        DB::table('auth_security_events')->insert([
+        TenantDatabase::table('auth_security_events')->insert([
             'user_id' => $user->id,
             'actor_user_id' => $actor?->id,
             'event_type' => $type,

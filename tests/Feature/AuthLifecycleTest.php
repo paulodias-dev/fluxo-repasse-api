@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,7 +169,7 @@ final class AuthLifecycleTest extends TestCase
             'password' => 'incorrect-password',
         ])->assertUnauthorized();
 
-        $event = DB::table('auth_security_events')->where('event_type', 'login_failed')->first();
+        $event = TenantDatabase::table('auth_security_events')->where('event_type', 'login_failed')->first();
 
         $this->assertNotNull($event);
         $this->assertNull($event->user_id);
