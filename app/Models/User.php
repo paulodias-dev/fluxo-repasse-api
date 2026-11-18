@@ -61,14 +61,21 @@ class User extends Authenticatable implements JWTSubject
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class)
-            ->where(function ($query): void {
-                $query->where('roles.tenant_id', $this->tenant_id)
-                    ->orWhere(function ($global): void {
-                        $global->whereNull('roles.tenant_id')
-                            ->where('roles.slug', 'platform_admin');
-                    });
-            });
+        $tenantId = \App\Support\TenantContext::current() ?? $this->tenant_id;
+        $roles = $this->belongsToMany(Role::class);
+        // Relações geradas por whereHas() no CLI não têm tenant_id do modelo:
+        // nesse caso quem chama deve escopar a query de users pelo tenant.
+        if ($tenantId === null) {
+            return $roles;
+        }
+
+        return $roles->where(function ($query) use ($tenantId): void {
+            $query->where('roles.tenant_id', $tenantId)
+                ->orWhere(function ($global): void {
+                    $global->whereNull('roles.tenant_id')
+                        ->where('roles.slug', 'platform_admin');
+                });
+        });
     }
 
     public function hasPermission(string $permission): bool
