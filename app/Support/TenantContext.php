@@ -22,6 +22,11 @@ final class TenantContext
         $this->id = $id;
     }
 
+    public function clear(): void
+    {
+        $this->id = null;
+    }
+
     public function current(): ?int
     {
         return $this->id;
