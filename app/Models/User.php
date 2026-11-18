@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
+
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +15,7 @@ use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, BelongsToTenant;
 
     /**
      * The attributes that are mass assignable.
@@ -27,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'company_name',
         'avatar_path',
         'password',
+        'tenant_id',
     ];
 
     /**
@@ -84,6 +87,6 @@ class User extends Authenticatable implements JWTSubject
     /** @return array<string, mixed> */
     public function getJWTCustomClaims(): array
     {
-        return ['av' => (int) $this->auth_version];
+        return ['av' => (int) $this->auth_version, 'tid' => (int) $this->tenant_id];
     }
 }
