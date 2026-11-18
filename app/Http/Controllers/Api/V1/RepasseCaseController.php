@@ -299,6 +299,7 @@ final class RepasseCaseController extends Controller
         $id = DB::transaction(function () use ($request, $data, $title): int {
             $id = TenantDB::table('repasse_cases')->insertGetId([
                 'title' => $title, 'description' => $data['description'] ?? null,
+                'tenant_id' => \App\Support\TenantContext::id(),
                 'status' => 'draft', 'created_by' => $request->user('api')->id,
                 'updated_by' => $request->user('api')->id,
                 'created_at' => now(), 'updated_at' => now(),
