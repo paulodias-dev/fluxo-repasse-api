@@ -34,34 +34,8 @@ final class AdminUserSeeder extends Seeder
                     ->increment('auth_version');
             }
 
-            // Papéis funcionais globais e imutáveis por empresa.
-            // Não confundir o administrador de uma empresa com platform_admin.
-            $functional = [
-                'tenant_admin' => [
-                    'name' => 'Administrador',
-                    'keys' => array_keys(OperationalAccessCatalog::TECHNICAL_PERMISSIONS),
-                ],
-                'tenant_user' => [
-                    'name' => 'Usuário',
-                    'keys' => ['parties.manage', 'cases.manage', 'scenarios.manage'],
-                ],
-            ];
-            foreach ($functional as $slug => $definition) {
-                $functionalRole = Role::query()->updateOrCreate(
-                    ['slug' => $slug], ['name' => $definition['name']]
-                );
-                $permissionIds = Permission::query()->whereIn('key', $definition['keys'])
-                    ->pluck('id')->all();
-                $current = $functionalRole->permissions()->pluck('permissions.id')->all();
-                sort($current);
-                $expected = $permissionIds;
-                sort($expected);
-                if ($current === $expected) continue;
-                $functionalRole->permissions()->sync($permissionIds);
-                User::query()->whereHas('roles', fn ($q) => $q->whereKey($functionalRole->id))
-                    ->increment('auth_version');
-            }
-
+            // Papéis Administrador/Usuário de cada empresa são provisionados
+            // por TenantRoles::provision(), NÃO partilhados entre tenants.
 
         });
 
