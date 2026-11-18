@@ -40,6 +40,12 @@ final class Role extends Model
 
     public function users(): BelongsToMany
     {
+        if (TenantContext::active() && DB::table('tenants')->count() > 1) {
+            return $this->belongsToMany(User::class, 'tenant_role_user')
+                ->wherePivot('tenant_id', TenantContext::id())
+                ->withPivotValue('tenant_id', TenantContext::id());
+        }
+
         return $this->belongsToMany(User::class);
     }
 }
