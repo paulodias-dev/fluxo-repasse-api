@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantTable;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +35,7 @@ final class DistributionTemplateService
 
     public function ensureCaseEditable(int $caseId): void
     {
-        $case = DB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
+        $case = TenantTable::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
         if ($case->status !== 'draft') {
             throw ValidationException::withMessages(['case_id' => 'Reabra o dossiê para editar modelos.']);
         }
@@ -45,7 +47,7 @@ final class DistributionTemplateService
             throw ValidationException::withMessages(['name' => 'Nome do modelo deve ter ao menos 2 caracteres.']);
         }
 
-        $ids = DB::table('repasse_case_parties as cp')
+        $ids = TenantTable::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $caseId)->where('p.is_active', true)
             ->pluck('cp.party_id')->map(static fn ($id): int => (int) $id)->all();
@@ -72,7 +74,7 @@ final class DistributionTemplateService
             $this->ensureCaseEditable($caseId);
             $this->validateParties($caseId, $fields);
             $now = now();
-            $id = DB::table('repasse_distribution_templates')->insertGetId([
+            $id = TenantTable::table('repasse_distribution_templates')->insertGetId([
                 'repasse_case_id' => $caseId, 'name' => $fields['name'],
                 'description' => $fields['description'],
                 'source_party_id' => $fields['source_party_id'],
@@ -103,13 +105,13 @@ final class DistributionTemplateService
             $hash = $this->digest($fields);
             if (hash_equals($row->content_digest, $hash)) return false;
 
-            DB::table('repasse_distribution_templates')->where('id', $id)->update([
+            TenantTable::table('repasse_distribution_templates')->where('id', $id)->update([
                 'name' => $fields['name'], 'description' => $fields['description'],
                 'source_party_id' => $fields['source_party_id'],
                 'content_digest' => $hash, 'revision' => (int) $row->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
             ]);
-            DB::table('repasse_distribution_lines')->where('template_id', $id)->delete();
+            TenantTable::table('repasse_distribution_lines')->where('template_id', $id)->delete();
             $this->saveLines($id, $fields['lines']);
             $this->record($id, $request, 'template_revised');
             return true;
@@ -124,7 +126,7 @@ final class DistributionTemplateService
             $this->ensureCaseEditable((int) $row->repasse_case_id);
             $archive = $action === 'archive';
             if (($row->archived_at !== null) === $archive) return false;
-            DB::table('repasse_distribution_templates')->where('id', $id)->update([
+            TenantTable::table('repasse_distribution_templates')->where('id', $id)->update([
                 'archived_at' => $archive ? now() : null,
                 'revision' => (int) $row->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
@@ -152,7 +154,7 @@ final class DistributionTemplateService
 
     public function list(array $filters): mixed
     {
-        $query = DB::table('repasse_distribution_templates as t')
+        $query = TenantTable::table('repasse_distribution_templates as t')
             ->leftJoin('parties as p', 'p.id', '=', 't.source_party_id')
             ->leftJoin('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->select('t.id', 't.repasse_case_id as case_id', 'c.title as case_title',
@@ -171,13 +173,13 @@ final class DistributionTemplateService
 
     public function show(int $id): array
     {
-        $row = DB::table('repasse_distribution_templates as t')
+        $row = TenantTable::table('repasse_distribution_templates as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->leftJoin('parties as p', 'p.id', '=', 't.source_party_id')
             ->where('t.id', $id)
             ->select('t.*', 'c.title as case_title', 'c.status as case_status',
                 'p.name as source_name')->firstOrFail();
-        $lines = DB::table('repasse_distribution_lines as line')
+        $lines = TenantTable::table('repasse_distribution_lines as line')
             ->join('parties as p', 'p.id', '=', 'line.party_id')
             ->where('line.template_id', $id)
             ->select('line.party_id', 'p.name as party_name', 'p.is_active',
@@ -232,7 +234,7 @@ final class DistributionTemplateService
     public function versions(int $id): mixed
     {
         $this->show($id);
-        return DB::table('repasse_distribution_versions')->where('template_id', $id)
+        return TenantTable::table('repasse_distribution_versions')->where('template_id', $id)
             ->select('revision', 'event_type', 'sha256', 'actor_user_id', 'created_at')
             ->orderByDesc('revision')->paginate(20);
     }
@@ -240,7 +242,7 @@ final class DistributionTemplateService
     public function version(int $id, int $revision): array
     {
         $this->show($id);
-        $row = DB::table('repasse_distribution_versions')
+        $row = TenantTable::table('repasse_distribution_versions')
             ->where('template_id', $id)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
         $serialized = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -256,7 +258,7 @@ final class DistributionTemplateService
 
     private function lock(int $id, int $revision): object
     {
-        $row = DB::table('repasse_distribution_templates')->where('id', $id)->lockForUpdate()->firstOrFail();
+        $row = TenantTable::table('repasse_distribution_templates')->where('id', $id)->lockForUpdate()->firstOrFail();
         if ((int) $row->revision !== $revision) abort(409, 'Versão desatualizada. Recarregue o modelo.');
         return $row;
     }
@@ -264,7 +266,7 @@ final class DistributionTemplateService
     private function saveLines(int $id, array $lines): void
     {
         foreach ($lines as $line) {
-            DB::table('repasse_distribution_lines')->insert([
+            TenantTable::table('repasse_distribution_lines')->insert([
                 'template_id' => $id, 'party_id' => $line['party_id'],
                 'basis_points' => $line['basis_points'], 'memo' => $line['memo'],
                 'created_at' => now(), 'updated_at' => now(),
@@ -276,13 +278,13 @@ final class DistributionTemplateService
     {
         $data = $this->show($id);
         $serialized = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        DB::table('repasse_distribution_versions')->insert([
+        TenantTable::table('repasse_distribution_versions')->insert([
             'template_id' => $id, 'revision' => $data['revision'],
             'event_type' => $event, 'snapshot' => $serialized,
             'sha256' => hash('sha256', $serialized),
             'actor_user_id' => $request->user('api')->id, 'created_at' => now(),
         ]);
-        DB::table('repasse_case_events')->insert([
+        TenantTable::table('repasse_case_events')->insert([
             'repasse_case_id' => $data['case_id'],
             'actor_user_id' => $request->user('api')->id,
             'event_type' => $event, 'created_at' => now(),

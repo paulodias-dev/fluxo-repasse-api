@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantTable;
+
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,14 +20,14 @@ final class FinancialPreparationService
         // qualquer inconsistência no snapshot é um 409, nunca dado presumido.
         $commercial = $this->terms->show($case, $term);
         $preview = $this->terms->preview($case, $term);
-        $vehicle = DB::table('repasse_cases')->where('id', $case)->first([
+        $vehicle = TenantTable::table('repasse_cases')->where('id', $case)->first([
             'id', 'title', 'status', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents',
         ]);
         if (! $vehicle) {
             abort(404);
         }
 
-        $finance = DB::table('repasse_case_financial_entries')
+        $finance = TenantTable::table('repasse_case_financial_entries')
             ->where('repasse_case_id', $case)->whereNull('voided_at')
             ->selectRaw("COALESCE(SUM(CASE WHEN kind = 'expense' AND status = 'realized'
                 THEN amount_cents ELSE 0 END), 0) AS realized_expense")
@@ -42,7 +44,7 @@ final class FinancialPreparationService
 
         // Parecer da MESMA revisão e mesmo SHA. Um parecer antigo não serve.
         // Status reviewed confere documentos, NÃO autoriza movimentar dinheiro.
-        $review = DB::table('repasse_commercial_reviews')
+        $review = TenantTable::table('repasse_commercial_reviews')
             ->where('term_id', $term)
             ->where('term_revision', $commercial['revision'])
             ->where('term_sha256', $commercial['content_sha256'])
