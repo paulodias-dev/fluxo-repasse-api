@@ -212,6 +212,8 @@ final class ExternalTransferReportService
         $storedPath = null;
 
         try {
+            // Sem retry automático após escrita de arquivo: em falha o catch
+            // elimina a prova, e o cliente reenvia a MESMA UUID.
             $outcome = DB::transaction(function () use (
                 $case, $term, $proposal, $input, $request, $proof,
                 $extension, $sha, $actor, $normalized, $intent, &$storedPath
@@ -291,9 +293,6 @@ final class ExternalTransferReportService
                 $this->operations->event($case, $request, 'external_transfer_reported');
 
                 return ['id' => $id, 'created' => true];
-            // Sem retry automático de transação após escrita de arquivo:
-            // em deadlock o catch remove a prova e o cliente repete com o
-            // MESMO request_key, evitando órfãos no disco privado.
             });
         } catch (Throwable $error) {
             if ($storedPath !== null) {
