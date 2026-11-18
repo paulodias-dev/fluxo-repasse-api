@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ApiSecurityHeaders;
 use App\Http\Middleware\EnsureCurrentSession;
+use App\Http\Middleware\EnsureActiveTenant;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\RequireBearerToken;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [ApiSecurityHeaders::class]);
         $middleware->alias(['bearer.only' => RequireBearerToken::class,
             'session.current' => EnsureCurrentSession::class,
+            'tenant.active' => EnsureActiveTenant::class,
             'permission' => EnsurePermission::class,
         ]);
     })
