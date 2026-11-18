@@ -68,7 +68,7 @@ final class ManualSettlementController extends Controller
     {
         $this->operations->restrict($request, [
             'request_key', 'beneficiary_party_id', 'amount_cents',
-            'paid_on', 'external_reference', 'proof',
+            'paid_on', 'external_reference', 'confirmed_external', 'proof',
         ]);
         return $this->respond($this->service->report(
             $case, $plan, $request->validated(), $request->file('proof'), $request
