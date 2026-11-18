@@ -79,8 +79,9 @@ final class TenantController extends Controller
                 'created_at' => now(), 'updated_at' => now(),
             ]);
 
-            $tenantRole = Role::query()->firstOrCreate(
-                ['slug' => 'tenant_owner'], ['name' => 'Administrador da empresa']
+            $tenantRole = Role::withoutGlobalScopes()->firstOrCreate(
+                ['slug' => 'tenant_owner_'.$id],
+                ['name' => 'Administrador da empresa', 'tenant_id' => $id]
             );
             $permissions = DB::table('permissions')->whereIn(
                 'key', array_keys(OperationalAccessCatalog::TECHNICAL_PERMISSIONS)
