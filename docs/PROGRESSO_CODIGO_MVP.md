@@ -74,3 +74,6 @@ Comparado ao baseline de ~84%, a Macro 48 adiciona **registro, anexação de pro
 - Diferença +1 p.p. é avaliação editorial de usabilidade: registro de repasse externo sem minuta, com o mesmo histórico/prova/estorno.
 - NÃO implementar nem contar como entregue: motor de pagamento bancário, aprovação de obrigação exigível, impostos/comissões/retencões, PSP, conciliação, liquidação e regras multi-organização não aprovadas. Homologação não entra na porcentagem.
 - Testes adicionados, execução e QA não atestados.
+
+## Após Macro 51 — revisão de escopo SaaS aprovado
+Arquitetura SaaS multiempresa com tenant_id e seeders faz parte do novo escopo obrigatório e não estava contabilizada na matriz antiga. **O percentual anterior (~86%) deixa de ser uma medição suficiente** do MVP revisado. Não elevar o indicador sem matriz atualizada, validação do isolamento e conclusão do motor financeiro real conforme decisões.
