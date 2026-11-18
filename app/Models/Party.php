@@ -15,6 +15,10 @@ final class Party extends Model
         static::addGlobalScope('current_tenant', static function (Builder $query): void {
             $query->where('parties.tenant_id', app(TenantContext::class)->id());
         });
+        static::saving(static function (Party $party): void {
+            // A parte nunca pode ser transferida entre empresas por mass assignment.
+            $party->tenant_id = app(TenantContext::class)->id();
+        });
         static::creating(static function (Party $party): void {
             $party->tenant_id = app(TenantContext::class)->id();
         });
