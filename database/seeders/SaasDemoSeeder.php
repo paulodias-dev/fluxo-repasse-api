@@ -214,7 +214,7 @@ final class SaasDemoSeeder extends Seeder
                     ['party_id' => $partner->id, 'basis_points' => 4000],
                 ],
             ], $request);
-            $template = $created['data'];
+            $template = $created;
 
             // Commercial sample is a legitimate versioned draft, not an
             // authorization, payment, tax calculation or financial debt.
