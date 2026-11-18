@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.23.0
+  version: 1.24.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -24,6 +24,7 @@ tags:
   - name: Revisão documental
   - name: Revisões comerciais
   - name: Central comercial
+  - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
   /commercial-reviews:
@@ -3482,6 +3483,164 @@ paths:
         '404': { description: Proposta fora do escopo }
         '409': { description: Falha de integridade }
 
+
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/external-transfers:
+    get:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsIndex
+      summary: Lista paginada e comparativo de transferências declaradas fora da plataforma
+      description: |
+        Somente relatório de operador, não conferência bancária, obrigação,
+        quitação ou saldo exigível. A proposta hipotética é uma referência.
+        Totais por favorecido agregados antes da paginação de 15 itens.
+        JWT + session.current + cases.manage E scenarios.manage.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, reported, voided], default: all } }
+      responses:
+        '200':
+          description: Resumo documental global e registros paginados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalTransferPortfolio' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsStore
+      summary: Registrar declaração comprovada de transferência realizada externamente
+      description: |
+        Exige venda real datada e proposta histórica existente; seleciona
+        favorecido somente dentre destinatários do snapshot; pagador é o
+        da própria proposta. Não requer reabrir veículo arquivado.
+        UUID idempotente por usuário, veículo, proposta, dados e SHA do arquivo.
+        Guarda comprovante PDF/JPG/PNG/WebP privado (máx. 10 MB).
+        Não movimenta fundos, autoriza pagamento ou cria dívida.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExternalTransferReportCreate'
+      responses:
+        '201': { description: Declaração criada, payment_executed=false, bank_confirmed=false }
+        '200': { description: Retentativa idempotente, sem nova declaração }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/external-transfers/export:
+    get:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsExport
+      summary: CSV privado de declarações filtradas com proteção contra fórmulas
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, reported, voided], default: all } }
+      responses:
+        '200':
+          description: CSV UTF-8 BOM, no-store; não certifica liquidação
+          content:
+            text/csv: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}:
+    get:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsShow
+      summary: Consultar declaração sem expor URL pública do comprovante
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Valores e metadados do arquivo, sem confirmação bancária
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalTransferReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}/void:
+    post:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsVoid
+      summary: Estornar declaração com justificativa sem excluir histórico nem comprovante
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200': { description: Declaração estornada ou reenvio idempotente com mesma justificativa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/commercial-terms/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}/proof:
+    get:
+      tags: [Repasses externos informados]
+      operationId: externalTransferReportsProof
+      summary: Baixar comprovante privado após conferir tamanho e SHA-256
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: term, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: proposal, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Anexo privado verificado no download
+          content:
+            application/octet-stream: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo, minuta, proposta ou registro fora do escopo }
+        '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   headers:
     RequestId:
@@ -3499,6 +3658,89 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    ExternalTransferReportCreate:
+      type: object
+      additionalProperties: false
+      required: [request_key, expected_proposal_sha256, beneficiary_party_id,
+        amount_cents, transferred_on, confirmed_external, proof]
+      properties:
+        request_key: { type: string, format: uuid }
+        expected_proposal_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        beneficiary_party_id: { type: integer, minimum: 1 }
+        amount_cents: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        transferred_on: { type: string, format: date, description: 'Data passada ou atual explicitamente informada' }
+        external_reference: { type: string, nullable: true, maxLength: 120 }
+        operator_note: { type: string, nullable: true, maxLength: 500 }
+        confirmed_external: { type: boolean, enum: [true], description: 'Declaração explícita, nunca autorização bancária' }
+        proof: { type: string, format: binary, description: 'PDF/JPG/PNG/WebP até 10 MB' }
+    ExternalTransferReport:
+      type: object
+      required: [id, proposal_id, payer_party_id, beneficiary_party_id,
+        amount_cents, transferred_on, proof, status, report_only, bank_confirmed,
+        financial_authorization, payment_executed, obligation_created]
+      properties:
+        id: { type: integer, minimum: 1 }
+        proposal_id: { type: integer, minimum: 1 }
+        payer_party_id: { type: integer, minimum: 1 }
+        payer_party_name: { type: string }
+        beneficiary_party_id: { type: integer, minimum: 1 }
+        beneficiary_party_name: { type: string }
+        proposed_reference_cents: { type: integer, format: int64 }
+        amount_cents: { type: integer, format: int64, minimum: 1 }
+        transferred_on: { type: string, format: date }
+        external_reference: { type: string, nullable: true }
+        operator_note: { type: string, nullable: true }
+        proof:
+          type: object
+          properties:
+            name: { type: string }
+            mime: { type: string }
+            size_bytes: { type: integer }
+            sha256: { type: string }
+        reported_at: { type: string, format: date-time }
+        reported_by: { type: integer, nullable: true }
+        voided_at: { type: string, format: date-time, nullable: true }
+        voided_by: { type: integer, nullable: true }
+        void_reason: { type: string, nullable: true }
+        status: { type: string, enum: [reported, voided] }
+        report_only: { type: boolean, enum: [true] }
+        bank_confirmed: { type: boolean, enum: [false] }
+        financial_authorization: { type: boolean, enum: [false] }
+        payment_executed: { type: boolean, enum: [false] }
+        obligation_created: { type: boolean, enum: [false] }
+    ExternalTransferPortfolio:
+      type: object
+      required: [summary, reports]
+      properties:
+        summary:
+          type: object
+          description: |
+            Indicadores de registros informados e comparativo com valores
+            hipotéticos. difference_to_reference_cents NÃO é saldo devedor.
+          properties:
+            proposal_id: { type: integer }
+            proposal_sha256: { type: string }
+            proposal_source_stale: { type: boolean }
+            hypothetical_reference_cents: { type: integer, format: int64 }
+            total_reported_cents: { type: integer, format: int64 }
+            reported_count: { type: integer }
+            voided_count: { type: integer }
+            bank_confirmed: { type: boolean, enum: [false] }
+            payment_executed: { type: boolean, enum: [false] }
+            obligation_created: { type: boolean, enum: [false] }
+            lines:
+              type: array
+              items:
+                type: object
+                properties:
+                  beneficiary_party_id: { type: integer }
+                  beneficiary_party_name: { type: string, nullable: true }
+                  reference_cents: { type: integer, format: int64 }
+                  reported_cents: { type: integer, format: int64 }
+                  difference_to_reference_cents: { type: integer, format: int64 }
+                  reported_count: { type: integer }
+                  voided_count: { type: integer }
+        reports: { type: object, description: 'Paginador Laravel de ExternalTransferReport, 15 por página' }
     CommercialTermInput:
       type: object
       additionalProperties: false
