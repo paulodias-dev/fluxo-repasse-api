@@ -49,6 +49,7 @@ final class AuthController extends Controller
                 'email' => $user->email,
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),
+                'tenant_id' => \App\Support\TenantContext::id(),
                 'access_diagnostic' => $this->diagnostic($user),
             ],
         ])->header('Cache-Control', 'no-store');
