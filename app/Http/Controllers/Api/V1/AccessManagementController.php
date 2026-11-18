@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,13 +22,14 @@ final class AccessManagementController extends Controller
     {
         $actor = $request->user('api');
         $keys = $actor->grantedPermissions();
-        $roles = Role::query()->with('permissions:id,key')->withCount('users')
-            ->where('slug', '!=', 'platform_admin')->orderBy('name')->get()
+        $roles = Role::query()->with('permissions:id,key')
+            ->withCount(['users' => fn ($query) => $query->where('users.tenant_id', app(TenantContext::class)->id())])
+            ->whereIn('slug', ['tenant_admin', 'tenant_user'])->orderBy('name')->get()
             ->map(fn (Role $role) => [
                 'id' => $role->id, 'slug' => $role->slug, 'name' => $role->name,
                 'permissions' => $role->permissions->pluck('key')->values(),
                 'users_count' => $role->users_count,
-                'editable' => $role->permissions->pluck('key')->diff($keys)->isEmpty(),
+                'editable' => false,
             ]);
         return response()->json([
             'roles' => $roles,
@@ -38,6 +40,10 @@ final class AccessManagementController extends Controller
 
     public function saveRole(Request $request, ?Role $role = null): JsonResponse
     {
+        // Papéis funcionais são templates da plataforma, compartilhados por
+        // todos os tenants. Editá-los aqui alteraria privilégios entre empresas.
+        abort(403, 'Cargos de administrador e usuário são gerenciados pela plataforma.');
+
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'slug' => [$role ? 'prohibited' : 'required', 'string', 'regex:/^[a-z][a-z0-9_]{2,79}$/',
@@ -108,7 +114,8 @@ final class AccessManagementController extends Controller
         DB::transaction(function () use ($user, $actor, $request, $data, $allowed): void {
             $target = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             if ($target->roles()->where('slug', 'platform_admin')->exists()) abort(403);
-            $selected = Role::query()->whereIn('id', $data['role_ids'])->with('permissions')->get();
+            $selected = Role::query()->whereIn('id', $data['role_ids'])
+                ->whereIn('slug', ['tenant_admin', 'tenant_user'])->with('permissions')->get();
             if ($selected->count() !== count($data['role_ids']) ||
                 $selected->contains(fn (Role $role) => $role->slug === 'platform_admin' ||
                     $role->permissions->pluck('key')->diff($allowed)->isNotEmpty())) {
