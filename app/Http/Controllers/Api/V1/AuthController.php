@@ -112,6 +112,8 @@ final class AuthController extends Controller
                 ...$this->profileData($fresh),
                 'permissions' => $fresh->grantedPermissions(),
                 'roles' => $fresh->roles()->pluck('slug')->values()->all(),
+                'tenant_id' => (int) $fresh->tenant_id,
+                'tenant' => Tenant::query()->whereKey($fresh->tenant_id)->first(['id', 'name', 'slug']),
             ],
         ];
 
