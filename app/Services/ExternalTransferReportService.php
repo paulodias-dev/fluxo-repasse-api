@@ -291,7 +291,10 @@ final class ExternalTransferReportService
                 $this->operations->event($case, $request, 'external_transfer_reported');
 
                 return ['id' => $id, 'created' => true];
-            }, 3);
+            // Sem retry automático de transação após escrita de arquivo:
+            // em deadlock o catch remove a prova e o cliente repete com o
+            // MESMO request_key, evitando órfãos no disco privado.
+            });
         } catch (Throwable $error) {
             if ($storedPath !== null) {
                 Storage::disk('local')->delete($storedPath);
