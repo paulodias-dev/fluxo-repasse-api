@@ -160,6 +160,21 @@ final class SaasTenantIsolationTest extends TestCase
             ->assertOk()->assertJsonMissing(['id' => $roleA->id]);
     }
 
+    public function test_reaplicar_cargos_revalida_jwt_apenas_dos_membros_do_tenant_afetado(): void
+    {
+        [$tenantA, $adminA] = $this->actor('revoga-alfa');
+        [$tenantB, $adminB] = $this->actor('revoga-beta');
+        $roleA = Role::query()->where('tenant_id', $tenantA->id)
+            ->where('slug', 'tenant_admin')->firstOrFail();
+        $roleA->permissions()->detach();
+        $oldA = (int) $adminA->fresh()->auth_version;
+        $oldB = (int) $adminB->fresh()->auth_version;
+
+        TenantRoles::provision((int) $tenantA->id);
+        $this->assertSame($oldA + 1, (int) $adminA->fresh()->auth_version);
+        $this->assertSame($oldB, (int) $adminB->fresh()->auth_version);
+    }
+
     public function test_uma_empresa_nao_pode_ler_auditoria_de_usuarios_da_outra(): void
     {
         [, $adminA] = $this->actor('audit-alfa');
