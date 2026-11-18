@@ -82,3 +82,21 @@ Arquitetura SaaS multiempresa com tenant_id e seeders faz parte do novo escopo o
 ## Macro 52 — código de repasse manual aprovado (estimativa pendente de revisão)
 Foram implementadas tabelas, API, permissões, cálculo por centavos e interface existente para obrigação interna, aprovação, parcelas externas opcionais com comprovante e estornos. O componente React não substitui o Metronic.
 **Não declarar 100% do código** sem evidência de integração, cobertura de contratos e matriz SaaS recalibrada. Índice anterior (86%) NÃO é comparável ao escopo multiempresa ampliado. PHPUnit/Pint/MySQL, npm lint/build e QA visual ainda não executados nesta entrega via conector; homologação permanece fase posterior.
+
+
+### Matriz revisada provisória, após Macro 52 (somente CÓDIGO)
+| Componente | Peso | Cobertura editorial | Contribuição |
+|---|---:|---:|---:|
+| Acesso, identidade, cadastros e SaaS por tenant | 15% | 90% | 13,5% |
+| Veículos e ficha 360 | 20% | 100% | 20% |
+| Financeiro gerencial | 20% | 100% | 20% |
+| Documentação, cenários, revisões | 10% | 100% | 10% |
+| Repasses manuais autorizados | 30% | 80% | 24% |
+| Dashboard e integração operacional | 5% | 100% | 5% |
+| **TOTAL ESTIMADO DE CÓDIGO** | **100%** | — | **92,5% (~93%)** |
+
+Estimativa de engenharia, não medição de testes, não homologação. Os 10% restantes
+do bloco SaaS representam conferências de integração/escopo de código ainda sem evidência;
+os 20% restantes do bloco de repasses representam consolidação entre fluxos e revisão de
+invariantes antes do encerramento de implementação. A cobertura real poderá ser ajustada.
+O índice não representa readiness, liquidação bancária, PSP ou aceite visual.
