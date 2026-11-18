@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
@@ -47,7 +49,7 @@ final class AuthController extends Controller
                 'id' => $user->getAuthIdentifier(),
                 'name' => $user->name,
                 'email' => $user->email,
-                'tenant' => $user->tenant_id ? DB::table('tenants')
+                'tenant' => $user->tenant_id ? TenantDatabase::table('tenants')
                     ->where('id', $user->tenant_id)->first(['id', 'name', 'slug']) : null,
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),

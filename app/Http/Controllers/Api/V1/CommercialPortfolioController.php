@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Services\CommercialTermsService;
 use Illuminate\Http\JsonResponse;
@@ -34,18 +36,18 @@ final class CommercialPortfolioController extends Controller
     {
         // Último parecer da MESMA revisão+SHA, no SQL antes da paginação.
         // Parecer anterior à alteração da minuta NÃO pode ser reaproveitado.
-        $latest = DB::table('repasse_commercial_reviews')
+        $latest = TenantDatabase::table('repasse_commercial_reviews')
             ->select('term_id', 'term_revision', 'term_sha256')
             ->selectRaw('MAX(id) AS review_id')
             ->groupBy('term_id', 'term_revision', 'term_sha256');
         // Uma linha por minuta, contando propostas antes de paginar.
         // Nada de N+1 nem multiplicação de linhas ao combinar revisões.
-        $proposalTotals = DB::table('repasse_obligation_proposals')
+        $proposalTotals = TenantDatabase::table('repasse_obligation_proposals')
             ->select('term_id')
             ->selectRaw('COUNT(*) AS proposal_count')
             ->selectRaw('MAX(id) AS latest_proposal_id')
             ->groupBy('term_id');
-        $query = DB::table('repasse_commercial_terms as t')
+        $query = TenantDatabase::table('repasse_commercial_terms as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id')
             ->leftJoinSub($latest, 'lr', static function ($join): void {

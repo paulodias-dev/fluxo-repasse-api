@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Services\CaseOperations;
 use Illuminate\Http\JsonResponse;
@@ -24,7 +26,7 @@ final class CaseEvidenceController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
             'include_archived' => ['sometimes', 'boolean'],
         ]);
-        $query = DB::table('repasse_case_evidence')->where('repasse_case_id', $case);
+        $query = TenantDatabase::table('repasse_case_evidence')->where('repasse_case_id', $case);
         if (! ($filters['include_archived'] ?? false)) $query->whereNull('archived_at');
         $documents = $query->select(['id', 'original_name', 'mime', 'size_bytes', 'sha256',
             'uploaded_by', 'archived_at', 'created_at'])->orderByDesc('id')->paginate(30);
@@ -63,7 +65,7 @@ final class CaseEvidenceController extends Controller
                 if (! Storage::disk('local')->put($path, fopen($file->getRealPath(), 'rb'))) {
                     throw ValidationException::withMessages(['file' => 'Não foi possível guardar o documento.']);
                 }
-                $id = DB::table('repasse_case_evidence')->insertGetId([
+                $id = TenantDatabase::table('repasse_case_evidence')->insertGetId([
                     'repasse_case_id' => $case, 'original_name' => $original,
                     'storage_path' => $path, 'mime' => $file->getMimeType(),
                     'size_bytes' => $file->getSize(), 'sha256' => $sha,
@@ -84,7 +86,7 @@ final class CaseEvidenceController extends Controller
     public function download(int $case, int $evidence): StreamedResponse
     {
         $this->operations->ensureExists($case);
-        $row = DB::table('repasse_case_evidence')
+        $row = TenantDatabase::table('repasse_case_evidence')
             ->where('repasse_case_id', $case)->where('id', $evidence)
             ->whereNull('archived_at')->firstOrFail();
         if (! Storage::disk('local')->exists($row->storage_path)) abort(404);
@@ -102,10 +104,10 @@ final class CaseEvidenceController extends Controller
     {
         DB::transaction(function () use ($request, $case, $evidence): void {
             $this->operations->editable($case);
-            $row = DB::table('repasse_case_evidence')->where('repasse_case_id', $case)
+            $row = TenantDatabase::table('repasse_case_evidence')->where('repasse_case_id', $case)
                 ->where('id', $evidence)->lockForUpdate()->firstOrFail();
             if ($row->archived_at !== null) return;
-            DB::table('repasse_case_evidence')->where('id', $evidence)
+            TenantDatabase::table('repasse_case_evidence')->where('id', $evidence)
                 ->update(['archived_at' => now(), 'updated_at' => now()]);
             $this->operations->event($case, $request, 'evidence_archived');
         });
@@ -115,7 +117,7 @@ final class CaseEvidenceController extends Controller
 
     private function metadata(int $case, int $id): object
     {
-        return DB::table('repasse_case_evidence')->where('repasse_case_id', $case)
+        return TenantDatabase::table('repasse_case_evidence')->where('repasse_case_id', $case)
             ->where('id', $id)->select(['id', 'original_name', 'mime', 'size_bytes',
                 'sha256', 'uploaded_by', 'archived_at', 'created_at'])->firstOrFail();
     }
