@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\TenantContext;
 use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,7 +42,7 @@ final class AccessManagementController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'slug' => [$role ? 'prohibited' : 'required', 'string', 'regex:/^[a-z][a-z0-9_]{2,79}$/',
-                'max:80', Rule::unique('roles', 'slug')],
+                'max:80', Rule::unique('roles', 'slug')->where('tenant_id', TenantContext::id())],
             'permissions' => ['required', 'array'],
             'permissions.*' => ['required', 'string', 'distinct', Rule::exists('permissions', 'key')],
         ]);
@@ -51,7 +52,8 @@ final class AccessManagementController extends Controller
         if (array_diff($requested, $allowed)) {
             throw ValidationException::withMessages(['permissions' => 'Não é permitido conceder acessos superiores aos seus.']);
         }
-        if ($role && ($role->slug === 'platform_admin' ||
+        if ($role && ( (int) $role->tenant_id !== TenantContext::id() ||
+            $role->slug === 'platform_admin' ||
             $role->permissions()->whereNotIn('key', $allowed)->exists())) {
             return response()->json(['message' => 'Este papel é protegido.'], 403);
         }
@@ -66,12 +68,14 @@ final class AccessManagementController extends Controller
                 $target->name = trim($data['name']);
                 $target->save();
             } else {
-                $target = Role::query()->create(['slug' => $data['slug'], 'name' => trim($data['name'])]);
+                $target = Role::query()->create(['slug' => $data['slug'], 'name' => trim($data['name']),
+                    'tenant_id' => TenantContext::id()]);
             }
             $permissionIds = Permission::query()->whereIn('key', $data['permissions'])->pluck('id')->all();
             $target->permissions()->sync($permissionIds);
             // Alterações de privilégios invalidam tokens dos usuários afetados.
-            User::query()->whereHas('roles', fn ($q) => $q->whereKey($target->id))
+            User::query()->where('tenant_id', TenantContext::id())
+                ->whereHas('roles', fn ($q) => $q->whereKey($target->id))
                 ->increment('auth_version');
             $this->events->record('access_role_saved', $request, $actor, $actor);
             return $target->load('permissions:id,key');
@@ -84,6 +88,7 @@ final class AccessManagementController extends Controller
 
     public function userRoles(Request $request, User $user): JsonResponse
     {
+        abort_unless((int) $user->tenant_id === TenantContext::id(), 404);
         if ($user->roles()->where('slug', 'platform_admin')->exists()) {
             return response()->json(['message' => 'Conta técnica protegida.'], 403);
         }
@@ -96,6 +101,7 @@ final class AccessManagementController extends Controller
 
     public function assign(Request $request, User $user): JsonResponse
     {
+        abort_unless((int) $user->tenant_id === TenantContext::id(), 404);
         $data = $request->validate([
             'role_ids' => ['required', 'array'],
             'role_ids.*' => ['integer', 'distinct', Rule::exists('roles', 'id')],
@@ -106,7 +112,8 @@ final class AccessManagementController extends Controller
         }
         $allowed = $actor->grantedPermissions();
         DB::transaction(function () use ($user, $actor, $request, $data, $allowed): void {
-            $target = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $target = User::query()->where('tenant_id', TenantContext::id())
+                ->whereKey($user->id)->lockForUpdate()->firstOrFail();
             if ($target->roles()->where('slug', 'platform_admin')->exists()) abort(403);
             $selected = Role::query()->whereIn('id', $data['role_ids'])->with('permissions')->get();
             if ($selected->count() !== count($data['role_ids']) ||

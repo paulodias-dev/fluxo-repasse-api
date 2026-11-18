@@ -67,8 +67,9 @@ final class TenantQueryBuilder extends Builder
     public function join($table, $first, $operator = null, $second = null, $type = 'inner', $where = false)
     {
         $result = parent::join($table, $first, $operator, $second, $type, $where);
-        $base = trim(preg_split('/\s+as\s+/i', $table)[0]);
-        if (TenantTable::owned($base) && $this->joins !== null) {
+        $base = is_string($table)
+            ? trim(preg_split('/\s+as\s+/i', $table)[0]) : '';
+        if (is_string($table) && TenantTable::owned($base) && $this->joins !== null) {
             $alias = trim(preg_split('/\s+as\s+/i', $table)[1] ?? $base);
             $last = $this->joins[array_key_last($this->joins)];
             $last->on($alias.'.tenant_id', '=', $this->rootAlias.'.tenant_id');

@@ -27,6 +27,7 @@ class User extends Authenticatable implements JWTSubject
         'company_name',
         'avatar_path',
         'password',
+        'tenant_id',
     ];
 
     /**
@@ -53,12 +54,13 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
             'is_active' => 'boolean',
             'auth_version' => 'integer',
+            'tenant_id' => 'integer',
         ];
     }
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class);
+        return $this->belongsToMany(Role::class)->withPivotValue('tenant_id', $this->tenant_id);
     }
 
     public function hasPermission(string $permission): bool
@@ -84,6 +86,6 @@ class User extends Authenticatable implements JWTSubject
     /** @return array<string, mixed> */
     public function getJWTCustomClaims(): array
     {
-        return ['av' => (int) $this->auth_version];
+        return ['av' => (int) $this->auth_version, 'tid' => $this->tenant_id];
     }
 }

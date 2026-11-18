@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
@@ -35,7 +36,14 @@ final class AuthController extends Controller
                 ->header('Cache-Control', 'no-store');
         }
 
-        $this->events->record('login_succeeded', $request, Auth::guard('api')->user());
+        $user = Auth::guard('api')->user();
+        if (! $user->tenant_id || ! DB::table('tenants')->where('id', $user->tenant_id)
+            ->where('is_active', true)->exists()) {
+            Auth::guard('api')->logout();
+            return response()->json(['message' => 'Empresa indisponível.'], 403)
+                ->header('Cache-Control', 'no-store');
+        }
+        $this->events->record('login_succeeded', $request, $user);
 
         return $this->tokenResponse($token);
     }
@@ -50,6 +58,8 @@ final class AuthController extends Controller
                 ...$this->profileData($user),
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),
+                'tenant' => DB::table('tenants')->where('id', $user->tenant_id)
+                    ->first(['id', 'name', 'slug']),
                 'access_diagnostic' => $this->diagnostic($user),
             ],
         ])->header('Cache-Control', 'no-store');
@@ -166,7 +176,9 @@ final class AuthController extends Controller
             $user = User::query()->find($payload->get('sub'));
             $version = $payload->get('av');
 
-            if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
+            if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version ||
+                (int) $payload->get('tid') !== (int) $user->tenant_id ||
+                ! DB::table('tenants')->where('id', $user->tenant_id)->where('is_active', true)->exists()) {
                 JWTAuth::setToken($token)->invalidate();
 
                 return response()->json(['message' => 'Sessão inválida ou conta desativada.'], 401)

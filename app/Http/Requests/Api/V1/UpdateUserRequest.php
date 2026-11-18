@@ -36,6 +36,7 @@ final class UpdateUserRequest extends FormRequest
             'password' => ['prohibited'],
             'is_active' => ['prohibited'],
             'auth_version' => ['prohibited'],
+            'tenant_id' => ['prohibited'],
         ];
     }
 }

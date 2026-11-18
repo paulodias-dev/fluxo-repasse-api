@@ -36,6 +36,7 @@ final class StoreUserRequest extends FormRequest
             'permissions' => ['prohibited'],
             'is_active' => ['prohibited'],
             'auth_version' => ['prohibited'],
+            'tenant_id' => ['prohibited'],
             'email_verified_at' => ['prohibited'],
         ];
     }

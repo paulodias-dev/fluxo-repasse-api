@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\StoreUserRequest;
 use App\Http\Requests\Api\V1\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\TenantContext;
 use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,8 @@ final class AdminUserController extends Controller
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
 
-        $query = User::query()->select(['id', 'name', 'email', 'is_active', 'created_at']);
+        $query = User::query()->where('tenant_id', TenantContext::id())
+            ->select(['id', 'name', 'email', 'is_active', 'created_at']);
 
         if (isset($filters['search']) && trim($filters['search']) !== '') {
             $term = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($filters['search']));
@@ -78,6 +80,7 @@ final class AdminUserController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
+                'tenant_id' => TenantContext::id(),
             ]);
 
             if ($assigningRoles && count($roleIds) > 0) {
@@ -98,6 +101,7 @@ final class AdminUserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
+        abort_unless((int) $user->tenant_id === TenantContext::id(), 404);
         $changes = $request->validated();
         $assigningRoles = array_key_exists('role_ids', $changes);
         $roleIds = $changes['role_ids'] ?? [];
@@ -110,7 +114,8 @@ final class AdminUserController extends Controller
         }
 
         DB::transaction(function () use ($request, $user, $changes, $assigningRoles, $roleIds, $actor): void {
-            $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            $target = User::query()->where('tenant_id', TenantContext::id())
+                ->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
             $roleChanged = false;
 
             if ($assigningRoles) {
@@ -171,6 +176,7 @@ final class AdminUserController extends Controller
 
     public function status(SetUserStatusRequest $request, User $user): JsonResponse
     {
+        abort_unless((int) $user->tenant_id === TenantContext::id(), 404);
         $active = (bool) $request->validated('is_active');
 
         if ($user->getKey() === $request->user('api')?->getKey()) {
