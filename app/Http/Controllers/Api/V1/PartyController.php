@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDatabase;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StorePartyRequest;
 use App\Http\Requests\Api\V1\UpdatePartyRequest;
@@ -111,7 +113,7 @@ final class PartyController extends Controller
 
     private function record(Party $party, Request $request, string $type): void
     {
-        DB::table('party_events')->insert([
+        TenantDatabase::table('party_events')->insert([
             'party_id' => $party->id,
             'actor_user_id' => $request->user('api')?->getAuthIdentifier(),
             'event_type' => $type,
