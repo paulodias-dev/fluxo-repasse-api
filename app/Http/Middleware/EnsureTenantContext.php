@@ -29,7 +29,15 @@ final class EnsureTenantContext
             'api/v1/ready',
             'api/v1/auth/*',
         )) {
-            return $next($request);
+            try {
+                return $next($request);
+            } finally {
+                // No runner, keep the fixture for assertions between
+                // requests. In real HTTP workers, never retain tenant state.
+                if (app()->runningUnitTests() && $previous !== null) {
+                    $context->set($previous);
+                }
+            }
         }
 
         $user = Auth::guard('api')->user();
