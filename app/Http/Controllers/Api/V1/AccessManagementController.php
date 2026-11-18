@@ -30,6 +30,7 @@ final class AccessManagementController extends Controller
                 'permissions' => $role->permissions->pluck('key')->values(),
                 'users_count' => $role->users_count,
                 'editable' => false,
+                'assignable' => $role->permissions->pluck('key')->diff($keys)->isEmpty(),
             ]);
         return response()->json([
             'roles' => $roles,
