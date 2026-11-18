@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
@@ -77,6 +78,17 @@ class User extends Authenticatable implements JWTSubject
 
     protected static function booted(): void
     {
+        static::addGlobalScope('tenant_membership', function (Builder $query): void {
+            if (TenantContext::active()) {
+                $query->whereExists(function ($sub): void {
+                    $sub->selectRaw('1')->from('tenant_users as membership')
+                        ->whereColumn('membership.user_id', 'users.id')
+                        ->where('membership.tenant_id', TenantContext::id())
+                        ->where('membership.is_active', true);
+                });
+            }
+        });
+
         static::created(function (User $user): void {
             if (! Schema::hasTable('tenant_users')) {
                 return;
