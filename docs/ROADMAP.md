@@ -650,3 +650,11 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Teste feature de acesso cruzado/tenant desativado/dados de demonstração escrito.
 - [ ] Executar PHPUnit/SQLite, MySQL 8, Pint, migrations e QA navegador real. Não executar \`migrate:fresh\` em banco persistente.
 - [ ] Motor de repasses aprovado como obrigação financeira e parcelas, comprovante opcional tardio: implementação separada, não confundida com os documentos já existentes.
+
+### Endurecimento de RBAC da Macro 51
+- [x] Papéis `Administrador` e `Usuário` instanciados por tenant via `TenantRoles::provision()`, não editáveis como templates globais.
+- [x] `roles.tenant_id` (unicidade por empresa) e `auth_security_events.tenant_id` (auditoria segregada) com migration aditiva após fundação SaaS.
+- [x] Criação/edição/atribuição de cargos usando `tenant_id` validado; IDs de outros tenants geram 404/422 e não alteram permissões.
+- [x] Seeding opcional local: demo Alfa/Beta com administrador/usuário, veículos, tarefas, checklist, notas, fornecedores, despesas, receitas, cenários, modelos e condições comerciais.
+- [x] React exibe o nome da empresa vindo de sessão JWT no header Metronic, sem header ou query de troca de tenant.
+- [ ] QA real: executar migrations + seeder em banco descartável, validar dados, isolamento de cada endpoint, permissões, lint/build e experiência mobile.
