@@ -7,7 +7,6 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;

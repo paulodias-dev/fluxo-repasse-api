@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Query\JoinClause;
 use Illuminate\Validation\ValidationException;
 
 /**

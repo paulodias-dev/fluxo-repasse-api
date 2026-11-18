@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantTable;
+use App\Support\TenantContext;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -22,6 +23,7 @@ final class AdminUserAuditController extends Controller
 
     public function __invoke(Request $request, User $user): JsonResponse
     {
+        abort_unless((int) $user->tenant_id === TenantContext::id(), 404);
         $filters = $request->validate([
             'type' => ['sometimes', 'string', Rule::in(self::EVENT_TYPES)],
             'from' => ['sometimes', 'date_format:Y-m-d'],
