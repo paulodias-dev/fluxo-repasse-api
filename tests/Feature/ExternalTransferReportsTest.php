@@ -217,8 +217,8 @@ final class ExternalTransferReportsTest extends TestCase
     public function test_scope_permissions_and_invalid_payloads_block_external_reports(): void
     {
         $jwt = $this->token();
-        [$case, , $proposal, $base, $beneficiary, $other] = $this->fixture($jwt);
-        [$otherCase] = $this->fixture($jwt);
+        [$case, , $proposal, $base, $beneficiary] = $this->fixture($jwt);
+        [$otherCase, , , , $otherBeneficiary] = $this->fixture($jwt);
         $this->sale($jwt, $case);
         $data = $this->input($proposal, $beneficiary);
 
@@ -233,7 +233,7 @@ final class ExternalTransferReportsTest extends TestCase
             "/api/v1/repasse-cases/{$otherCase}/commercial-terms/{$proposal['term_id']}/preparation/proposals/{$proposal['id']}/external-transfers"
         )->assertNotFound();
         $this->create($jwt, $base, [
-            ...$data, 'beneficiary_party_id' => $otherCase,
+            ...$data, 'beneficiary_party_id' => $otherBeneficiary->id,
         ])->assertUnprocessable();
         $this->create($jwt, $base, [
             ...$data, 'transferred_on' => '2099-01-01',
