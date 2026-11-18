@@ -67,3 +67,10 @@ Macro 45 entrega documento interno de proposta derivada da apuração manual: pa
 | **Total de implementação estimado** | **100%** | — | **85%** |
 
 Comparado ao baseline de ~84%, a Macro 48 adiciona **registro, anexação de prova, histórico, estorno e exportação de transferências EXTERNAS reportadas por operador**. Este recurso NÃO executa pagamento e NÃO verifica liquidação bancária. Não foram aprovadas regras de comissões, tributos, obrigação exigível, alçadas, PSP, reconciliação, disputas ou organização/tenant. A evolução de ~1 p.p. é editorial e não é homologação. Nunca apresentar 85% como prontidão para uso bancário, nem declarar testes executados sem logs efetivos.
+
+## Revisão após Macro 49 — execução do código sem homologação
+- A etapa de preparação e controle financeiro passa de aproximadamente 50% para 53,3% de cobertura estimada, mantendo peso de 30 pontos da matriz.
+- Os demais blocos mantêm 65 pontos estimados de contribuição, totalizando **~86% do código MVP**.
+- Diferença +1 p.p. é avaliação editorial de usabilidade: registro de repasse externo sem minuta, com o mesmo histórico/prova/estorno.
+- NÃO implementar nem contar como entregue: motor de pagamento bancário, aprovação de obrigação exigível, impostos/comissões/retencões, PSP, conciliação, liquidação e regras multi-organização não aprovadas. Homologação não entra na porcentagem.
+- Testes adicionados, execução e QA não atestados.

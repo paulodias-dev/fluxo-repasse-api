@@ -124,6 +124,37 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}', [RepasseCaseController::class, 'show'])->name('api.v1.cases.show');
         Route::get('/{case}/closeout-review', [RepasseCaseController::class, 'closeoutReview'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.closeout.review');
+        // Macro 49: declaração de repasse externo sem minuta nem cenário.
+        // Reutiliza tabela, serviço e comprovante privado da Macro 48.
+        Route::get('/{case}/external-transfers/options',
+            [ExternalTransferReportController::class, 'directOptions'])
+            ->middleware('throttle:repasse-admin-read')
+            ->name('api.v1.cases.external.options');
+        Route::get('/{case}/external-transfers',
+            [ExternalTransferReportController::class, 'directIndex'])
+            ->middleware('throttle:repasse-admin-read')
+            ->name('api.v1.cases.external.index');
+        Route::post('/{case}/external-transfers',
+            [ExternalTransferReportController::class, 'directStore'])
+            ->middleware('throttle:repasse-admin-write')
+            ->name('api.v1.cases.external.store');
+        Route::get('/{case}/external-transfers/export',
+            [ExternalTransferReportController::class, 'directExport'])
+            ->middleware('throttle:repasse-admin-read')
+            ->name('api.v1.cases.external.export');
+        Route::get('/{case}/external-transfers/{transfer}',
+            [ExternalTransferReportController::class, 'directShow'])
+            ->middleware('throttle:repasse-admin-read')
+            ->name('api.v1.cases.external.show');
+        Route::post('/{case}/external-transfers/{transfer}/void',
+            [ExternalTransferReportController::class, 'directVoid'])
+            ->middleware('throttle:repasse-admin-write')
+            ->name('api.v1.cases.external.void');
+        Route::get('/{case}/external-transfers/{transfer}/proof',
+            [ExternalTransferReportController::class, 'directProof'])
+            ->middleware('throttle:repasse-admin-read')
+            ->name('api.v1.cases.external.proof');
+
         Route::post('/{case}/sale/complete', [RepasseCaseController::class, 'completeSale'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.sale.complete');
         Route::post('/{case}/complete', [RepasseCaseController::class, 'completeVehicle'])

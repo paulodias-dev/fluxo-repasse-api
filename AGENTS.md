@@ -216,3 +216,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Um único esquema aditivo repasse_external_transfer_reports, comprovantes no disco local privado, SHA e tamanho conferidos antes de cada download. Sem URL pública, segredos, números bancários, ZIP ou PSP.
 - Não permitir excluir/editar declaração original: correção por estorno com razão e auditoria; somar somente registros não estornados, todos antes de paginar.
 - JWT + session.current + cases.manage E scenarios.manage; desconhecidos rejeitados; CSV anti-fórmula no-store. Testes reais só declarados após execução, código do MVP sem homologação.
+
+## Macro 49 — repasse externo direto sem minuta
+- O caminho direto exige venda datada, pagador E favorecido ativos vinculados à ficha, arquivo privado, valor/data explícitos e declaração expressa de evento fora da plataforma.
+- Reutiliza repasse_external_transfer_reports da Macro 48: term_id/proposal_id/proposal_sha256 NULL no modo direto; preservar FKs e hashes históricos no modo com proposta.
+- Hash da intenção diferencia NULL de 0, congela os nomes dos participantes em SHA independente e valida valores, IDs, prova e nomes antes de leitura, estorno, download e CSV.
+- A ficha pode estar arquivada; registrar relato não modifica compra, venda, custo, resultado nem o estado do veículo.
+- A interface usa o MESMO workspace e precisa de cases.manage apenas para fluxo direto; cenários e propostas continuam exigindo scenarios.manage.
+- Nenhum valor relatado é saldo devedor, obrigação, lucro contábil, conciliação ou pagamento certificado/executado. Campos adicionais como payment_enabled são proibidos.
+- Testes escritos não significam executados; homologação somente após código MVP.

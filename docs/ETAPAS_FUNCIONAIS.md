@@ -181,3 +181,9 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Estorno justificado com arquivo e registro original preservados, sem pagamento efetivo ou aprovação.
 - [x] Mesmo Veículo 360 mobile-first, endpoint privado de prova conferida SHA, OpenAPI 1.24 e testes escritos.
 - [ ] Execução real de QA/homologação posterior ao código MVP. Banco/PSP, aprovação financeira, impostos e comissões reais NÃO implementados.
+
+## Macro 49 — repasse externo direto
+- [x] Registrar transferência informada após venda, com pagador e favorecido da ficha, valor/data, prova privada e ciência expressa, sem minuta ou simulação.
+- [x] Consultar, filtrar, exportar CSV e estornar com justificativa, mantendo documento e trilha imutáveis.
+- [x] Compatibilidade com relatos de propostas anteriores, URL privada do arquivo, SHA dos participantes e segregação entre veículos.
+- [x] Mesmo React mobile-first e API, sem duplo lançamento de receita/despesa. Testes escritos, homologação ainda não executada.

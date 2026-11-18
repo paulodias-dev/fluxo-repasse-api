@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.24.0
+  version: 1.25.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -3641,6 +3641,172 @@ paths:
         '409': { description: Fonte SHA, referência ou comprovante com integridade divergente }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+
+  /repasse-cases/{case}/external-transfers/options:
+    get:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersOptions
+      summary: Listar apenas participantes ativos vinculados ao veículo para relato externo direto
+      description: |
+        Exige cases.manage e JWT vigente. Não exige scenarios.manage,
+        minuta comercial, modelo percentual, cálculo ou proposta.
+        Veículo vendido/arquivado permanece elegível à consulta.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Participantes vinculados, sale_registered e flags bancárias falsas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/external-transfers:
+    get:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersIndex
+      summary: Consultar relatos diretos, totais declarados e histórico completo antes da paginação
+      description: |
+        Inclui somente registros SEM proposta. Indicadores agregam todos os
+        registros não estornados, com agrupamento por favorecido e histórico
+        paginado de 15. Nunca é saldo devedor, conciliação ou confirmação bancária.
+        Não altera rentabilidade do veículo.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, reported, voided], default: all } }
+      responses:
+        '200':
+          description: summary + reports, nulidade expressa de proposta e referência hipotética
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalTransferPortfolio' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersStore
+      summary: Declarar repasse feito externamente, diretamente pela ficha do veículo
+      description: |
+        Exige venda REAL com data e valor, pagador e favorecido ativos
+        já vinculados ao mesmo veículo, valor positivo, data não futura,
+        declaração expressa e prova PDF/JPG/PNG/WebP de até 10 MiB.
+        Guarda nomes, IDs e prova privados; UUID idempotente por ator/dados/prova.
+        Pode ser registrado após arquivamento, sem modificar compra, venda,
+        despesas, receitas ou comprovantes de outros módulos.
+        Não exige aprovação comercial e não autoriza ou executa pagamentos.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DirectExternalTransferCreate'
+      responses:
+        '201': { description: Relato externo criado, status reported, bank_confirmed=false }
+        '200': { description: Retry idempotente não duplica, created=false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/external-transfers/export:
+    get:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersExport
+      summary: CSV de relatos diretos filtrados, sem contas bancárias ou fórmulas
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: status, in: query, schema: { type: string, enum: [all, reported, voided], default: all } }
+      responses:
+        '200':
+          description: CSV UTF-8 BOM, no-store, com registro bancário não verificado
+          content:
+            text/csv: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/external-transfers/{transfer}:
+    get:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersShow
+      summary: Ler detalhe de declaração vinculada diretamente ao veículo
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Detalhe, documento SHA e flags de não execução
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ExternalTransferReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/external-transfers/{transfer}/void:
+    post:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersVoid
+      summary: Estornar declaração direta com justificativa e histórico preservado
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200': { description: Estorno seguro, sem apagar arquivo, pagamentos ou evento original }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/external-transfers/{transfer}/proof:
+    get:
+      tags: [Repasses externos informados]
+      operationId: directExternalTransfersProof
+      summary: Baixar prova do relato direto após verificar SHA-256 e tamanho
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: transfer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Download autenticado, no-store, nosniff e sem URL pública
+          content:
+            application/octet-stream: { schema: { type: string, format: binary } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo ou relatório fora do escopo }
+        '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
 components:
   headers:
     RequestId:
@@ -3658,6 +3824,21 @@ components:
       required: true
       schema: { type: integer, minimum: 1 }
   schemas:
+    DirectExternalTransferCreate:
+      type: object
+      additionalProperties: false
+      required: [request_key, payer_party_id, beneficiary_party_id, amount_cents,
+        transferred_on, confirmed_external, proof]
+      properties:
+        request_key: { type: string, format: uuid }
+        payer_party_id: { type: integer, minimum: 1, description: 'Participante ativo vinculado ao veículo' }
+        beneficiary_party_id: { type: integer, minimum: 1, description: 'Participante ativo vinculado ao mesmo veículo' }
+        amount_cents: { type: integer, format: int64, minimum: 1, maximum: 1000000000000 }
+        transferred_on: { type: string, format: date, description: 'Data real declarada, não futura' }
+        external_reference: { type: string, nullable: true, maxLength: 120 }
+        operator_note: { type: string, nullable: true, maxLength: 500 }
+        confirmed_external: { type: boolean, enum: [true] }
+        proof: { type: string, format: binary, description: 'PDF/JPG/PNG/WebP, até 10 MiB' }
     ExternalTransferReportCreate:
       type: object
       additionalProperties: false
@@ -3680,12 +3861,12 @@ components:
         financial_authorization, payment_executed, obligation_created]
       properties:
         id: { type: integer, minimum: 1 }
-        proposal_id: { type: integer, minimum: 1 }
+        proposal_id: { type: integer, minimum: 1, nullable: true, description: 'NULL no relato direto' }
         payer_party_id: { type: integer, minimum: 1 }
         payer_party_name: { type: string }
         beneficiary_party_id: { type: integer, minimum: 1 }
         beneficiary_party_name: { type: string }
-        proposed_reference_cents: { type: integer, format: int64 }
+        proposed_reference_cents: { type: integer, format: int64, nullable: true, description: 'NULL em relatos diretos sem proposta' }
         amount_cents: { type: integer, format: int64, minimum: 1 }
         transferred_on: { type: string, format: date }
         external_reference: { type: string, nullable: true }
@@ -3718,10 +3899,10 @@ components:
             Indicadores de registros informados e comparativo com valores
             hipotéticos. difference_to_reference_cents NÃO é saldo devedor.
           properties:
-            proposal_id: { type: integer }
-            proposal_sha256: { type: string }
+            proposal_id: { type: integer, nullable: true }
+            proposal_sha256: { type: string, nullable: true }
             proposal_source_stale: { type: boolean }
-            hypothetical_reference_cents: { type: integer, format: int64 }
+            hypothetical_reference_cents: { type: integer, format: int64, nullable: true }
             total_reported_cents: { type: integer, format: int64 }
             reported_count: { type: integer }
             voided_count: { type: integer }
@@ -3735,9 +3916,9 @@ components:
                 properties:
                   beneficiary_party_id: { type: integer }
                   beneficiary_party_name: { type: string, nullable: true }
-                  reference_cents: { type: integer, format: int64 }
+                  reference_cents: { type: integer, format: int64, nullable: true }
                   reported_cents: { type: integer, format: int64 }
-                  difference_to_reference_cents: { type: integer, format: int64 }
+                  difference_to_reference_cents: { type: integer, format: int64, nullable: true }
                   reported_count: { type: integer }
                   voided_count: { type: integer }
         reports: { type: object, description: 'Paginador Laravel de ExternalTransferReport, 15 por página' }
