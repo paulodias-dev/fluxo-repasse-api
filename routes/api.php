@@ -119,6 +119,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}', [RepasseCaseController::class, 'show'])->name('api.v1.cases.show');
         Route::get('/{case}/closeout-review', [RepasseCaseController::class, 'closeoutReview'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.closeout.review');
+        Route::post('/{case}/sale/complete', [RepasseCaseController::class, 'completeSale'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.sale.complete');
         Route::patch('/{case}', [RepasseCaseController::class, 'update'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.update');
         Route::post('/{case}/parties', [RepasseCaseController::class, 'attach'])
