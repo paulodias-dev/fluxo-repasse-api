@@ -20,12 +20,13 @@ final class PartyController extends Controller
         $filters = $request->validate([
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'type' => ['sometimes', Rule::in(['all', 'person', 'company'])],
+            'is_supplier' => ['sometimes', 'boolean'],
             'status' => ['sometimes', Rule::in(['all', 'active', 'inactive'])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
 
         $query = Party::query()->select([
-            'id', 'type', 'name', 'email', 'phone', 'notes',
+            'id', 'type', 'name', 'email', 'phone', 'notes', 'is_supplier',
             'is_active', 'created_at', 'updated_at',
         ]);
 
@@ -39,6 +40,10 @@ final class PartyController extends Controller
 
         if (($filters['type'] ?? 'all') !== 'all') {
             $query->where('type', $filters['type']);
+        }
+
+        if (array_key_exists('is_supplier', $filters)) {
+            $query->where('is_supplier', (bool) $filters['is_supplier']);
         }
 
         if (($filters['status'] ?? 'all') !== 'all') {
@@ -61,7 +66,7 @@ final class PartyController extends Controller
             $party = Party::query()->create($request->validated());
             $this->record($party, $request, 'party_created');
 
-            return $party;
+            return $party->fresh();
         });
 
         return response()->json(['data' => $this->represent($party)], 201)
@@ -124,7 +129,7 @@ final class PartyController extends Controller
     private function represent(Party $party): array
     {
         return $party->only([
-            'id', 'type', 'name', 'email', 'phone', 'notes',
+            'id', 'type', 'name', 'email', 'phone', 'notes', 'is_supplier',
             'is_active', 'created_at', 'updated_at',
         ]);
     }
