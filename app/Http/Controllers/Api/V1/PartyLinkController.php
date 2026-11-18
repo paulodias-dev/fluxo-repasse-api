@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantTable;
+use App\Support\TenantContext;
 
 use App\Http\Controllers\Controller;
 use App\Models\Party;
@@ -16,6 +17,7 @@ final class PartyLinkController extends Controller
 {
     public function index(Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $links = TenantTable::table('party_links as links')
             ->join('parties as related', 'related.id', '=', 'links.related_party_id')
             ->where('links.party_id', $party->id)
@@ -31,6 +33,7 @@ final class PartyLinkController extends Controller
 
     public function store(Request $request, Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $data = $request->validate([
             'related_party_id' => ['required', 'integer', 'distinct', 'exists:parties,id', Rule::notIn([$party->id])],
             'description' => ['required', 'string', 'min:2', 'max:180'],
@@ -71,6 +74,7 @@ final class PartyLinkController extends Controller
 
     public function update(Request $request, Party $party, int $link): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $data = $request->validate([
             'description' => ['sometimes', 'required', 'string', 'min:2', 'max:180'],
             'is_active' => ['sometimes', 'required', 'boolean'],
@@ -122,6 +126,7 @@ final class PartyLinkController extends Controller
 
     private function find(Party $party, int $id): object
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         return TenantTable::table('party_links as links')->join('parties as related', 'related.id', '=', 'links.related_party_id')
             ->where('links.party_id', $party->id)->where('links.id', $id)
             ->select('links.id', 'links.party_id', 'links.related_party_id', 'links.description',

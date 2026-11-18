@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantTable;
+use App\Support\TenantContext;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\StorePartyRequest;
@@ -51,6 +52,7 @@ final class PartyController extends Controller
 
     public function show(Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         return response()->json(['data' => $this->represent($party)])
             ->header('Cache-Control', 'no-store');
     }
@@ -70,6 +72,7 @@ final class PartyController extends Controller
 
     public function update(UpdatePartyRequest $request, Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $changed = DB::transaction(function () use ($request, $party): bool {
             $current = Party::query()->whereKey($party->id)->lockForUpdate()->firstOrFail();
             $current->fill($request->validated());
@@ -90,6 +93,7 @@ final class PartyController extends Controller
 
     public function status(Request $request, Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $data = $request->validate(['is_active' => ['required', 'boolean']]);
         $active = (bool) $data['is_active'];
 

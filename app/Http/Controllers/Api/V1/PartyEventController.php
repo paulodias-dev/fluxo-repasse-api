@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantTable;
+use App\Support\TenantContext;
 
 use App\Http\Controllers\Controller;
 use App\Models\Party;
@@ -14,6 +15,7 @@ final class PartyEventController extends Controller
 {
     public function __invoke(Request $request, Party $party): JsonResponse
     {
+        abort_unless((int) $party->tenant_id === TenantContext::id(), 404);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
 
         $events = TenantTable::table('party_events')
