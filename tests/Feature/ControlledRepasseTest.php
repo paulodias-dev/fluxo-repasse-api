@@ -261,4 +261,132 @@ final class ControlledRepasseTest extends TestCase
             ->assertJsonPath('data.controlled.approved_cents', 0)
             ->assertJsonPath('data.controlled.draft_cents', 0);
     }
+
+    public function test_operador_cancela_proprio_rascunho_mas_nao_obrigacao_aprovada_ou_estorno(): void
+    {
+        [, $admin, $vehicle, $parties, $roles] = $this->tenant('macro54-permissoes');
+        $operator = User::create([
+            'tenant_id' => $admin->tenant_id, 'name' => 'Operador de repasses',
+            'email' => 'macro54-operador@example.invalid',
+            'password' => 'Senha&Aleatoria12345',
+        ]);
+        $operator->roles()->sync([$roles['tenant_user']->id]);
+        $url = '/api/v1/repasse-cases/'.$vehicle.'/settlements';
+        $operatorToken = auth('api')->login($operator);
+        $adminToken = auth('api')->login($admin);
+
+        $this->withToken($operatorToken);
+        $ownDraft = $this->postJson($url, $this->draft($parties))
+            ->assertCreated()->json('data.id');
+        $this->postJson($url.'/'.$ownDraft.'/cancel', [
+            'reason' => 'Corrigir destinatários',
+        ])->assertOk()->assertJsonPath('data.status', 'cancelled');
+
+        $approved = $this->postJson($url, $this->draft($parties))
+            ->assertCreated()->json('data');
+        $id = $approved['id'];
+        $this->withToken($adminToken)->postJson($url.'/'.$id.'/approve', [
+            'confirm' => true,
+        ])->assertOk();
+        $this->withToken($operatorToken)->postJson($url.'/'.$id.'/cancel', [
+            'reason' => 'Sem alçada para cancelar',
+        ])->assertForbidden();
+
+        $paymentId = $this->withToken($operatorToken)->postJson($url.'/'.$id.'/payments', [
+            'request_key' => (string) Str::uuid(),
+            'line_id' => $approved['lines'][0]['id'],
+            'amount_cents' => 1000,
+            'paid_on' => '2026-11-18',
+            'confirmed_external' => true,
+        ])->assertCreated()->json('data.payments.0.id');
+
+        $this->postJson($url.'/'.$id.'/payments/'.$paymentId.'/void', [
+            'reason' => 'Estorno sem autorização',
+        ])->assertForbidden();
+        $this->assertDatabaseHas('repasse_settlement_payments', [
+            'id' => $paymentId, 'voided_at' => null,
+        ]);
+
+        $this->withToken($adminToken)->postJson(
+            $url.'/'.$id.'/payments/'.$paymentId.'/void',
+            ['reason' => 'Estorno autorizado e documentado'],
+        )->assertOk()->assertJsonPath('data.paid_cents', 0);
+        $this->postJson($url.'/'.$id.'/cancel', [
+            'reason' => 'Cancelamento autorizado da obrigação',
+        ])->assertOk()->assertJsonPath('data.status', 'cancelled');
+    }
+
+    public function test_replay_do_repassse_pendente_preserva_contrato_e_nao_cria_novo_pagamento(): void
+    {
+        [, $admin, $vehicle, $parties] = $this->tenant('macro54-idempotencia');
+        $this->withToken(auth('api')->login($admin));
+        $url = '/api/v1/repasse-cases/'.$vehicle.'/settlements';
+        $payload = $this->draft($parties);
+        $created = $this->postJson($url, $payload)->assertCreated()->json('data');
+        $this->postJson($url.'/'.$created['id'].'/approve', ['confirm' => true])->assertOk();
+
+        $repeat = $this->postJson($url, $payload)->assertOk()
+            ->assertJsonPath('created', false)->json('data');
+        $this->assertSame($created['id'], $repeat['id']);
+        $this->assertSame('approved', $repeat['status']);
+        $this->postJson($url, [...$payload, 'base_amount_cents' => 9999])
+            ->assertStatus(409);
+        $this->assertSame(1, DB::table('repasse_settlements')
+            ->where('repasse_case_id', $vehicle)->count());
+    }
+
+    public function test_fechamento_detecta_estorno_e_nova_parcela_com_mesmo_total(): void
+    {
+        [, $admin, $vehicle, $parties] = $this->tenant('macro54-snapshot');
+        $this->withToken(auth('api')->login($admin));
+        $url = '/api/v1/repasse-cases/'.$vehicle.'/settlements';
+        $created = $this->postJson($url, $this->draft($parties))
+            ->assertCreated()->json('data');
+        $id = $created['id'];
+        $line = $created['lines'][0]['id'];
+        $this->postJson($url.'/'.$id.'/approve', ['confirm' => true])->assertOk();
+        $first = $this->postJson($url.'/'.$id.'/payments', [
+            'request_key' => (string) Str::uuid(), 'line_id' => $line,
+            'amount_cents' => 2000, 'paid_on' => '2026-11-18',
+            'confirmed_external' => true,
+        ])->assertCreated()->json('data.payments.0.id');
+        $before = $this->getJson('/api/v1/repasse-cases/'.$vehicle.'/closeout-review')
+            ->assertOk()->json('data');
+
+        $this->postJson($url.'/'.$id.'/payments/'.$first.'/void', [
+            'reason' => 'Retificação do documento de origem',
+        ])->assertOk();
+        $this->postJson($url.'/'.$id.'/payments', [
+            'request_key' => (string) Str::uuid(), 'line_id' => $line,
+            'amount_cents' => 2000, 'paid_on' => '2026-11-18',
+            'confirmed_external' => true,
+        ])->assertCreated();
+        $after = $this->getJson('/api/v1/repasse-cases/'.$vehicle.'/closeout-review')
+            ->assertOk()->json('data');
+        $this->assertSame($before['repasse_paid_cents'], $after['repasse_paid_cents']);
+        $this->assertSame($before['repasse_remaining_cents'], $after['repasse_remaining_cents']);
+        $this->assertGreaterThan($before['repasse_event_cursor'], $after['repasse_event_cursor']);
+        $this->assertNotSame($before['review_sha256'], $after['review_sha256']);
+    }
+
+    public function test_pagamento_futuro_nao_pode_ser_declarado_como_ja_realizado(): void
+    {
+        [, $admin, $vehicle, $parties] = $this->tenant('macro54-data');
+        $this->withToken(auth('api')->login($admin));
+        $url = '/api/v1/repasse-cases/'.$vehicle.'/settlements';
+        $created = $this->postJson($url, $this->draft($parties))
+            ->assertCreated()->json('data');
+        $this->postJson($url.'/'.$created['id'].'/approve', [
+            'confirm' => true,
+        ])->assertOk();
+
+        $this->postJson($url.'/'.$created['id'].'/payments', [
+            'request_key' => (string) Str::uuid(),
+            'line_id' => $created['lines'][0]['id'],
+            'amount_cents' => 1000,
+            'paid_on' => now()->addDay()->toDateString(),
+            'confirmed_external' => true,
+        ])->assertUnprocessable()->assertJsonValidationErrors('paid_on');
+    }
+
 }

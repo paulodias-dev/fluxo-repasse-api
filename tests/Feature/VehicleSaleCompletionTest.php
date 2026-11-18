@@ -235,4 +235,24 @@ final class VehicleSaleCompletionTest extends TestCase
         $this->withToken($token)->getJson($base)->assertOk()
             ->assertJsonPath('data.status', 'draft');
     }
+
+    public function test_data_futura_nao_e_aceita_como_venda_realizada(): void
+    {
+        $token = $this->token();
+        $id = $this->vehicle($token);
+        $base = "/api/v1/repasse-cases/{$id}";
+        $this->withToken($token)->patchJson($base, [
+            'sale_amount_cents' => 3000000,
+            'sold_on' => now()->addDay()->toDateString(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('sold_on');
+
+        $review = $this->review($token, $id);
+        $this->withToken($token)->postJson("{$base}/sale/complete", [
+            'sale_amount_cents' => 3000000,
+            'sold_on' => now()->addDay()->toDateString(),
+            'expected_closeout_sha256' => $review['review_sha256'],
+            'acknowledge_pending' => false,
+        ])->assertUnprocessable()->assertJsonValidationErrors('sold_on');
+    }
+
 }
