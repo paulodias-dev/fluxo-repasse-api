@@ -392,7 +392,11 @@ final class ExternalTransferReportService
     public function proof(int $case, int $term, int $proposal, int $report): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
         $this->show($case, $term, $proposal, $report);
-        $row = $this->row($case, $term, $proposal, $report);
+        return $this->downloadProof($this->row($case, $term, $proposal, $report));
+    }
+
+    private function downloadProof(object $row): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
         $disk = Storage::disk('local');
         if (! $disk->exists($row->proof_path)) {
             abort(404, 'Comprovante privado não localizado.');
