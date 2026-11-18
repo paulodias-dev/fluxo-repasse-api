@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Support\OperationalAccessCatalog;
 use Database\Seeders\AdminUserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -30,6 +31,6 @@ final class AdminSeederSecurityTest extends TestCase
 
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('roles', 1);
-        $this->assertDatabaseCount('permissions', 2);
+        $this->assertDatabaseCount('permissions', count(OperationalAccessCatalog::keys()));
     }
 }

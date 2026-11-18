@@ -53,7 +53,7 @@ final class OperationalAccessRecoveryTest extends TestCase
 
         $this->seed(AdminUserSeeder::class);
         $admin->refresh();
-        $this->assertCount(7, $admin->grantedPermissions());
+        $this->assertCount(count(OperationalAccessCatalog::keys()), $admin->grantedPermissions());
         $this->assertSame(
             [], OperationalAccessCatalog::missingForAdmin($admin->grantedPermissions())
         );
@@ -80,7 +80,7 @@ final class OperationalAccessRecoveryTest extends TestCase
             ->assertJsonCount(1, 'data.permissions')
             ->assertJsonPath('data.access_diagnostic.admin_role_incomplete', true)
             ->assertJsonPath('data.access_diagnostic.is_platform_admin', true)
-            ->assertJsonPath('data.access_diagnostic.expected_admin_count', 7)
+            ->assertJsonPath('data.access_diagnostic.expected_admin_count', count(OperationalAccessCatalog::keys()))
             ->assertJsonPath('data.access_diagnostic.modules.0.available', true)
             ->assertJsonPath('data.access_diagnostic.modules.3.available', false);
 
@@ -93,7 +93,7 @@ final class OperationalAccessRecoveryTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
         $freshToken = $this->login($admin);
         $this->withToken($freshToken)->getJson('/api/v1/auth/me')->assertOk()
-            ->assertJsonCount(7, 'data.permissions')
+            ->assertJsonCount(count(OperationalAccessCatalog::keys()), 'data.permissions')
             ->assertJsonPath('data.access_diagnostic.admin_role_incomplete', false);
     }
 
@@ -122,12 +122,12 @@ final class OperationalAccessRecoveryTest extends TestCase
         ]);
         $this->assertSame(0, $status);
         $this->assertTrue($existing->fresh()->roles()->where('slug', 'platform_admin')->exists());
-        $this->assertCount(7, $existing->fresh()->grantedPermissions());
+        $this->assertCount(count(OperationalAccessCatalog::keys()), $existing->fresh()->grantedPermissions());
         $this->assertCount(1, $other->fresh()->grantedPermissions());
         $this->assertSame(0, Artisan::call('repasse:access:doctor', [
             'email' => $existing->email, '--json' => true,
         ]));
-        $this->assertCount(7, $existing->fresh()->grantedPermissions());
+        $this->assertCount(count(OperationalAccessCatalog::keys()), $existing->fresh()->grantedPermissions());
     }
 
     public function test_repair_only_syncs_existing_admin_and_never_creates_account(): void
@@ -141,7 +141,7 @@ final class OperationalAccessRecoveryTest extends TestCase
             'email' => $user->email, '--repair' => true, '--yes' => true,
         ]);
         $this->assertSame(0, $status);
-        $this->assertCount(7, $user->fresh()->grantedPermissions());
+        $this->assertCount(count(OperationalAccessCatalog::keys()), $user->fresh()->grantedPermissions());
         $this->assertDatabaseCount('users', 1);
     }
     public function test_data_migration_backfills_only_existing_platform_admin_members(): void
@@ -158,7 +158,7 @@ final class OperationalAccessRecoveryTest extends TestCase
             'migrations/2026_11_16_000008_backfill_existing_platform_admin_modules.php'
         );
         $migration->up();
-        $this->assertCount(7, $admin->fresh()->grantedPermissions());
+        $this->assertCount(count(OperationalAccessCatalog::keys()), $admin->fresh()->grantedPermissions());
         $this->assertCount(1, $other->fresh()->grantedPermissions());
         $this->assertFalse($other->fresh()->roles()->where('slug', 'platform_admin')->exists());
         $this->assertSame($oldVersion + 1, (int) $admin->fresh()->auth_version);

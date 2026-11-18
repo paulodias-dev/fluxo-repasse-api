@@ -16,6 +16,8 @@ final class OperationalAccessCatalog
         'scenarios.manage' => 'Criar e consultar cenários hipotéticos sem movimentar dinheiro',
         'scenario_reviews.manage' => 'Emitir parecer documental sem aprovação financeira',
         'packages.manage' => 'Emitir pacotes documentais privados sem aprovação financeira',
+        'repasse.manage' => 'Preparar distribuições e registrar pagamentos externos de forma controlada',
+        'repasse.approve' => 'Aprovar distribuições financeiras manualmente',
     ];
 
     public const MODULES = [

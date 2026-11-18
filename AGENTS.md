@@ -235,3 +235,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Não declarar seguro para produção sem PHPUnit/SQLite, MySQL real, validação dos escopos em todos os endpoints, inspeção de storage privado/avatares e QA autenticado com pelo menos dois tenants.
 
 - **Guardas adicionais obrigatórias:** `roles.tenant_id` para cargos customizados, `auth_security_events.tenant_id` para auditoria identificada, regras de existência de role_id scoped no FormRequest. Um admin não pode atribuir, editar nem consultar papel de outra empresa. `platform_admin` permanece global e não substitui a identificação por empresa na sessão.
+
+
+## Macro 52 — repasses manuais controlados após venda
+- Não inferir base distributiva: operador informa valor total explícito. Distribuição fixa/percentual fecha os centavos; comissão percentual somente declarada, taxa/imposto somente manual.
+- Permissões novas: repasse.manage (cadastro, parcela e estorno) + repasse.approve (aprovação). Autor pode aprovar se tiver grant. Mantém cases.manage como pré-requisito.
+- Valores são declarações de pagamento externo, não conciliação bancária. Comprovante opcional e privado com SHA; nenhum PIX, PSP ou duplicação de custos/receitas.
+- Tabelas tenant-scoped, row locks no veículo e obrigação, UUID de criação/pagamento com digest da intenção, limite por beneficiário, eventos append-only e cancelamento após estornar parcelas.
+- SaasDemoSeeder não inventa pagamento realizado; AdminUserSeeder e TenantRoles provisionam novos grants, com revogação por auth_version se alterados.
+- API da Macro 52 antes do APP; testes e build devem ser reportados apenas se executados. Recalcular % do MVP SaaS, não herdar os 86% pré-revisão.

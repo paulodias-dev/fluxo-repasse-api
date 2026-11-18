@@ -25,7 +25,7 @@ final class TenantRoles
                 ],
                 'tenant_user' => [
                     'name' => 'Usuário',
-                    'keys' => ['parties.manage', 'cases.manage', 'scenarios.manage'],
+                    'keys' => ['parties.manage', 'cases.manage', 'scenarios.manage', 'repasse.manage'],
                 ],
             ] as $slug => $definition) {
                 $role = Role::query()->updateOrCreate(
