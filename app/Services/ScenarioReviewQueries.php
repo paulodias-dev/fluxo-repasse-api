@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantTable;
+
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -11,7 +13,7 @@ final class ScenarioReviewQueries
 
     private function base()
     {
-        return DB::table('repasse_scenario_reviews as r')
+        return TenantTable::table('repasse_scenario_reviews as r')
             ->join('repasse_scenarios as s', 's.id', '=', 'r.scenario_id')
             ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
             ->leftJoin('users as requester', 'requester.id', '=', 'r.requested_by')
@@ -64,7 +66,7 @@ final class ScenarioReviewQueries
 
     public function summary(int $actor): array
     {
-        $counts = DB::table('repasse_scenario_reviews')
+        $counts = TenantTable::table('repasse_scenario_reviews')
             ->selectRaw('COUNT(*) as total')
             ->selectRaw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending")
             ->selectRaw("SUM(CASE WHEN status = 'reviewed' THEN 1 ELSE 0 END) as reviewed")
@@ -108,7 +110,7 @@ final class ScenarioReviewQueries
     public function events(int $reviewId): mixed
     {
         $this->reviews->show($reviewId);
-        return DB::table('repasse_scenario_review_events as e')
+        return TenantTable::table('repasse_scenario_review_events as e')
             ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
             ->where('e.review_id', $reviewId)
             ->select('e.sequence', 'e.event_type', 'e.actor_user_id',
