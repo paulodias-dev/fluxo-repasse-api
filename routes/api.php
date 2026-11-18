@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\TenantController;
+use App\Http\Controllers\Api\V1\ManualSettlementController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
@@ -131,6 +132,42 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{case}', [RepasseCaseController::class, 'show'])->name('api.v1.cases.show');
         Route::get('/{case}/closeout-review', [RepasseCaseController::class, 'closeoutReview'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.closeout.review');
+        // Macro 50: obrigação manual somente após venda, consentida por
+        // usuário com financial.approve. Nenhum endpoint transfere dinheiro.
+        Route::prefix('/{case}/settlements')->middleware('permission:financial.manage')
+            ->group(function (): void {
+                Route::get('/options', [ManualSettlementController::class, 'options'])
+                    ->name('api.v1.cases.settlements.options');
+                Route::get('/', [ManualSettlementController::class, 'index'])
+                    ->name('api.v1.cases.settlements.index');
+                Route::post('/', [ManualSettlementController::class, 'create'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.settlements.create');
+                Route::get('/{plan}', [ManualSettlementController::class, 'show'])
+                    ->name('api.v1.cases.settlements.show');
+                Route::post('/{plan}/approve', [ManualSettlementController::class, 'approve'])
+                    ->middleware(['permission:financial.approve', 'throttle:repasse-admin-write'])
+                    ->name('api.v1.cases.settlements.approve');
+                Route::post('/{plan}/cancel', [ManualSettlementController::class, 'cancel'])
+                    ->middleware(['permission:financial.approve', 'throttle:repasse-admin-write'])
+                    ->name('api.v1.cases.settlements.cancel');
+                Route::post('/{plan}/payments', [ManualSettlementController::class, 'report'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.settlements.payments.report');
+                Route::post('/{plan}/payments/{payment}/void', [ManualSettlementController::class, 'voidPayment'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.settlements.payments.void');
+                Route::post('/{plan}/payments/{payment}/proof', [ManualSettlementController::class, 'attachProof'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.settlements.payments.proof.attach');
+                Route::get('/{plan}/payments/{payment}/proof', [ManualSettlementController::class, 'proof'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.settlements.payments.proof');
+                Route::get('/{plan}/events', [ManualSettlementController::class, 'events'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.settlements.events');
+            });
+
         // Macro 49: declaração de repasse externo sem minuta nem cenário.
         // Reutiliza tabela, serviço e comprovante privado da Macro 48.
         Route::get('/{case}/external-transfers/options',
