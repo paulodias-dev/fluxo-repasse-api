@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDB;
+
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +29,7 @@ final class AdminUserAuditController extends Controller
             'page' => ['sometimes', 'integer', 'min:1', 'max:10000'],
         ]);
 
-        $query = DB::table('auth_security_events')
+        $query = TenantDB::table('auth_security_events')
             ->where('user_id', $user->getKey())
             ->select(['id', 'event_type', 'actor_user_id', 'created_at']);
 
