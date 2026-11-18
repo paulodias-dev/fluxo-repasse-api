@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\CommercialTermsController;
 use App\Http\Controllers\Api\V1\FinancialPreparationController;
 use App\Http\Controllers\Api\V1\PreparationRecordController;
 use App\Http\Controllers\Api\V1\ObligationProposalController;
+use App\Http\Controllers\Api\V1\ExternalTransferReportController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
@@ -231,6 +232,32 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.show');
                 Route::get('/{term}/preparation/proposals/{proposal}/export', [ObligationProposalController::class, 'export'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.proposals.export');
+                // Macro 48: relatos comprovados de repasses realizados FORA do sistema.
+                // Não gera obrigação, saldo devedor, aprovação monetária ou PIX.
+                Route::get('/{term}/preparation/proposals/{proposal}/external-transfers',
+                    [ExternalTransferReportController::class, 'index'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.proposals.external.index');
+                Route::post('/{term}/preparation/proposals/{proposal}/external-transfers',
+                    [ExternalTransferReportController::class, 'store'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.proposals.external.store');
+                Route::get('/{term}/preparation/proposals/{proposal}/external-transfers/export',
+                    [ExternalTransferReportController::class, 'export'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.proposals.external.export');
+                Route::get('/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}',
+                    [ExternalTransferReportController::class, 'show'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.proposals.external.show');
+                Route::post('/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}/void',
+                    [ExternalTransferReportController::class, 'void'])
+                    ->middleware('throttle:repasse-admin-write')
+                    ->name('api.v1.cases.proposals.external.void');
+                Route::get('/{term}/preparation/proposals/{proposal}/external-transfers/{transfer}/proof',
+                    [ExternalTransferReportController::class, 'proof'])
+                    ->middleware('throttle:repasse-admin-read')
+                    ->name('api.v1.cases.proposals.external.proof');
                 Route::post('/{term}/fork', [CommercialTermsController::class, 'fork'])
                     ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.terms.fork');
             });

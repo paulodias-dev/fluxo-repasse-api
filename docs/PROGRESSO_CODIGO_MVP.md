@@ -54,3 +54,16 @@ A macro 44 acrescentou uma nova capacidade concreta, o registro interno versiona
 | **Total código MVP** | **100%** | — | **83,8% ≈ 84%** |
 
 Macro 45 entrega documento interno de proposta derivada da apuração manual: pagador declarado pelo operador, rateio congelado em centavos, história imutável, CSV, fonte stale e verificação SHA. É uma preparação de pré-repasse e **não constitui obrigação real nem motor executável**. Avanço da etapa 5 é estimativa editorial de +3 p.p. sobre a cobertura de código anterior (43% -> 46%). Homologação, QA, deploy e aceitação excluídos da matriz, por orientação do responsável. Regras financeiras/PSP, alçadas, conciliação e isolamento organizacional continuam sem aprovação; não inflar o índice pela contagem de PRs.
+
+## Após Macro 48 — registro de transferências externas informadas (estimativa de código)
+| Etapa | Peso | Cobertura estimada de código | Contribuição |
+|---|---:|---:|---:|
+| 1. Acesso, usuários, permissões e cadastros | 10% | 100% | 10% |
+| 2. Veículos e ficha 360 | 20% | 100% | 20% |
+| 3. Financeiro gerencial | 20% | 100% | 20% |
+| 4. Cenários e prestação documental | 15% | 100% | 15% |
+| 5. Preparação e execução de repasses | 30% | **50% estimados** | **15%** |
+| 6. Dashboard e integração | 5% | 100% | 5% |
+| **Total de implementação estimado** | **100%** | — | **85%** |
+
+Comparado ao baseline de ~84%, a Macro 48 adiciona **registro, anexação de prova, histórico, estorno e exportação de transferências EXTERNAS reportadas por operador**. Este recurso NÃO executa pagamento e NÃO verifica liquidação bancária. Não foram aprovadas regras de comissões, tributos, obrigação exigível, alçadas, PSP, reconciliação, disputas ou organização/tenant. A evolução de ~1 p.p. é editorial e não é homologação. Nunca apresentar 85% como prontidão para uso bancário, nem declarar testes executados sem logs efetivos.
