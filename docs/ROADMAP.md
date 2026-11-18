@@ -620,3 +620,12 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] OpenAPI 1.23, documentação e testes feature de concorrência/rollback/pendências; contrato visual ampliado.
 - [ ] Homologação após código MVP: PHPUnit/Pint/MySQL, build/lint, smartphone/desktop. Dinheiro real continua fora sem regras financeiras aprovadas.
 - Progresso ponderado de código mantido ~84% (melhoria operacional nas etapas antes já estimadas completas; não cria motor de repasses).
+
+## Macro 48 — Controle de repasses externos informados, com prova documental
+- [x] Na mesma proposta da ficha, registrar fato externo declarado pelo operador: destinatário da proposta, valor e data real explícitos, prova PDF/imagem SHA privada, referência/nota opcionais e ciência de que o banco NÃO foi consultado.
+- [x] Uma migration aditiva e um serviço transacional, com UUID idempotente por ator/escopo/conteúdo, lock da ficha, proposta SHA verificada e venda datada obrigatória, inclusive após arquivamento da ficha.
+- [x] Histórico paginado, totais por destinatário sobre todo universo, comparativo explícito SEM saldo devedor, filtro reportados/estornados, CSV anti-fórmula, download protegido SHA/tamanho e estorno justificado preservando comprovante.
+- [x] Seis endpoints JWT, session.current, cases.manage E scenarios.manage; OpenAPI 1.24; feature tests e teste estrutural mobile escritos.
+- [x] React Metronic Demo 1 apenas componente interno da proposta; nenhuma rota/menu/shell/CSS/dependência paralela.
+- [ ] Homologação real após código MVP: migrations/QA SQLite/MySQL/Pint, build/lint e QA visual, sem afirmar execução. Regras bancárias/contratuais e execução financeira continuam sem aprovação.
+- Estimativa ponderada de implementação (não homologação): ~85% da matriz PROPOSTA, sem contar motor bancário como implementado.
