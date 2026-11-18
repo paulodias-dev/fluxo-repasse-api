@@ -17,8 +17,11 @@ final class EnsureTenantContext
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Não reutilizar o tenant de uma requisição anterior (Octane / QA).
-        app(TenantContext::class)->clear();
+        // Contexto por requisição. Testes de integração podem preservar o
+        // contexto fixture anterior para montar dados após a requisição.
+        $context = app(TenantContext::class);
+        $previous = $context->current();
+        $context->clear();
         // These routes do not access tenant business data. Auth identity is
         // globally unique by email; tenant is resolved after successful login.
         if ($request->is(
@@ -45,8 +48,15 @@ final class EnsureTenantContext
             ], 403)->header('Cache-Control', 'no-store');
         }
 
-        app(TenantContext::class)->set((int) $tenant->id);
+        $context->set((int) $tenant->id);
 
-        return $next($request);
+        try {
+            return $next($request);
+        } finally {
+            $context->clear();
+            if (app()->runningUnitTests() && $previous !== null) {
+                $context->set($previous);
+            }
+        }
     }
 }
