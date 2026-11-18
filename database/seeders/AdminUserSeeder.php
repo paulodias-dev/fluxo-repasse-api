@@ -28,14 +28,41 @@ final class AdminUserSeeder extends Seeder
 
             $existing = $role->permissions()->pluck('permissions.id')->all();
             $missing = array_values(array_diff($ids, $existing));
-            if ($missing === []) return;
+            if ($missing !== []) {
+                $role->permissions()->syncWithoutDetaching($missing);
+                User::query()->whereHas('roles', fn ($q) => $q->whereKey($role->id))
+                    ->increment('auth_version');
+            }
 
-            $role->permissions()->syncWithoutDetaching($missing);
+            // Papéis funcionais globais e imutáveis por empresa.
+            // Não confundir o administrador de uma empresa com platform_admin.
+            $functional = [
+                'tenant_admin' => [
+                    'name' => 'Administrador',
+                    'keys' => array_keys(OperationalAccessCatalog::TECHNICAL_PERMISSIONS),
+                ],
+                'tenant_user' => [
+                    'name' => 'Usuário',
+                    'keys' => ['parties.manage', 'cases.manage', 'scenarios.manage'],
+                ],
+            ];
+            foreach ($functional as $slug => $definition) {
+                $functionalRole = Role::query()->updateOrCreate(
+                    ['slug' => $slug], ['name' => $definition['name']]
+                );
+                $permissionIds = Permission::query()->whereIn('key', $definition['keys'])
+                    ->pluck('id')->all();
+                $current = $functionalRole->permissions()->pluck('permissions.id')->all();
+                sort($current);
+                $expected = $permissionIds;
+                sort($expected);
+                if ($current === $expected) continue;
+                $functionalRole->permissions()->sync($permissionIds);
+                User::query()->whereHas('roles', fn ($q) => $q->whereKey($functionalRole->id))
+                    ->increment('auth_version');
+            }
 
-            // Privileges have changed. All JWTs issued to existing members of
-            // this role must be invalidated, including JWTs already in memory.
-            User::query()->whereHas('roles', fn ($q) => $q->whereKey($role->id))
-                ->increment('auth_version');
+
         });
 
         // This seeder never creates, identifies or automatically promotes a user.
