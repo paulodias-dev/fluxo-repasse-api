@@ -142,4 +142,123 @@ final class ControlledRepasseTest extends TestCase
         $id = $this->postJson($url, $this->draft($parties))->assertCreated()->json('data.id');
         $this->postJson($url.'/'.$id.'/approve', ['confirm' => true])->assertForbidden();
     }
+
+    public function test_consolidacao_separa_declaracoes_anteriores_do_saldo_aprovado_e_nao_duplica_resultado(): void
+    {
+        [$tenant, $admin, $vehicle, $parties] = $this->tenant('macro53-resumo');
+        $token = auth('api')->login($admin);
+        $base = "/api/v1/repasse-cases/{$vehicle}";
+        $url = "{$base}/settlements";
+        $this->withToken($token);
+        DB::table('repasse_cases')->where('id', $vehicle)
+            ->update(['purchase_amount_cents' => 150000]);
+        $draft = $this->postJson($url, $this->draft($parties))->assertCreated()->json('data');
+        $this->postJson($url.'/'.$draft['id'].'/approve', ['confirm' => true])->assertOk();
+
+        $external = (int) DB::table('repasse_external_transfer_reports')->insertGetId([
+            'tenant_id' => $tenant->id, 'repasse_case_id' => $vehicle,
+            'term_id' => null, 'proposal_id' => null,
+            'payer_party_id' => $parties[0], 'beneficiary_party_id' => $parties[1],
+            'request_key' => (string) Str::uuid(), 'intent_sha256' => str_repeat('a', 64),
+            'amount_cents' => 1500, 'transferred_on' => '2026-11-18',
+            'proof_name' => 'externo.pdf', 'proof_path' => 'qa/externo.pdf',
+            'proof_mime' => 'application/pdf', 'proof_size_bytes' => 123,
+            'proof_sha256' => str_repeat('b', 64),
+        ]);
+
+        $this->getJson($url.'/overview')->assertOk()
+            ->assertJsonPath('data.controlled.approved_cents', 10000)
+            ->assertJsonPath('data.controlled.paid_cents', 0)
+            ->assertJsonPath('data.controlled.remaining_cents', 10000)
+            ->assertJsonPath('data.external_reports.direct_cents', 1500)
+            ->assertJsonPath('data.flags.possible_overlap', true);
+
+        $this->postJson($url.'/'.$draft['id'].'/payments', [
+            'request_key' => (string) Str::uuid(),
+            'line_id' => $draft['lines'][0]['id'], 'amount_cents' => 2000,
+            'paid_on' => '2026-11-18', 'confirmed_external' => true,
+        ])->assertCreated();
+
+        $this->getJson($url.'/overview')->assertOk()
+            ->assertJsonPath('data.controlled.approved_cents', 10000)
+            ->assertJsonPath('data.controlled.paid_cents', 2000)
+            ->assertJsonPath('data.controlled.remaining_cents', 8000)
+            ->assertJsonPath('data.external_reports.direct_cents', 1500)
+            ->assertJsonPath('data.flags.possible_overlap', true)
+            ->assertJsonPath('data.flags.bank_confirmed', false)
+            ->assertJsonPath('data.flags.automatic_reconciliation', false)
+            ->assertJsonPath('data.flags.sale_result_includes_repasses', false);
+
+        $this->getJson("{$base}/finance/summary")->assertOk()
+            ->assertJsonPath('data.sale_result_cents', 50000);
+        $review = $this->getJson("{$base}/closeout-review")->assertOk()
+            ->assertJsonPath('data.repasse_remaining_cents', 8000)
+            ->assertJsonPath('data.repasse_overlap_needs_review', true)->json('data');
+        $this->postJson("{$base}/complete", [
+            'expected_closeout_sha256' => $review['review_sha256'],
+            'acknowledge_pending' => false,
+        ])->assertUnprocessable()->assertJsonValidationErrors('acknowledge_pending');
+        $this->postJson("{$base}/complete", [
+            'expected_closeout_sha256' => $review['review_sha256'],
+            'acknowledge_pending' => true,
+        ])->assertOk()->assertJsonPath('data.status', 'archived')
+            ->assertJsonPath('pending_acknowledged', true);
+        $this->assertDatabaseHas('repasse_external_transfer_reports', [
+            'id' => $external, 'amount_cents' => 1500, 'voided_at' => null,
+        ]);
+    }
+
+    public function test_revisao_sha_invalida_apos_aprovacao_e_protege_venda_e_participantes(): void
+    {
+        [, $admin, $vehicle, $parties] = $this->tenant('macro53-concorrencia');
+        $this->withToken(auth('api')->login($admin));
+        $base = "/api/v1/repasse-cases/{$vehicle}";
+        $url = "{$base}/settlements";
+        $draft = $this->postJson($url, $this->draft($parties))->assertCreated()->json('data');
+        $before = $this->getJson("{$base}/closeout-review")->assertOk()->json('data.review_sha256');
+
+        $this->postJson($url.'/'.$draft['id'].'/approve', ['confirm' => true])->assertOk();
+
+        $this->postJson("{$base}/complete", [
+            'expected_closeout_sha256' => $before, 'acknowledge_pending' => true,
+        ])->assertStatus(409);
+        $this->patchJson($base, ['sale_amount_cents' => 210000])
+            ->assertUnprocessable()->assertJsonValidationErrors('sale_amount_cents');
+        $this->deleteJson("{$base}/parties/{$parties[1]}")
+            ->assertUnprocessable()->assertJsonValidationErrors('party_id');
+
+        $payment = $this->postJson($url.'/'.$draft['id'].'/payments', [
+            'request_key' => (string) Str::uuid(),
+            'line_id' => $draft['lines'][0]['id'], 'amount_cents' => 2000,
+            'paid_on' => '2026-11-18', 'confirmed_external' => true,
+        ])->assertCreated()->json('data.payments.0.id');
+        $this->postJson($url.'/'.$draft['id'].'/cancel', [
+            'reason' => 'Alteração de venda',
+        ])->assertStatus(409);
+        $this->postJson($url.'/'.$draft['id']."/payments/{$payment}/void", [
+            'reason' => 'Retificação antes de corrigir',
+        ])->assertOk();
+        $this->postJson($url.'/'.$draft['id'].'/cancel', [
+            'reason' => 'Correção previamente autorizada',
+        ])->assertOk();
+        $this->patchJson($base, ['sale_amount_cents' => 210000])->assertOk()
+            ->assertJsonPath('data.sale_amount_cents', 210000);
+        $this->deleteJson("{$base}/parties/{$parties[1]}")->assertOk();
+    }
+
+    public function test_resumo_permanece_isolado_por_empresa_mesmo_com_registros_controlados(): void
+    {
+        [, $adminA, $caseA, $partiesA] = $this->tenant('macro53-empresa-a');
+        [, $adminB, $caseB] = $this->tenant('macro53-empresa-b');
+        $this->withToken(auth('api')->login($adminA))
+            ->postJson("/api/v1/repasse-cases/{$caseA}/settlements", $this->draft($partiesA))
+            ->assertCreated();
+        $this->withToken(auth('api')->login($adminB))
+            ->getJson("/api/v1/repasse-cases/{$caseA}/settlements/overview")
+            ->assertNotFound();
+        $this->getJson("/api/v1/repasse-cases/{$caseB}/settlements/overview")
+            ->assertOk()
+            ->assertJsonPath('data.controlled.approved_cents', 0)
+            ->assertJsonPath('data.controlled.draft_cents', 0);
+    }
 }

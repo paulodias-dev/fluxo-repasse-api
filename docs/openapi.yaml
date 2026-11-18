@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.27.0
+  version: 1.28.0
   description: |
     Contratos da fundação de identidade e conectividade.
     SaaS MySQL único: todas as entidades operacionais possuem tenant_id obrigatório, derivado do JWT validado. Usuários têm uma empresa ativa; headers e parâmetros tenant_id não alteram o escopo.
@@ -11,7 +11,10 @@ info:
     Toda resposta da API expõe X-Request-ID gerado pelo servidor, para correlação de erros sem dados privados.
     Cadastro de pessoas e empresas é apenas um diretório sem valores ou transferências.
     Central operacional: tarefas, checklist, notas, anexos privados, dashboard e exportação CSV.
-    Sem cálculos, saldos, aprovação financeira, remessas, gateway ou liquidação.
+    A partir das Macros 52/53 existem distribuições financeiras manuais aprováveis e
+    parcelas externas declaradas pelo operador, com saldos internos e auditoria.
+    Estes controles não executam nem conciliam pagamentos bancários.
+    Registros externos anteriores ficam segregados, sem dupla contagem.
 servers:
   - url: /api/v1
 tags:
@@ -25,9 +28,32 @@ tags:
   - name: Revisão documental
   - name: Revisões comerciais
   - name: Central comercial
+  - name: Financeiro
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /repasse-cases/{case}/settlements/overview:
+    get:
+      tags: [Financeiro]
+      summary: Visão consolidada somente leitura por veículo
+      description: |
+        Requer JWT, session.current, cases.manage e repasse.manage.
+        Soma apenas obrigações aprovadas e parcelas ativas controladas.
+        Relatos externos diretos e vinculados a propostas ficam em grupos distintos,
+        SEM compensação ou baixa automática. Sobreposição é aviso, não prova de duplicidade.
+        Não altera resultado de compra/venda, não verifica banco e não movimenta dinheiro.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: |
+            data.controlled contém approved_cents, draft_cents, paid_cents, remaining_cents
+            e contagens; data.external_reports contém direct_cents, proposal_cents
+            e contagens; data.flags contém possible_overlap, overpaid_inconsistency,
+            automatic_reconciliation=false, bank_confirmed=false e payment_executed_by_platform=false.
+        '401': { description: Sessão ausente }
+        '403': { description: Sem permissão }
+        '404': { description: Veículo não encontrado na empresa }
   /repasse-cases/{case}/settlements/options:
     get:
       tags: [Financeiro]

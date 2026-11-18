@@ -100,3 +100,27 @@ do bloco SaaS representam conferências de integração/escopo de código ainda 
 os 20% restantes do bloco de repasses representam consolidação entre fluxos e revisão de
 invariantes antes do encerramento de implementação. A cobertura real poderá ser ajustada.
 O índice não representa readiness, liquidação bancária, PSP ou aceite visual.
+
+
+## Macro 53 — consolidação dos contratos financeiros e encerramento
+- [x] Consolidação por veículo de obrigações aprovadas e parcelas não estornadas em saldo devido.
+- [x] Relatos externos diretos/com proposta permanecem separados, sem compensação presumida.
+- [x] Encerramento revê e confirma saldo, rascunhos e possível sobreposição pelo SHA transacional.
+- [x] Compra/venda não muda depois de obrigação aprovada; participante não é desvinculado quando usado em distribuição ativa.
+- [ ] Execução de testes, verificação de contratos completos entre front e API, revisão de modelo de autorização e UX final (não contar testes como homologação).
+- ### Matriz revisada após Macro 53 — CÓDIGO, sem homologação
+| Componente | Peso | Cobertura editorial | Contribuição |
+|---|---:|---:|---:|
+| Acesso, identidade, cadastros e SaaS tenant | 15% | 90% | 13,5% |
+| Veículos e ficha 360 | 20% | 100% | 20% |
+| Financeiro gerencial | 20% | 100% | 20% |
+| Documentação, cenários e revisões | 10% | 100% | 10% |
+| Repasses manuais autorizados e consolidação | 30% | 90% | 27% |
+| Dashboard e operação | 5% | 100% | 5% |
+| **Total código MVP estimado** | **100%** | — | **95,5% ≈ 96%** |
+
+Comparação de escopo com Macro 52: 92,5% → 95,5% (+3 p.p. editoriais).
+Não decorre do número de arquivos/PRs nem presume testes executados. Os 4,5 p.p.
+restantes estimados são fechamento de invariantes transversais, consistência de alçadas,
+contratos de integração e detalhes UX do código antes do ciclo de homologação.
+Não incluir PSP/banco porque o MVP aprovado registra transferências externas manualmente.

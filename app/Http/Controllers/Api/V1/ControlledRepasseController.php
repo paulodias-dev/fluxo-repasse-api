@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\ControlledRepasseService;
+use App\Services\RepasseFinancialOverview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -11,7 +12,10 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 final class ControlledRepasseController extends Controller
 {
-    public function __construct(private readonly ControlledRepasseService $service) {}
+    public function __construct(
+        private readonly ControlledRepasseService $service,
+        private readonly RepasseFinancialOverview $overview,
+    ) {}
 
     private function only(Request $request, array $allowed): void
     {
@@ -26,6 +30,11 @@ final class ControlledRepasseController extends Controller
     private function json(array $data, int $status = 200): JsonResponse
     {
         return response()->json($data, $status)->header('Cache-Control', 'no-store, private');
+    }
+
+    public function overview(int $case): JsonResponse
+    {
+        return $this->json(['data' => $this->overview->forVehicle($case)]);
     }
 
     public function options(int $case): JsonResponse
