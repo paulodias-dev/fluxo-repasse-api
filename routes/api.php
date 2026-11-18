@@ -40,12 +40,16 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-login')
             ->name('api.v1.auth.login');
 
+        // A renovação precisa aceitar o access token expirado enquanto ele
+        // ainda estiver dentro da janela JWT_REFRESH_TTL.
+        Route::post('/refresh', [AuthController::class, 'refresh'])
+            ->middleware(['bearer.only', 'throttle:repasse-refresh'])
+            ->name('api.v1.auth.refresh');
+
         Route::middleware(['bearer.only', 'auth:api', 'session.current'])->group(function (): void {
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
             Route::get('/access', [AuthController::class, 'access'])
                 ->middleware('throttle:repasse-admin-read')->name('api.v1.auth.access');
-            Route::post('/refresh', [AuthController::class, 'refresh'])
-                ->middleware('throttle:repasse-refresh')->name('api.v1.auth.refresh');
             Route::post('/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
             Route::post('/password', [AuthController::class, 'changePassword'])
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');

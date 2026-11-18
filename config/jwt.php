@@ -120,8 +120,8 @@ return [
     |
     */
 
-    'refresh_iat' => env('JWT_REFRESH_IAT', false),
-    'refresh_ttl' => (int) env('JWT_REFRESH_TTL', 120),
+    'refresh_iat' => env('JWT_REFRESH_IAT', true),
+    'refresh_ttl' => (int) env('JWT_REFRESH_TTL', 20160),
 
     /*
     |--------------------------------------------------------------------------

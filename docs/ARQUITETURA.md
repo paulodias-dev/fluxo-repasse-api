@@ -19,7 +19,7 @@ A tabela é apêndice de eventos de identidade; não representa ainda o livro-ra
 
 ## Contratos
 - Público: GET `/health`, POST `/auth/login`.
-- Privado (Bearer no cabeçalho + `auth:api` + `session.current`): GET `/auth/me`, POST `/auth/refresh`, POST `/auth/logout`, POST `/auth/password`.
+- Privado (Bearer no cabeçalho + `auth:api` + `session.current`): GET `/auth/me`, POST `/auth/logout`, POST `/auth/password`. POST `/auth/refresh` exige Bearer e valida a janela de renovação do JWT, inclusive para access token expirado.
 - Não existe registro público nem endpoint de repasse.
 - Contrato OpenAPI em `docs/openapi.yaml`. Documento estático: servidor de Swagger UI/L5-Swagger ainda não instalado.
 - TLS, CORS restritivo, rate-limit, cache blacklist compartilhado e `APP_DEBUG=false` para produção.

@@ -48,7 +48,7 @@ php artisan route:list --path=api
 O teste rápido PHPUnit usa SQLite em memória; execução MySQL real é obrigatória antes de homologação. `composer.lock` deve ser gerado e versionado em ambiente com Packagist/Composer; nunca inventar hash de dependência ou publicar sem lock.
 
 ## Configurações obrigatórias
-`APP_DEBUG=false` fora do desenvolvimento, `APP_KEY` e `JWT_SECRET` próprios do ambiente, `JWT_TTL=15`, `JWT_REFRESH_TTL=120`, `JWT_BLACKLIST_ENABLED=true`, CORS com origem explícita e TLS. Não inserir segredos em `VITE_*` do frontend.
+`APP_DEBUG=false` fora do desenvolvimento, `APP_KEY` e `JWT_SECRET` próprios do ambiente, `JWT_TTL=15`, `JWT_REFRESH_TTL=20160`, `JWT_REFRESH_IAT=true`, `JWT_BLACKLIST_ENABLED=true`, CORS com origem explícita e TLS. O access token dura 15 minutos; a renovação persistente fica limitada à janela de 14 dias desde a última atividade. Não inserir segredos em `VITE_*` do frontend.
 
 ## Habilitação da Macroentrega 04
 

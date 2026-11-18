@@ -435,10 +435,10 @@ paths:
 
   /auth/refresh:
     post:
-      summary: Renovar JWT ainda válido
+      summary: Renovar JWT persistido
       tags: [Autenticação]
       operationId: refresh
-      description: Revoga o token anterior, exige JWT válido; não funciona após expiração.
+      description: Revoga o token anterior e emite outro. Aceita o access token expirado somente dentro da janela JWT_REFRESH_TTL e desde que a conta e auth_version continuem válidas.
       security:
         - BearerAuth: []
       responses:

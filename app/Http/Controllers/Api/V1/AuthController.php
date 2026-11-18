@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 final class AuthController extends Controller
@@ -80,8 +81,26 @@ final class AuthController extends Controller
 
     public function refresh(): JsonResponse
     {
-        $user = Auth::guard('api')->user();
-        $token = Auth::guard('api')->refresh();
+        try {
+            // O refresh é permitido durante a janela de renovação mesmo depois
+            // do vencimento do access token. O JWTAuth valida a assinatura,
+            // a blacklist, a janela de refresh e preserva auth_version.
+            $token = JWTAuth::parseToken()->refresh();
+            $payload = JWTAuth::setToken($token)->getPayload();
+            $user = User::query()->find($payload->get('sub'));
+            $version = $payload->get('av');
+
+            if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
+                JWTAuth::setToken($token)->invalidate();
+
+                return response()->json(['message' => 'Sessão inválida ou conta desativada.'], 401)
+                    ->header('Cache-Control', 'no-store');
+            }
+        } catch (JWTException) {
+            return response()->json(['message' => 'Token inválido ou expirado.'], 401)
+                ->header('Cache-Control', 'no-store');
+        }
+
         $this->events->record('token_refreshed', request(), $user);
 
         return $this->tokenResponse($token);

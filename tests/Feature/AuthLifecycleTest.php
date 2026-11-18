@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -134,6 +135,27 @@ final class AuthLifecycleTest extends TestCase
 
         $this->withToken($refreshed)->getJson('/api/v1/auth/me')->assertOk();
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
+
+    public function test_expired_access_token_can_be_refreshed_inside_refresh_window(): void
+    {
+        $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
+        $token = $this->login($user);
+
+        Carbon::setTestNow(now()->addMinutes(16));
+
+        try {
+            $refreshed = $this->withToken($token)
+                ->postJson('/api/v1/auth/refresh')
+                ->assertOk()
+                ->assertJsonStructure(['access_token', 'expires_in'])
+                ->json('access_token');
+
+            $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+            $this->withToken($refreshed)->getJson('/api/v1/auth/me')->assertOk();
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_audit_records_do_not_store_raw_ip_or_login_payload(): void
