@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -45,7 +46,7 @@ final class PreparationRecordService
 
     private function row(int $case, int $term, int $record): object
     {
-        return DB::table('repasse_preparation_records')
+        return TenantDB::table('repasse_preparation_records')
             ->where('id', $record)->where('repasse_case_id', $case)
             ->where('term_id', $term)->firstOrFail();
     }
@@ -85,7 +86,7 @@ final class PreparationRecordService
     public function index(int $case, int $term): mixed
     {
         $current = $this->preparation->show($case, $term);
-        return DB::table('repasse_preparation_records')
+        return TenantDB::table('repasse_preparation_records')
             ->where('repasse_case_id', $case)->where('term_id', $term)
             ->select('id', 'created_at', 'created_by', 'replaces_record_id',
                 'source_snapshot_sha256', 'snapshot_sha256', 'reference_cents',
@@ -135,15 +136,15 @@ final class PreparationRecordService
             $digest, $actor): array {
             // Lock do próprio veículo serializa requests para a mesma ficha,
             // enquanto UNIQUE request_key protege também a concorrência global.
-            $vehicle = DB::table('repasse_cases')->where('id', $case)
+            $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                 ->lockForUpdate()->first(['id', 'status']);
-            $termRow = DB::table('repasse_commercial_terms')
+            $termRow = TenantDB::table('repasse_commercial_terms')
                 ->where('id', $term)->where('repasse_case_id', $case)
                 ->lockForUpdate()->first(['id', 'archived_at']);
             if (! $vehicle || ! $termRow) {
                 abort(404);
             }
-            $prior = DB::table('repasse_preparation_records')
+            $prior = TenantDB::table('repasse_preparation_records')
                 ->where('request_key', $input['request_key'])->first();
             if ($prior) {
                 if ((int) $prior->repasse_case_id !== $case
@@ -224,7 +225,7 @@ final class PreparationRecordService
                 'payment_enabled' => false,
                 'executable' => false,
             ];
-            $id = DB::table('repasse_preparation_records')->insertGetId([
+            $id = TenantDB::table('repasse_preparation_records')->insertGetId([
                 'repasse_case_id' => $case,
                 'term_id' => $term,
                 'request_key' => $input['request_key'],
