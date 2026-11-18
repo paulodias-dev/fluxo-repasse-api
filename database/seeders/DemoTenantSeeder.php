@@ -2,12 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
-use App\Models\Role;
 use App\Models\User;
 use App\Services\DistributionTemplateService;
 use App\Services\ScenarioPlanner;
-use App\Support\OperationalAccessCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,29 +44,7 @@ final class DemoTenantSeeder extends Seeder
                 $tenant = DB::table('tenants')->where('id', $id)->first();
             }
 
-            $roles = [];
-            foreach ([
-                'administrator' => [
-                    'name' => 'Administrador',
-                    'permissions' => OperationalAccessCatalog::keys(),
-                ],
-                'user' => [
-                    'name' => 'Usuário',
-                    'permissions' => [
-                        'cases.manage', 'parties.manage', 'scenarios.manage',
-                        'packages.manage',
-                    ],
-                ],
-            ] as $slug => $definition) {
-                $role = Role::query()->updateOrCreate(
-                    ['tenant_id' => $tenant->id, 'slug' => $slug],
-                    ['name' => $definition['name']]
-                );
-                $permissionIds = Permission::query()
-                    ->whereIn('key', $definition['permissions'])->pluck('id')->all();
-                $role->permissions()->sync($permissionIds);
-                $roles[$slug] = $role;
-            }
+            $roles = app(\App\Services\TenantRoleProvisioner::class)->sync((int) $tenant->id);
 
             $accounts = [];
             foreach ([
