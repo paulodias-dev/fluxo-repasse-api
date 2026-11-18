@@ -4,6 +4,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Tenant;
+use App\Support\TenantRoles;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
 use App\Support\OperationalAcceptance;
@@ -44,8 +45,8 @@ Artisan::command('repasse:tenant:create {slug : Identificador único da empresa}
             'email' => $email,
             'password' => $password,
         ]);
-        $role = Role::query()->where('slug', 'tenant_admin')->firstOrFail();
-        $admin->roles()->sync([$role->id]);
+        $roles = TenantRoles::provision((int) $tenant->id);
+        $admin->roles()->sync([$roles['tenant_admin']->id]);
     });
 
     $this->info('Empresa e primeiro administrador criados. Nenhum dado de outra empresa foi compartilhado.');
@@ -80,8 +81,8 @@ Artisan::command('repasse:user:create', function (): int {
 
     DB::transaction(function () use ($data, $tenant): void {
         $user = User::query()->create([...$data, 'tenant_id' => $tenant->id]);
-        $role = Role::query()->where('slug', 'tenant_user')->firstOrFail();
-        $user->roles()->sync([$role->id]);
+        $roles = TenantRoles::provision((int) $tenant->id);
+        $user->roles()->sync([$roles['tenant_user']->id]);
     });
     $this->info('Usuário funcional da empresa criado. Sem acesso a outras empresas.');
 
