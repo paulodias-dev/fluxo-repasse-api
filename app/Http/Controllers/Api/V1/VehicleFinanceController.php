@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDB;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RealizeVehicleFinanceEntryRequest;
 use App\Services\CaseOperations;
@@ -61,7 +63,7 @@ final class VehicleFinanceController extends Controller
         $filters = $this->filters($request);
         $query = $this->workspace->filtered($case, $filters)
             ->select('repasse_case_financial_entries.*')
-            ->selectSub(DB::table('repasse_case_financial_documents as doc')
+            ->selectSub(TenantDB::table('repasse_case_financial_documents as doc')
                 ->selectRaw('COUNT(*)')->whereColumn(
                     'doc.entry_id', 'repasse_case_financial_entries.id'
                 ), 'documents_count');
@@ -84,7 +86,7 @@ final class VehicleFinanceController extends Controller
         $this->workspace->entry($case, $entry);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
 
-        return response()->json(DB::table('repasse_case_financial_events as e')
+        return response()->json(TenantDB::table('repasse_case_financial_events as e')
             ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
             ->where('e.repasse_case_id', $case)->where('e.entry_id', $entry)
             ->select('e.id', 'e.event_type', 'e.details', 'e.actor_user_id',
@@ -96,7 +98,7 @@ final class VehicleFinanceController extends Controller
     public function summary(int $case): JsonResponse
     {
         $vehicle = $this->operations->ensureExists($case);
-        $entries = DB::table('repasse_case_financial_entries')
+        $entries = TenantDB::table('repasse_case_financial_entries')
             ->where('repasse_case_id', $case)->whereNull('voided_at')
             ->select('kind', 'status', DB::raw('SUM(amount_cents) AS total'))
             ->groupBy('kind', 'status')->get();
@@ -174,7 +176,7 @@ final class VehicleFinanceController extends Controller
 
         $id = DB::transaction(function () use ($request, $case, $entry, $data, $reason): int {
             $this->operations->editable($case);
-            $old = DB::table('repasse_case_financial_entries')
+            $old = TenantDB::table('repasse_case_financial_entries')
                 ->where('repasse_case_id', $case)->where('id', $entry)
                 ->lockForUpdate()->firstOrFail();
             if ($old->voided_at !== null) {
@@ -184,7 +186,7 @@ final class VehicleFinanceController extends Controller
             }
             $category = $this->workspace->category($data);
             $newId = $this->createEntry($case, $request, $data, $category, $entry);
-            DB::table('repasse_case_financial_entries')->where('id', $entry)
+            TenantDB::table('repasse_case_financial_entries')->where('id', $entry)
                 ->update([
                     'voided_at' => now(), 'voided_by' => $request->user('api')->getAuthIdentifier(),
                     'void_reason' => $reason, 'updated_at' => now(),
@@ -220,7 +222,7 @@ final class VehicleFinanceController extends Controller
 
         $changed = DB::transaction(function () use ($request, $case, $entry, $data): bool {
             $this->operations->editable($case);
-            $record = DB::table('repasse_case_financial_entries')
+            $record = TenantDB::table('repasse_case_financial_entries')
                 ->where('repasse_case_id', $case)->where('id', $entry)
                 ->lockForUpdate()->firstOrFail();
 
@@ -244,7 +246,7 @@ final class VehicleFinanceController extends Controller
                 ]);
             }
 
-            DB::table('repasse_case_financial_entries')->where('id', $entry)->update([
+            TenantDB::table('repasse_case_financial_entries')->where('id', $entry)->update([
                 'status' => 'realized',
                 'effective_on' => $data['effective_on'],
                 'updated_at' => now(),
@@ -275,12 +277,12 @@ final class VehicleFinanceController extends Controller
         $data = $request->validate(['reason' => ['sometimes', 'nullable', 'string', 'max:500']]);
         DB::transaction(function () use ($request, $case, $entry, $data): void {
             $this->operations->editable($case);
-            $item = DB::table('repasse_case_financial_entries')
+            $item = TenantDB::table('repasse_case_financial_entries')
                 ->where('repasse_case_id', $case)->where('id', $entry)
                 ->lockForUpdate()->firstOrFail();
             if ($item->voided_at !== null) return;
 
-            DB::table('repasse_case_financial_entries')->where('id', $entry)->update([
+            TenantDB::table('repasse_case_financial_entries')->where('id', $entry)->update([
                 'voided_at' => now(), 'void_reason' => trim($data['reason'] ?? '') ?: null,
                 'voided_by' => $request->user('api')->getAuthIdentifier(),
                 'updated_at' => now(),
@@ -343,7 +345,7 @@ final class VehicleFinanceController extends Controller
             throw ValidationException::withMessages(['description' => 'Descrição inválida.']);
         }
 
-        return DB::table('repasse_case_financial_entries')->insertGetId([
+        return TenantDB::table('repasse_case_financial_entries')->insertGetId([
             'repasse_case_id' => $case, 'kind' => $data['kind'],
             'status' => $data['status'],
             'category' => $category['category'], 'category_id' => $category['category_id'],
