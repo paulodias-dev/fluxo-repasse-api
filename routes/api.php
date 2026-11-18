@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\TenantController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
@@ -47,14 +48,20 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.auth.refresh');
 
         Route::middleware(['bearer.only', 'auth:api', 'session.current'])->group(function (): void {
-            Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
+            Route::get('/tenants', [TenantController::class, 'index'])->name('api.v1.auth.tenants');
+            Route::post('/tenants', [TenantController::class, 'store'])
+                ->middleware('throttle:repasse-admin-write')->name('api.v1.auth.tenants.store');
+            Route::get('/me', [AuthController::class, 'me'])
+                ->middleware('tenant.active')->name('api.v1.auth.me');
             Route::get('/access', [AuthController::class, 'access'])
-                ->middleware('throttle:repasse-admin-read')->name('api.v1.auth.access');
+                ->middleware(['tenant.active', 'throttle:repasse-admin-read'])->name('api.v1.auth.access');
             Route::post('/logout', [AuthController::class, 'logout'])->name('api.v1.auth.logout');
             Route::post('/password', [AuthController::class, 'changePassword'])
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');
         });
     });
+    // Nenhuma rota empresarial pode operar sem membership e tenant resolvidos.
+    Route::middleware('tenant.active')->group(function (): void {
     // Cadastro base de pessoas/empresas, sem conta bancária, valores ou regras de repasse.
     Route::prefix('parties')->middleware([
         'bearer.only', 'auth:api', 'session.current', 'permission:parties.manage',
@@ -463,5 +470,6 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.admin.users.events');
         Route::patch('/users/{user}/status', [AdminUserController::class, 'status'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.status');
+    });
     });
 });
