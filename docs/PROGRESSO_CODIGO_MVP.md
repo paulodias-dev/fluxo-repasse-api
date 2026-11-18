@@ -124,3 +124,16 @@ Não decorre do número de arquivos/PRs nem presume testes executados. Os 4,5 p.
 restantes estimados são fechamento de invariantes transversais, consistência de alçadas,
 contratos de integração e detalhes UX do código antes do ciclo de homologação.
 Não incluir PSP/banco porque o MVP aprovado registra transferências externas manualmente.
+
+
+## Após Macro 54 — fechamento do código (sem homologação)
+Foi concluída a matriz de **escopo codificado** do MVP SaaS com pagamentos
+manuais externos, distribuída nos seis blocos: 15% identidade/SaaS,
+20% veículos, 20% financeiro gerencial, 10% documental,
+30% repasse manual e 5% integração. **Total editorial: 100% do
+escopo funcional aprovado codificado após a integração dos dois PRs.**
+
+Esta medição checklist não é execução de testes ou garantia de que não existam
+defeitos. Eventuais problemas reais de build, PHP/MySQL, segurança e QA visual
+podem alterar o indicador. Homologação está fora do denominador conforme
+decisão do responsável. **Nenhuma integração bancária foi adicionada.**

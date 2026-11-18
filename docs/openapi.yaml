@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.28.0
+  version: 1.29.0
   description: |
     Contratos da fundação de identidade e conectividade.
     SaaS MySQL único: todas as entidades operacionais possuem tenant_id obrigatório, derivado do JWT validado. Usuários têm uma empresa ativa; headers e parâmetros tenant_id não alteram o escopo.
@@ -14,6 +14,8 @@ info:
     A partir das Macros 52/53 existem distribuições financeiras manuais aprováveis e
     parcelas externas declaradas pelo operador, com saldos internos e auditoria.
     Estes controles não executam nem conciliam pagamentos bancários.
+    O fechamento do veículo exige revisão SHA e ciência de pendências no POST
+    /repasse-cases/{case}/complete; PATCH status=archived é rejeitado.
     Registros externos anteriores ficam segregados, sem dupla contagem.
 servers:
   - url: /api/v1
@@ -146,6 +148,11 @@ paths:
     post:
       tags: [Financeiro]
       summary: Cancelar distribuição sem parcelas ativas e preservar histórico
+      description: |
+        O autor com repasse.manage pode cancelar seu próprio rascunho.
+        Cancelamento de obrigação aprovada ou rascunho de terceiro exige
+        repasse.approve; pagamento ativo precisa ser estornado antes.
+        Não exclui eventos nem comprovantes.
       parameters:
         - { name: case, in: path, required: true, schema: { type: integer } }
         - { name: settlement, in: path, required: true, schema: { type: integer } }
@@ -160,12 +167,15 @@ paths:
                 reason: { type: string, minLength: 5, maxLength: 500 }
       responses:
         '200': { description: Cancelado }
+        '403': { description: Sem alçada para cancelar a obrigação ou rascunho de terceiro }
         '409': { description: Estorne primeiro as parcelas ativas }
   /repasse-cases/{case}/settlements/{settlement}/payments:
     post:
       tags: [Financeiro]
       summary: Declarar pagamento parcial externo após aprovação
-      description: Não executa transferência bancária. Comprovante opcional privado PDF/imagem até 10 MiB.
+      description: |
+        Não executa transferência bancária. Comprovante opcional privado PDF/imagem até 10 MiB.
+        paid_on precisa ser entre a data de venda e o dia atual; datas futuras são rejeitadas.
       parameters:
         - { name: case, in: path, required: true, schema: { type: integer } }
         - { name: settlement, in: path, required: true, schema: { type: integer } }
@@ -193,6 +203,10 @@ paths:
     post:
       tags: [Financeiro]
       summary: Estornar pagamento declarado, sem exclusão do original
+      description: |
+        Requer repasse.approve adicional a cases.manage e repasse.manage.
+        Preserva comprovante, original, ator, data e justificativa.
+        Somente distribuições aprovadas admitem estorno de parcela.
       parameters:
         - { name: case, in: path, required: true, schema: { type: integer } }
         - { name: settlement, in: path, required: true, schema: { type: integer } }
@@ -208,7 +222,8 @@ paths:
                 reason: { type: string, minLength: 5, maxLength: 500 }
       responses:
         '200': { description: Estorno registrado no histórico }
-        '409': { description: Pagamento já estornado }
+        '403': { description: Sem permissão financeira de aprovação }
+        '409': { description: Pagamento já estornado ou estado incompatível }
   /repasse-cases/{case}/settlements/{settlement}/payments/{payment}/proof:
     get:
       tags: [Financeiro]

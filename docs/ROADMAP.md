@@ -676,3 +676,18 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
   até 100% do código MVP; homologação MySQL/React/dispositivos é etapa posterior.
 - **Evolução ponderada editorial de código após Macro 53: ~95,5%.**
 - **Sem** PSP, gateway bancário, liquidação verificada ou tributos presumidos.
+
+
+## Macro 54 — pacote final de código MVP SaaS manual
+- [x] Encerrada lacuna de alçada de estorno/cancelamento: somente approver
+  estorna pagamento ou cancela obrigação aprovada; operador cancela próprio rascunho.
+- [x] Elimina atalho de arquivamento por PATCH e centraliza conferência SHA/transação.
+- [x] Eventos append-only alteram cursores de revisão, mesmo mantendo total.
+- [x] Data de pagamento/venda futura bloqueada, percentuais >100% rejeitados.
+- [x] React preserva UUID em falha real, reseta somente após sucesso e expõe ações
+  autorizadas sem criar telas adicionais.
+- [x] Testes legados de arquivo migrados para endpoint correto, OpenAPI atualizado.
+- **Checklist editorial de funcionalidades do código aprovado: 100%**
+  (após merge dos PRs API/APP; não é homologação, cobertura nem prontidão).
+- [ ] Validar e corrigir eventuais falhas efetivas de PHPUnit/Pint/MySQL real e
+  React build/lint/QA mobile. Não registrar execução inexistente.

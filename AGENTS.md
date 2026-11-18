@@ -251,3 +251,20 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - A revisão SHA de fechamento inclui saldos pendentes, rascunhos e aviso de possível sobreposição. O arquivamento exige ciência, MAS não liquida ou apaga obrigações e não impede encerramento após ciência.
 - Não alterar compra/venda com distribuição aprovada sem cancelamento/estorno explícitos; não desvincular participantes com distribuição não cancelada.
 - TenantDB obrigatório em consultas de negócio e JOINs, permissões da Macro 52 preservadas, testes só declarados executados com evidência.
+
+
+## Macro 54 — fechamento do código MVP SaaS
+- \`repasse.manage\` permite preparar/registrar parcela externa, mas não estornar
+  pagamentos nem cancelar obrigações aprovadas: somente \`repasse.approve\`.
+  O criador pode cancelar o próprio rascunho. Autor que possui \`repasse.approve\`
+  pode também aprovar o próprio rascunho.
+- \`PATCH status=archived\` é proibido; somente \`POST /complete\`, após revisão
+  SHA e \`acknowledge_pending\` explícito, conclui o acompanhamento.
+- SHA de fechamento inclui último evento do veículo e último evento de repasse,
+  para detectar operações neutras em valor. Compra/venda não aceita data futura
+  de fato realizado; pagamento externo declarado também não.
+- Soma de porcentagens >100% sempre rejeitada, independentemente de arredondamento.
+- Testes legados usam \`archiveVehicleForQa\` que chama o endpoint real de conclusão,
+  não pulam as regras de estado.
+- Checklists de código podem atingir 100%; PHPUnit, MySQL, lint/build, QA visual e
+  homologação só contam se forem **efetivamente executados** e evidenciados.
