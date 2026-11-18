@@ -90,9 +90,7 @@ final class DirectExternalTransferReportTest extends TestCase
         $jwt = $this->token(['cases.manage']);
         [$case, $payer, $beneficiary] = $this->vehicle($jwt);
         $url = "/api/v1/repasse-cases/{$case}/external-transfers";
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$case}");
 
         $this->withToken($jwt)->getJson("{$url}/options")->assertOk()
             ->assertJsonPath('data.sale_registered', true)

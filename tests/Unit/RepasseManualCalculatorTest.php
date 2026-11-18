@@ -50,4 +50,15 @@ final class RepasseManualCalculatorTest extends TestCase
             }
         }
     }
+
+    public function test_percentuais_superiores_a_cem_por_cento_sao_rejeitados_mesmo_com_arredondamento(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        (new RepasseManualCalculator())->calculate(101, [
+            ['beneficiary_party_id' => 1, 'kind' => 'repasse', 'mode' => 'percentage', 'basis_points' => 5001],
+            ['beneficiary_party_id' => 2, 'kind' => 'commission', 'mode' => 'percentage', 'basis_points' => 5001],
+        ]);
+    }
+
 }

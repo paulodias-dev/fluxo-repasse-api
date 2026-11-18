@@ -230,9 +230,7 @@ final class CommercialTermsModuleTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('payment_instruction');
         $id = $this->withToken($jwt)->postJson($base, $this->input($template))
             ->assertCreated()->json('data.id');
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/$case", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/$case");
         $this->withToken($jwt)->getJson("$base/$id")->assertOk()
             ->assertJsonPath('data.checks.case_archived', true);
         $this->withToken($jwt)->postJson($base, $this->input($template))->assertUnprocessable();
@@ -567,9 +565,7 @@ final class CommercialTermsModuleTest extends TestCase
             ]],
         ])->assertUnprocessable()->assertJsonValidationErrors('adjustments');
 
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$case}");
         $newHash = $this->withToken($jwt)->getJson($base)->assertOk()
             ->json('data.snapshot_sha256');
         $this->withToken($jwt)->postJson("{$base}/records", [
@@ -731,9 +727,7 @@ final class CommercialTermsModuleTest extends TestCase
             $payload
         )->assertNotFound();
         $this->withToken($jwt)->postJson($base, $payload)->assertCreated();
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$case}");
         $this->withToken($jwt)->postJson($base, [
             ...$payload, 'request_key' => (string) Str::uuid(),
         ])->assertUnprocessable();
@@ -774,9 +768,7 @@ final class CommercialTermsModuleTest extends TestCase
             ->assertOk()->assertJsonCount(2, 'data');
         $id = $secondPage->json('data.0.id');
 
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$case}");
         $this->withToken($jwt)->getJson("{$base}/{$id}")
             ->assertOk()->assertJsonPath('data.stale', true)
             ->assertJsonPath('data.snapshot.obligation_created', false);

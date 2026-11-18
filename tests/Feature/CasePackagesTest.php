@@ -239,9 +239,7 @@ final class CasePackagesTest extends TestCase
         $id = $this->withToken($jwt)->postJson($base, $input + [
             'request_key' => (string) Str::uuid(), 'expected_manifest_sha256' => $hash,
         ])->assertCreated()->json('data.id');
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$ids['case']}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$ids['case']}");
         $this->withToken($jwt)->postJson($base, $input + [
             'request_key' => (string) Str::uuid(), 'expected_manifest_sha256' => $hash,
         ])->assertUnprocessable();

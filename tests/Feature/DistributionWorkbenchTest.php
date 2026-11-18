@@ -207,9 +207,7 @@ final class DistributionWorkbenchTest extends TestCase
         $this->withToken($token)->patchJson("$url/state", [
             'revision' => 2, 'action' => 'reopen',
         ])->assertOk()->assertJsonPath('data.revision', 3);
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$case}");
         $this->withToken($token)->postJson("$url/preview", [
             'template_revision' => 3, 'gross_amount_cents' => 500,
         ])->assertUnprocessable();

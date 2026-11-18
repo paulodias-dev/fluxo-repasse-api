@@ -107,3 +107,12 @@ Um operador pode solicitar conferência de revisão histórica de minuta e outro
 - [x] OpenAPI 1.20, documentação/roadmap e baseline de evolução **somente código** atualizados.
 - [ ] Regras de obrigação/pagamento real, comissões legais, retenções, alçadas e banco continuam **sem aprovação de escopo**; o código mantém todos os campos financeiros executáveis como false.
 - [ ] PHPUnit/Pint/MySQL, npm lint/build, browser e aceite ficam na fase de homologação após MVP, conforme orientação do usuário.
+
+
+## Após Macro 54 — escopo aprovado do MVP codificado
+O checklist funcional de código dos módulos previstos está implementado,
+incluindo alçadas adicionais para estornos, conclusão segura de veículo e
+validação de datas/valores. Isto **não elimina** a necessidade de testes
+executados e aceite. PSP, conciliação bancária automática, pagamentos
+eletrônicos, recolhimento fiscal automático e interface extra permanecem
+**fora do MVP aprovado**, não são pendências do percentual de código.

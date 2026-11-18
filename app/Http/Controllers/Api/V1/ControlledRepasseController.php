@@ -87,8 +87,11 @@ final class ControlledRepasseController extends Controller
     {
         $this->only($request, ['reason']);
         $input = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:500']]);
+        $actor = $request->user('api');
+
         return $this->json(['data' => $this->service->cancel(
-            $case, $settlement, $input['reason'], (int) $request->user('api')->id
+            $case, $settlement, $input['reason'], (int) $actor->id,
+            $actor->hasPermission('repasse.approve'),
         )]);
     }
 
@@ -102,7 +105,7 @@ final class ControlledRepasseController extends Controller
             'request_key' => ['required', 'uuid'],
             'line_id' => ['required', 'integer', 'min:1'],
             'amount_cents' => ['required', 'integer', 'min:1', 'max:999999999999'],
-            'paid_on' => ['required', 'date_format:Y-m-d'],
+            'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'external_reference' => ['nullable', 'string', 'max:120'],
             'confirmed_external' => ['required', 'accepted'],
             'proof' => ['nullable', 'file', 'max:10240',

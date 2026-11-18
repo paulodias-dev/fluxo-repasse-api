@@ -193,9 +193,7 @@ final class VehiclePortfolioTest extends TestCase
         $this->task($token, $needsProfile, '2026-11-15');
         $archived = $this->vehicle($token, ['title' => 'Veículo arquivado']);
         $this->task($token, $archived, '2026-11-01');
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/$archived", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/$archived");
 
         $base = '/api/v1/operations/vehicles';
         $this->withToken($token)->getJson("$base?attention=overdue")
@@ -278,9 +276,7 @@ final class VehiclePortfolioTest extends TestCase
         $this->task($token, $open, '2026-11-21');
         $this->task($token, $overdue, '2026-11-15');
         $this->task($token, $archived, '2026-11-01');
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$archived}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$archived}");
 
         $base = '/api/v1/operations/vehicles';
         $result = $this->withToken($token)->getJson("$base?sort=priority")
@@ -401,9 +397,7 @@ final class VehiclePortfolioTest extends TestCase
             'title' => 'Venda arquivada com margem', 'purchase_amount_cents' => 100000,
             'sale_amount_cents' => 115000, 'sold_on' => '2026-11-14',
         ]);
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$archived}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$archived}");
 
         $base = '/api/v1/operations/vehicles';
         $this->withToken($token)->getJson($base)->assertOk()

@@ -201,9 +201,7 @@ final class RepasseScenariosTest extends TestCase
         $forkId = $fork->json('data.id');
         $this->assertNotEquals($id, $forkId);
 
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$case}");
         $this->withToken($token)->patchJson("/api/v1/finance/scenarios/{$id}/state", [
             'revision' => 2, 'action' => 'reopen',
         ])->assertUnprocessable();
