@@ -66,7 +66,7 @@ final class AuthController extends Controller
     private function diagnostic(User $user): array
     {
         $granted = $user->grantedPermissions();
-        $platformAdmin = $user->roles()->where('slug', 'platform_admin')->exists();
+        $platformAdmin = $user->belongsToLegacyPlatformAdmin();
         $missing = $platformAdmin
             ? OperationalAccessCatalog::missingForAdmin($granted) : [];
         return [
