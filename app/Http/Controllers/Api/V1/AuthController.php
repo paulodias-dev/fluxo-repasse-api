@@ -162,9 +162,17 @@ final class AuthController extends Controller
             'phone' => $user->phone,
             'company_name' => $user->company_name,
             'avatar_url' => $user->avatar_path !== null
-                ? Storage::disk('public')->url($user->avatar_path)
+                ? $this->avatarUrl($user->avatar_path)
                 : null,
         ];
+    }
+
+    private function avatarUrl(string $path): string
+    {
+        // A URL generated only from APP_URL can point to the wrong host after
+        // a cPanel deployment. The request origin is the API origin actually
+        // serving the public storage link (or its Laravel fallback route).
+        return rtrim(request()->getSchemeAndHttpHost(), '/').'/avatar/'.ltrim($path, '/');
     }
 
     public function refresh(): JsonResponse
