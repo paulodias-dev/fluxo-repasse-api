@@ -199,3 +199,12 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Filtros e CSV devem compartilhar a MESMA query SQL antes da paginação; agrupar propostas por term_id para não multiplicar contagens. Paginação de 20 minutas não limita indicadores globais.
 - JWT + session.current + cases.manage E scenarios.manage. Nenhuma permissão financeira, obrigação, banco, taxa ou comissão surge da Central.
 - Testes feature e OpenAPI necessários, executados somente com evidência real. O layout do app permanece mobile-first, sem novos menus.
+
+## Macro 47 — venda e conclusão atomicamente
+- A ficha React oferece salvar venda sem encerrar OU salvar venda e concluir em uma transação; também conclui sem venda. Nunca fechar automaticamente ao vender.
+- GET closeout-review contém review_sha256 do resumo atual. POST de conclusão sempre compara SHA sob lockForUpdate da linha repasse_cases; mudança de custos e pendências conhecidos = 409 sem gravação parcial.
+- Se existem tarefas/checklist/lançamentos previstos, exigir acknowledge_pending=true explicitamente; nunca baixá-los, alterar status realizado ou produzir comprovante bancário.
+- Venda precisa preço > 0 em centavos e data declarada não anterior à compra; não contabilizar venda novamente como receita gerencial.
+- Usar apenas cases.manage/JWT/session.current. Não habilitar pagamento, saldo, comissão, imposto ou repasse.
+- O PATCH legado de status permanece por compatibilidade e não exige SHA: deixar essa limitação clara; a UI oficial deve usar os endpoints novos.
+- Testes escritos não significam homologação; medir QA real depois do código do MVP.

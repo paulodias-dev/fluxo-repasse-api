@@ -50,7 +50,7 @@ final class RepasseCaseController extends Controller
      * Não é quitação, pagamento, baixa contábil nem regra que obriga venda.
      * Consulta todos os registros, sem usar páginas limitadas a 15 itens.
      */
-    public function closeoutReview(int $case): JsonResponse
+    private function closeoutSnapshot(int $case): array
     {
         $vehicle = DB::table('repasse_cases')->where('id', $case)->first([
             'id', 'title', 'status', 'updated_at', 'purchase_amount_cents',
@@ -95,7 +95,7 @@ final class RepasseCaseController extends Controller
         $saleResult = $vehicle->sold_on === null || $sale === null || $currentCost === null
             ? null : $sale + $realizedIncome - $currentCost;
 
-        return response()->json(['data' => [
+        return [
             'id' => (int) $vehicle->id,
             'title' => $vehicle->title,
             'status' => $vehicle->status,
@@ -114,9 +114,158 @@ final class RepasseCaseController extends Controller
             'open_tasks_count' => $openTasks,
             'pending_checklist_count' => $pendingChecklist,
             'documents_count' => $documents,
-        ], 'as_of' => now()->toIso8601String()])
-            ->header('Cache-Control', 'no-store, private');
+        ];
     }
+
+
+    private function closeoutHash(array $review): string
+    {
+        // Digest de leitura para concorrência; não equivale a assinatura jurídica.
+        return hash('sha256', json_encode($review, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+    }
+
+    public function closeoutReview(int $case): JsonResponse
+    {
+        $review = $this->closeoutSnapshot($case);
+        $review['review_sha256'] = $this->closeoutHash($review);
+
+        return response()->json([
+            'data' => $review,
+            'as_of' => now()->toIso8601String(),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    private function hasOpenCloseoutItems(array $review): bool
+    {
+        return (int) $review['open_tasks_count']
+            + (int) $review['pending_checklist_count']
+            + (int) $review['expense_planned_count']
+            + (int) $review['income_planned_count'] > 0;
+    }
+
+    /**
+     * Deve ser invocado DENTRO de transação para impedir o TOCTOU entre
+     * conferir pendências e gravar o estado do veículo.
+     * CaseOperations::editable() dos demais módulos bloqueia a mesma linha.
+     */
+    private function verifyCloseout(int $case, string $expectedSha, bool $acknowledge): array
+    {
+        $vehicle = DB::table('repasse_cases')->where('id', $case)
+            ->lockForUpdate()->first();
+        if (! $vehicle) {
+            abort(404);
+        }
+        if ($vehicle->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => 'Veículo já concluído. Reabra para editar.',
+            ]);
+        }
+
+        $review = $this->closeoutSnapshot($case);
+        if (! hash_equals($this->closeoutHash($review), $expectedSha)) {
+            abort(409, 'Os custos ou pendências mudaram. Confira novamente antes de concluir.');
+        }
+        if ($this->hasOpenCloseoutItems($review) && ! $acknowledge) {
+            throw ValidationException::withMessages([
+                'acknowledge_pending' => 'Confirme a ciência das pendências antes de concluir.',
+            ]);
+        }
+
+        return $review;
+    }
+
+    /**
+     * Macro 47 — concluir a ficha (com ou sem venda) numa transação.
+     * Continua possível encerrar veículo sem venda registrada.
+     */
+    public function completeVehicle(Request $request, int $case): JsonResponse
+    {
+        $this->rejectUnknown($request, [
+            'expected_closeout_sha256', 'acknowledge_pending',
+        ]);
+        $data = $request->validate([
+            'expected_closeout_sha256' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'acknowledge_pending' => ['required', 'boolean'],
+        ]);
+        $pending = DB::transaction(function () use ($request, $case, $data): bool {
+            $review = $this->verifyCloseout(
+                $case, $data['expected_closeout_sha256'], $data['acknowledge_pending']
+            );
+            DB::table('repasse_cases')->where('id', $case)->update([
+                'status' => 'archived',
+                'updated_by' => $request->user('api')->id,
+                'updated_at' => now(),
+            ]);
+            $this->record($case, $request, 'case_archived');
+
+            return $this->hasOpenCloseoutItems($review);
+        }, 3);
+
+        return response()->json([
+            'data' => $this->details($case),
+            'pending_acknowledged' => $pending,
+            'financial_authorization' => false,
+            'payment_executed' => false,
+            'obligation_created' => false,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    /**
+     * Macro 47 — registrar/revisar venda e concluir o acompanhamento
+     * atomicamente. NUNCA lança receita extra, dívida, quitação ou repasse.
+     */
+    public function completeSale(Request $request, int $case): JsonResponse
+    {
+        $this->rejectUnknown($request, [
+            'sale_amount_cents', 'sold_on', 'buyer_name',
+            'expected_closeout_sha256', 'acknowledge_pending',
+        ]);
+        $data = $request->validate([
+            'sale_amount_cents' => ['required', 'integer', 'min:1', 'max:999999999999'],
+            'sold_on' => ['required', 'date_format:Y-m-d'],
+            'buyer_name' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'expected_closeout_sha256' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'acknowledge_pending' => ['required', 'boolean'],
+        ]);
+
+        $result = DB::transaction(function () use ($request, $case, $data): array {
+            $review = $this->verifyCloseout($case, $data['expected_closeout_sha256'],
+                $data['acknowledge_pending']);
+
+            $purchasedOn = DB::table('repasse_cases')->where('id', $case)
+                ->value('purchased_on');
+            $this->assertSaleCoherence(
+                $data['sold_on'], $purchasedOn, $data['sale_amount_cents']
+            );
+
+            $buyer = trim((string) ($data['buyer_name'] ?? ''));
+            DB::table('repasse_cases')->where('id', $case)->update([
+                'sale_amount_cents' => (int) $data['sale_amount_cents'],
+                'sold_on' => $data['sold_on'],
+                'buyer_name' => $buyer !== '' ? $buyer : null,
+                'status' => 'archived',
+                'updated_by' => $request->user('api')->id,
+                'updated_at' => now(),
+            ]);
+
+            // Um só evento auditável para uma única ação de usuário.
+            $this->record($case, $request, 'case_sale_completed');
+
+            return [
+                'review' => $review,
+                'pending_acknowledged' => $this->hasOpenCloseoutItems($review),
+            ];
+        }, 3);
+
+        return response()->json([
+            'data' => $this->details($case),
+            'pending_acknowledged' => $result['pending_acknowledged'],
+            'financial_authorization' => false,
+            'payment_executed' => false,
+            'obligation_created' => false,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
 
     public function store(Request $request): JsonResponse
     {

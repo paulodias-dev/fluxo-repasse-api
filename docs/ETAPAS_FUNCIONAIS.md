@@ -167,3 +167,10 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Link profundo para veículo, minuta, apuração e proposta exatas no mesmo Metronic mobile-first.
 - [x] JWT/duas permissões, sem novas migrations, módulos ou lógica de pagamento; OpenAPI 1.22 e testes escritos.
 - [ ] Verificação real em PHPUnit/MySQL/React e QA visual somente na homologação final do MVP.
+
+## Macro 47 — Jornada operacional de venda e encerramento
+- [x] Registrar venda ou revisar normalmente, sem obrigação de concluir.
+- [x] Marcar explicitamente Concluir após registrar venda e executar escrita única de venda e status archived; zero duplicação de receita.
+- [x] Concluir sem venda continua permitido, mas com token de conferência e lock da API; ciência de pendências somente quando presentes.
+- [x] API, React, testes feature, regressão mobile e OpenAPI 1.23, todos na mesma etapa.
+- [ ] QA real e homologação após código MVP; regras bancárias e alçadas monetárias não aprovadas.

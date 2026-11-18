@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.22.0
+  version: 1.23.0
   description: |
     Contratos da fundação de identidade e conectividade.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
@@ -796,8 +796,9 @@ paths:
         lançamentos estornados. Compra NULL não vira zero fictício.
         É um auxílio de decisão, NÃO uma obrigação de vender, não confirma
         recebimento, pagamento, quitação, lucro contábil ou transferência.
-        Arquivar continua sendo PATCH existente de status archived,
-        auditado e reversível para status draft; esta consulta não altera dados.
+        A ficha Metronic usa POST de conclusão com review_sha256 e
+        trava transacional. O PATCH legado de status permanece disponível
+        por compatibilidade; esta consulta não altera dados.
       security: [{ BearerAuth: [] }]
       parameters:
         - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -816,6 +817,72 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { description: Veículo não encontrado }
+  /repasse-cases/{case}/complete:
+    post:
+      tags: [Central operacional]
+      operationId: completeVehicleAtomically
+      summary: Conclusão operacional atômica de veículo com ou sem venda
+      description: |
+        Requer JWT, session.current e cases.manage. A API compara
+        expected_closeout_sha256 com snapshot recalculado sob lock do veículo,
+        verifica pendências e exige acknowledge_pending quando necessário.
+        Conclui apenas o acompanhamento; não cria dinheiro ou obrigação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_closeout_sha256, acknowledge_pending]
+              properties:
+                expected_closeout_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                acknowledge_pending: { type: boolean }
+      responses:
+        '200': { description: Veículo archived, pending_acknowledged e payment_executed false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo inexistente }
+        '409': { description: Revisão obsoleta, reconsultar antes de confirmar }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/sale/complete:
+    post:
+      tags: [Central operacional]
+      operationId: completeSaleAtomically
+      summary: Registrar venda e concluir acompanhamento em uma única transação
+      description: |
+        Requer JWT, session.current e cases.manage. Operação opcional do modal
+        de venda. Valida valor, data posterior/igual à compra, comprador
+        declarado opcional e snapshot de revisão exato sob lock do veículo.
+        Grava venda e status archived juntos ou não grava nada.
+        Não lança receita extra, quitação, pagamento, comissão ou obrigação.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sale_amount_cents, sold_on, expected_closeout_sha256, acknowledge_pending]
+              properties:
+                sale_amount_cents: { type: integer, format: int64, minimum: 1, maximum: 999999999999 }
+                sold_on: { type: string, format: date }
+                buyer_name: { type: string, maxLength: 180, nullable: true }
+                expected_closeout_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+                acknowledge_pending: { type: boolean }
+      responses:
+        '200': { description: Venda e arquivamento confirmados; financial_authorization, payment_executed e obligation_created false }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Veículo inexistente }
+        '409': { description: Revisão obsoleta, reconsultar antes de confirmar }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /repasse-cases/{case}/finance/summary:
     get:
       tags: [Financeiro 360 do veículo]
@@ -4182,7 +4249,7 @@ components:
           description: Soma de margens gerenciais SOMENTE dos veículos com compra e venda informadas. Pode ser negativa.
     VehicleCloseoutReview:
       type: object
-      required: [id, title, status, updated_at, purchase_amount_cents,
+      required: [id, title, status, updated_at, review_sha256, purchase_amount_cents,
         sale_amount_cents, sold_on, current_cost_cents, sale_result_cents,
         expense_realized_cents, income_realized_cents,
         expense_planned_cents, income_planned_cents, expense_planned_count,
@@ -4192,6 +4259,7 @@ components:
         title: { type: string }
         status: { type: string, enum: [draft, archived] }
         updated_at: { type: string, description: 'Timestamp da última alteração da ficha; não garante trava de concorrência' }
+        review_sha256: { type: string, pattern: '^[a-f0-9]{64}$', description: 'Digest de conferência para POST transacional, não assinatura jurídica' }
         purchase_amount_cents: { type: integer, format: int64, nullable: true, minimum: 0 }
         sale_amount_cents: { type: integer, format: int64, nullable: true, minimum: 0 }
         sold_on: { type: string, format: date, nullable: true }
