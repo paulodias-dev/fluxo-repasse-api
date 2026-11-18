@@ -208,3 +208,11 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Usar apenas cases.manage/JWT/session.current. Não habilitar pagamento, saldo, comissão, imposto ou repasse.
 - O PATCH legado de status permanece por compatibilidade e não exige SHA: deixar essa limitação clara; a UI oficial deve usar os endpoints novos.
 - Testes escritos não significam homologação; medir QA real depois do código do MVP.
+
+## Macro 48 — declarações de repasses externos (NÃO movimentação)
+- Só registrar transferências que o operador afirma terem acontecido fora do aplicativo, com venda datada, participante favorecido vindo da proposta SHA verificada, valor/data explícitos e comprovante privado.
+- A proposta, o rateio e a diferença aritmética são referências documentais, NUNCA obrigação exigível, saldo devedor, pagamento autorizado ou conciliação bancária. bank_confirmed/payment_executed/obligation_created devem permanecer false.
+- Permitir novo relatório após encerramento SEM alterar dados do veículo arquivado; travar linha pai ao gravar/estornar relatório; UUID idempotente incluindo SHA do comprovante, ator e fonte.
+- Um único esquema aditivo repasse_external_transfer_reports, comprovantes no disco local privado, SHA e tamanho conferidos antes de cada download. Sem URL pública, segredos, números bancários, ZIP ou PSP.
+- Não permitir excluir/editar declaração original: correção por estorno com razão e auditoria; somar somente registros não estornados, todos antes de paginar.
+- JWT + session.current + cases.manage E scenarios.manage; desconhecidos rejeitados; CSV anti-fórmula no-store. Testes reais só declarados após execução, código do MVP sem homologação.
