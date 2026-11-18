@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -67,34 +66,57 @@ return new class extends Migration
             $table->unique(['tenant_id', 'slug'], 'roles_tenant_slug_unique');
         });
 
-        // A constraint composta evita associação entre casos e participantes
-        // de empresas diferentes mesmo sob tentativa de escrita maliciosa.
-        Schema::table('parties', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'id'], 'parties_tenant_id_unique');
-        });
-        Schema::table('repasse_cases', function (Blueprint $table): void {
-            $table->unique(['tenant_id', 'id'], 'cases_tenant_id_unique');
-        });
-        Schema::table('repasse_case_parties', function (Blueprint $table): void {
-            $table->foreign(['tenant_id', 'repasse_case_id'], 'case_parties_tenant_case_fk')
-                ->references(['tenant_id', 'id'])->on('repasse_cases')->restrictOnDelete();
-            $table->foreign(['tenant_id', 'party_id'], 'case_parties_tenant_party_fk')
-                ->references(['tenant_id', 'id'])->on('parties')->restrictOnDelete();
-        });
+        // Todas as entidades com ID podem ser alvo de FKs compostas
+        // (tenant_id, id). Isso impede referenciar registros de outra empresa,
+        // inclusive arquivos, histórico, tarefas, beneficiários e usuários.
+        foreach (self::OWNED as $name) {
+            if (in_array($name, ['role_user', 'permission_role'], true)) continue;
+            Schema::table($name, function (Blueprint $table) use ($name): void {
+                $table->unique(['tenant_id', 'id'],
+                    'tenant_key_'.substr(hash('sha256', $name), 0, 12));
+            });
+        }
+
+        // Replica cada FK de negócio com o tenant da linha.
+        // A FK original permanece; a composta acrescenta a barreira de tenant.
+        foreach (self::OWNED as $name) {
+            foreach (Schema::getForeignKeys($name) as $foreign) {
+                $columns = $foreign['columns'] ?? [];
+                $parent = $foreign['foreign_table'] ?? '';
+                if (count($columns) !== 1 || ! in_array($parent, self::OWNED, true)
+                    || $columns[0] === 'tenant_id'
+                    || in_array($parent, ['role_user', 'permission_role'], true)) {
+                    continue;
+                }
+                $column = $columns[0];
+                $fkName = 'tenant_link_'.substr(hash('sha256', $name.'_'.$column), 0, 12);
+                Schema::table($name, function (Blueprint $table) use ($column, $fkName, $parent): void {
+                    $table->foreign(['tenant_id', $column], $fkName)
+                        ->references(['tenant_id', 'id'])->on($parent)->restrictOnDelete();
+                });
+            }
+        }
     }
 
     public function down(): void
     {
-        Schema::table('repasse_case_parties', function (Blueprint $table): void {
-            $table->dropForeign('case_parties_tenant_case_fk');
-            $table->dropForeign('case_parties_tenant_party_fk');
-        });
-        Schema::table('repasse_cases', function (Blueprint $table): void {
-            $table->dropUnique('cases_tenant_id_unique');
-        });
-        Schema::table('parties', function (Blueprint $table): void {
-            $table->dropUnique('parties_tenant_id_unique');
-        });
+        // Remover primeiro todas as FKs compostas criadas acima.
+        foreach (array_reverse(self::OWNED) as $name) {
+            foreach (Schema::getForeignKeys($name) as $foreign) {
+                $fkName = $foreign['name'] ?? '';
+                if (str_starts_with($fkName, 'tenant_link_')) {
+                    Schema::table($name, function (Blueprint $table) use ($fkName): void {
+                        $table->dropForeign($fkName);
+                    });
+                }
+            }
+        }
+        foreach (array_reverse(self::OWNED) as $name) {
+            if (in_array($name, ['role_user', 'permission_role'], true)) continue;
+            Schema::table($name, function (Blueprint $table) use ($name): void {
+                $table->dropUnique('tenant_key_'.substr(hash('sha256', $name), 0, 12));
+            });
+        }
         Schema::table('roles', function (Blueprint $table): void {
             $table->dropUnique('roles_tenant_slug_unique');
             $table->unique('slug');
