@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use App\Models\Party;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +16,7 @@ final class PartyEventController extends Controller
     {
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
 
-        $events = DB::table('party_events')
+        $events = TenantTable::table('party_events')
             ->where('party_id', $party->id)
             ->select(['id', 'event_type', 'actor_user_id', 'created_at'])
             ->orderByDesc('id')
