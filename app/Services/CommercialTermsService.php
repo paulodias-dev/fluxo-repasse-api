@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantDatabase;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -44,7 +46,7 @@ final class CommercialTermsService
             $terms[$key] = $value === '' ? null : $value;
         }
 
-        $model = DB::table('repasse_distribution_templates')->where('id', $data['template_id'])
+        $model = TenantDatabase::table('repasse_distribution_templates')->where('id', $data['template_id'])
             ->lockForUpdate()->firstOrFail();
         if ((int) $model->repasse_case_id !== $case) {
             throw ValidationException::withMessages([
@@ -95,7 +97,7 @@ final class CommercialTermsService
         }
         if ($ids === []) return [];
 
-        $rows = DB::table('repasse_case_evidence')
+        $rows = TenantDatabase::table('repasse_case_evidence')
             ->where('repasse_case_id', $case)->whereIn('id', $ids)
             ->whereNull('archived_at')
             ->select('id', 'original_name', 'sha256', 'mime', 'size_bytes')
@@ -132,7 +134,7 @@ final class CommercialTermsService
             $this->operations->editable($case);
             $fields = $this->normalized($case, $data);
             $now = now();
-            $id = DB::table('repasse_commercial_terms')->insertGetId([
+            $id = TenantDatabase::table('repasse_commercial_terms')->insertGetId([
                 'repasse_case_id' => $case,
                 'template_id' => $fields['template_id'],
                 'template_revision' => $fields['template_revision'],
@@ -168,7 +170,7 @@ final class CommercialTermsService
             $fields = $this->normalized($case, $data);
             if (hash_equals($old->content_sha256, $this->sha($fields))) return false;
 
-            DB::table('repasse_commercial_terms')->where('id', $term)->update([
+            TenantDatabase::table('repasse_commercial_terms')->where('id', $term)->update([
                 'template_id' => $fields['template_id'],
                 'template_revision' => $fields['template_revision'],
                 'template_sha256' => $fields['template_sha256'],
@@ -181,7 +183,7 @@ final class CommercialTermsService
                 'revision' => (int) $old->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
             ]);
-            DB::table('repasse_commercial_term_evidence')->where('term_id', $term)->delete();
+            TenantDatabase::table('repasse_commercial_term_evidence')->where('term_id', $term)->delete();
             $this->syncEvidence($term, $fields['evidence']);
             $this->record($case, $term, $request, 'commercial_term_revised');
             return true;
@@ -197,7 +199,7 @@ final class CommercialTermsService
             $old = $this->locked($case, $term, $revision);
             $archive = $action === 'archive';
             if (($old->archived_at !== null) === $archive) return false;
-            DB::table('repasse_commercial_terms')->where('id', $term)->update([
+            TenantDatabase::table('repasse_commercial_terms')->where('id', $term)->update([
                 'archived_at' => $archive ? now() : null,
                 'revision' => (int) $old->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
@@ -212,7 +214,7 @@ final class CommercialTermsService
 
     private function locked(int $case, int $term, int $revision): object
     {
-        $row = DB::table('repasse_commercial_terms')
+        $row = TenantDatabase::table('repasse_commercial_terms')
             ->where('repasse_case_id', $case)->where('id', $term)
             ->lockForUpdate()->firstOrFail();
         if ((int) $row->revision !== $revision) {
@@ -224,7 +226,7 @@ final class CommercialTermsService
     private function syncEvidence(int $term, array $evidence): void
     {
         foreach ($evidence as $item) {
-            DB::table('repasse_commercial_term_evidence')->insert([
+            TenantDatabase::table('repasse_commercial_term_evidence')->insert([
                 'term_id' => $term, 'evidence_id' => $item['id'], 'created_at' => now(),
             ]);
         }
@@ -232,7 +234,7 @@ final class CommercialTermsService
 
     private function fields(object $row): array
     {
-        $evidence = DB::table('repasse_commercial_term_evidence as l')
+        $evidence = TenantDatabase::table('repasse_commercial_term_evidence as l')
             ->join('repasse_case_evidence as d', 'd.id', '=', 'l.evidence_id')
             ->where('l.term_id', $row->id)
             ->select('d.id', 'd.original_name', 'd.sha256', 'd.mime', 'd.size_bytes')
@@ -266,9 +268,9 @@ final class CommercialTermsService
 
     private function record(int $case, int $term, Request $request, string $type): void
     {
-        $row = DB::table('repasse_commercial_terms')->where('id', $term)->firstOrFail();
+        $row = TenantDatabase::table('repasse_commercial_terms')->where('id', $term)->firstOrFail();
         $snapshot = $this->snapshot($row);
-        DB::table('repasse_commercial_term_versions')->insert([
+        TenantDatabase::table('repasse_commercial_term_versions')->insert([
             'term_id' => $term, 'revision' => $row->revision,
             'event_type' => $type, 'snapshot' => $this->encode($snapshot),
             'sha256' => $this->sha($snapshot),
@@ -280,7 +282,7 @@ final class CommercialTermsService
     public function list(int $case, array $filters): mixed
     {
         $this->operations->ensureExists($case);
-        $query = DB::table('repasse_commercial_terms as t')
+        $query = TenantDatabase::table('repasse_commercial_terms as t')
             ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id')
             ->where('t.repasse_case_id', $case)
             ->select('t.id', 't.title', 't.revision', 't.description',
@@ -310,7 +312,7 @@ final class CommercialTermsService
     public function show(int $case, int $term): array
     {
         $this->operations->ensureExists($case);
-        $row = DB::table('repasse_commercial_terms')
+        $row = TenantDatabase::table('repasse_commercial_terms')
             ->where('repasse_case_id', $case)->where('id', $term)->firstOrFail();
         $fields = $this->fields($row);
         if (! hash_equals($row->content_sha256, $this->sha($fields))) {
@@ -319,9 +321,9 @@ final class CommercialTermsService
         if (! hash_equals($fields['template_sha256'], $this->sha($fields['template_snapshot']))) {
             abort(409, 'Snapshot do modelo de distribuição inconsistente.');
         }
-        $model = DB::table('repasse_distribution_templates')
+        $model = TenantDatabase::table('repasse_distribution_templates')
             ->where('id', $row->template_id)->first();
-        $currentParties = DB::table('repasse_case_parties as cp')
+        $currentParties = TenantDatabase::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $case)->where('p.is_active', true)
             ->pluck('cp.party_id')->map(static fn ($id): int => (int) $id)->all();
@@ -329,7 +331,7 @@ final class CommercialTermsService
         foreach ($fields['template_snapshot']['lines'] as $line) $ids[] = (int) $line['party_id'];
         $missingParties = array_values(array_diff(array_unique($ids), $currentParties));
         $evidenceIds = array_column($fields['evidence'], 'id');
-        $activeEvidenceIds = $evidenceIds === [] ? [] : DB::table('repasse_case_evidence')
+        $activeEvidenceIds = $evidenceIds === [] ? [] : TenantDatabase::table('repasse_case_evidence')
             ->where('repasse_case_id', $case)->whereNull('archived_at')
             ->whereIn('id', $evidenceIds)->pluck('id')->map(
                 static fn ($id): int => (int) $id
@@ -341,7 +343,7 @@ final class CommercialTermsService
         }
         $modelChanged = ! $model || $model->archived_at !== null
             || (int) $model->revision !== (int) $row->template_revision;
-        $caseArchived = DB::table('repasse_cases')->where('id', $case)->value('status') !== 'draft';
+        $caseArchived = TenantDatabase::table('repasse_cases')->where('id', $case)->value('status') !== 'draft';
 
         return [
             'id' => (int) $row->id, 'case_id' => $case,
@@ -396,7 +398,7 @@ final class CommercialTermsService
     public function versions(int $case, int $term): mixed
     {
         $this->show($case, $term);
-        return DB::table('repasse_commercial_term_versions')
+        return TenantDatabase::table('repasse_commercial_term_versions')
             ->where('term_id', $term)->select('revision', 'event_type', 'sha256',
                 'actor_user_id', 'created_at')->orderByDesc('revision')->paginate(20);
     }
@@ -404,7 +406,7 @@ final class CommercialTermsService
     public function version(int $case, int $term, int $revision): array
     {
         $this->show($case, $term);
-        $row = DB::table('repasse_commercial_term_versions')
+        $row = TenantDatabase::table('repasse_commercial_term_versions')
             ->where('term_id', $term)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
         if (! hash_equals($row->sha256, $this->sha($snapshot))) {
