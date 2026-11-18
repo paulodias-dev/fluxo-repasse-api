@@ -528,8 +528,11 @@ final class ExternalTransferReportService
                 static fn (object $row): array => [
                     'beneficiary_party_id' => (int) $row->beneficiary_party_id,
                     'beneficiary_party_name' => $row->beneficiary_name,
+                    'reference_cents' => null,
                     'reported_cents' => (int) $row->reported_cents,
+                    'difference_to_reference_cents' => null,
                     'reported_count' => (int) $row->reported_count,
+                    'voided_count' => 0,
                 ]
             )->all();
         $page = $this->directQuery($case, $status)->orderByDesc('id')
@@ -540,7 +543,10 @@ final class ExternalTransferReportService
                 'total_reported_cents' => (int) $totals->reported_cents,
                 'reported_count' => (int) $totals->reported_count,
                 'voided_count' => (int) $totals->voided_count,
-                'by_beneficiary' => $perParty,
+                'proposal_id' => null,
+                'proposal_sha256' => null,
+                'proposal_source_stale' => false,
+                'lines' => $perParty,
                 'hypothetical_reference_cents' => null,
                 'bank_confirmed' => false,
                 'payment_executed' => false,
