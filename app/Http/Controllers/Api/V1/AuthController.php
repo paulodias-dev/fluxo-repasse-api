@@ -7,11 +7,11 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use Illuminate\Support\Facades\DB;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
@@ -47,6 +47,8 @@ final class AuthController extends Controller
                 'id' => $user->getAuthIdentifier(),
                 'name' => $user->name,
                 'email' => $user->email,
+                'tenant' => $user->tenant_id ? DB::table('tenants')
+                    ->where('id', $user->tenant_id)->first(['id', 'name', 'slug']) : null,
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),
                 'access_diagnostic' => $this->diagnostic($user),
