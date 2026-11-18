@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Role;
+use App\Support\TenantRoles;
 use App\Models\Tenant;
 use App\Models\User;
 use Database\Seeders\AdminUserSeeder;
@@ -32,7 +33,8 @@ final class SaasTenantIsolationTest extends TestCase
             'email' => $slug.'@example.invalid',
             'password' => 'S3nha&T3ste12345!',
         ]);
-        $user->roles()->sync([Role::query()->where('slug', 'tenant_admin')->firstOrFail()->id]);
+        $roles = TenantRoles::provision((int) $tenant->id);
+        $user->roles()->sync([$roles['tenant_admin']->id]);
 
         return [$tenant, $user];
     }
@@ -123,6 +125,55 @@ final class SaasTenantIsolationTest extends TestCase
         $tenant->update(['is_active' => false]);
 
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
+
+    public function test_cargos_e_permissoes_de_uma_empresa_nao_sao_editaveis_por_outra(): void
+    {
+        [$tenantA, $adminA] = $this->actor('roles-alfa');
+        [$tenantB, $adminB] = $this->actor('roles-beta');
+        $roleA = Role::query()->where('tenant_id', $tenantA->id)
+            ->where('slug', 'tenant_admin')->firstOrFail();
+        $roleB = Role::query()->where('tenant_id', $tenantB->id)
+            ->where('slug', 'tenant_admin')->firstOrFail();
+        $this->assertNotSame($roleA->id, $roleB->id);
+
+        $tokenA = auth('api')->login($adminA);
+        $this->withToken($tokenA)->getJson('/api/v1/admin/access')
+            ->assertOk()->assertJsonMissing(['id' => $roleB->id]);
+
+        $this->withToken($tokenA)->patchJson('/api/v1/admin/access/roles/'.$roleB->id, [
+            'name' => 'Escalado maliciosamente',
+            'permissions' => ['users.manage', 'roles.manage'],
+        ])->assertNotFound();
+
+        $this->withToken($tokenA)->postJson('/api/v1/admin/users', [
+            'name' => 'Tentativa de escalação', 'email' => 'attempt@empresa-a.test',
+            'password' => 'S3nha&T3ste12345!', 'password_confirmation' => 'S3nha&T3ste12345!',
+            'role_ids' => [$roleB->id],
+        ])->assertUnprocessable();
+
+        $this->assertSame('Administrador', $roleB->fresh()->name);
+        $this->assertDatabaseMissing('users', ['email' => 'attempt@empresa-a.test']);
+
+        $tokenB = auth('api')->login($adminB);
+        $this->withToken($tokenB)->getJson('/api/v1/admin/access')
+            ->assertOk()->assertJsonMissing(['id' => $roleA->id]);
+    }
+
+    public function test_uma_empresa_nao_pode_ler_auditoria_de_usuarios_da_outra(): void
+    {
+        [, $adminA] = $this->actor('audit-alfa');
+        [, $adminB] = $this->actor('audit-beta');
+        $tokenA = auth('api')->login($adminA);
+        $tokenB = auth('api')->login($adminB);
+
+        $this->withToken($tokenA)->getJson('/api/v1/admin/users/'.$adminB->id.'/events')
+            ->assertNotFound();
+        $this->withToken($tokenB)->getJson('/api/v1/admin/users/'.$adminA->id.'/events')
+            ->assertNotFound();
+        $this->assertDatabaseHas('auth_security_events', [
+            'tenant_id' => $adminA->tenant_id, 'user_id' => $adminA->id,
+        ]);
     }
 
     public function test_seeder_cria_duas_empresas_distintas_com_cargos_e_modulos(): void
