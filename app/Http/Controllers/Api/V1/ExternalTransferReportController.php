@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreExternalTransferReportRequest;
+use App\Http\Requests\StoreDirectExternalTransferReportRequest;
 use App\Services\CaseOperations;
 use App\Services\ExternalTransferReportService;
 use Illuminate\Http\JsonResponse;
@@ -77,5 +78,63 @@ final class ExternalTransferReportController extends Controller
     {
         $filters = $this->filters($request);
         return $this->reports->export($case, $term, $proposal, $filters['status'] ?? 'all');
+    }
+
+    public function directOptions(int $case): JsonResponse
+    {
+        return response()->json(['data' => $this->reports->directOptions($case)])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function directIndex(Request $request, int $case): JsonResponse
+    {
+        $filters = $this->filters($request);
+
+        return response()->json([
+            'data' => $this->reports->directIndex($case, $filters['status'] ?? 'all'),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    public function directStore(StoreDirectExternalTransferReportRequest $request, int $case): JsonResponse
+    {
+        $this->operations->restrict($request, [
+            'request_key', 'payer_party_id', 'beneficiary_party_id',
+            'amount_cents', 'transferred_on', 'external_reference', 'operator_note',
+            'confirmed_external', 'proof',
+        ]);
+        $result = $this->reports->directStore($case, $request->validated(), $request);
+
+        return response()->json($result, $result['created'] ? 201 : 200)
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function directShow(int $case, int $transfer): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->reports->directShow($case, $transfer),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    public function directVoid(Request $request, int $case, int $transfer): JsonResponse
+    {
+        $this->operations->restrict($request, ['reason']);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+        return response()->json([
+            'data' => $this->reports->directVoid($case, $transfer, $data['reason'], $request),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    public function directProof(int $case, int $transfer): BinaryFileResponse
+    {
+        return $this->reports->directProof($case, $transfer);
+    }
+
+    public function directExport(Request $request, int $case): StreamedResponse
+    {
+        $filters = $this->filters($request);
+
+        return $this->reports->directExport($case, $filters['status'] ?? 'all');
     }
 }
