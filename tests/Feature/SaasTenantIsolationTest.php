@@ -32,6 +32,7 @@ final class SaasTenantIsolationTest extends TestCase
             'name' => 'Administrador '.$slug,
             'email' => $slug.'@example.invalid',
             'password' => 'S3nha&T3ste12345!',
+            'email_verified_at' => now(),
         ]);
         $roles = TenantRoles::provision((int) $tenant->id);
         $user->roles()->sync([$roles['tenant_admin']->id]);
@@ -179,8 +180,13 @@ final class SaasTenantIsolationTest extends TestCase
     {
         [, $adminA] = $this->actor('audit-alfa');
         [, $adminB] = $this->actor('audit-beta');
-        $tokenA = auth('api')->login($adminA);
-        $tokenB = auth('api')->login($adminB);
+        $password = 'S3nha&T3ste12345!';
+        $tokenA = $this->postJson('/api/v1/auth/login', [
+            'email' => $adminA->email, 'password' => $password,
+        ])->assertOk()->json('access_token');
+        $tokenB = $this->postJson('/api/v1/auth/login', [
+            'email' => $adminB->email, 'password' => $password,
+        ])->assertOk()->json('access_token');
 
         $this->withToken($tokenA)->getJson('/api/v1/admin/users/'.$adminB->id.'/events')
             ->assertNotFound();

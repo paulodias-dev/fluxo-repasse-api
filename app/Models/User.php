@@ -17,6 +17,11 @@ class User extends Authenticatable implements JWTSubject
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, BelongsToTenant;
 
+    protected $attributes = [
+        'is_active' => true,
+        'auth_version' => 1,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -30,6 +35,11 @@ class User extends Authenticatable implements JWTSubject
         'avatar_path',
         'password',
         'tenant_id',
+        'email_verified_at',
+        'is_active',
+        'auth_version',
+        'terms_accepted_at',
+        'terms_version',
     ];
 
     /**
@@ -56,6 +66,7 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
             'is_active' => 'boolean',
             'auth_version' => 'integer',
+            'terms_accepted_at' => 'datetime',
         ];
     }
 

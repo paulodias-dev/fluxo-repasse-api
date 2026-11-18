@@ -45,6 +45,7 @@ Artisan::command('repasse:tenant:create {slug : Identificador único da empresa}
             'name' => $adminName,
             'email' => $email,
             'password' => $password,
+            'email_verified_at' => now(),
         ]);
         $roles = TenantRoles::provision((int) $tenant->id);
         $admin->roles()->sync([$roles['tenant_admin']->id]);
@@ -88,12 +89,14 @@ Artisan::command('repasse:tenant:seed', function (): int {
                     'email' => $email,
                     'password' => $password,
                     'is_active' => true,
+                    'email_verified_at' => now(),
                 ]);
             } else {
                 $passwordChanged = ! Hash::check($password, (string) $admin->getRawOriginal('password'));
                 $statusChanged = ! $admin->is_active;
                 $admin->name = $adminName;
                 $admin->is_active = true;
+                $admin->email_verified_at = now();
                 if ($passwordChanged || $statusChanged) {
                     $admin->password = $password;
                     $admin->auth_version = (int) $admin->auth_version + 1;
@@ -128,7 +131,7 @@ Artisan::command('repasse:user:create', function (): int {
     $email = Str::lower(trim((string) $this->ask('E-mail')));
     $password = (string) $this->secret('Senha (mínimo 12 caracteres, maiúscula, minúscula, número e símbolo)');
 
-    $data = ['name' => $name, 'email' => $email, 'password' => $password];
+    $data = ['name' => $name, 'email' => $email, 'password' => $password, 'email_verified_at' => now()];
     $validator = Validator::make($data, [
         'name' => ['required', 'string', 'min:2', 'max:255'],
         'email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')],

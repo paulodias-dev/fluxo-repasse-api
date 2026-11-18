@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\RegistrationController;
+use App\Http\Controllers\Api\V1\TenantInvitationController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
@@ -37,6 +39,18 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/ready', ReadinessController::class)->middleware('throttle:30,1')->name('api.v1.ready');
 
     Route::prefix('auth')->group(function (): void {
+        Route::post('/register', [RegistrationController::class, 'store'])
+            ->middleware('throttle:repasse-registration')
+            ->name('api.v1.auth.register');
+        Route::post('/verify-email', [RegistrationController::class, 'verify'])
+            ->middleware('throttle:repasse-verification')
+            ->name('api.v1.auth.verify-email');
+        Route::post('/resend-verification', [RegistrationController::class, 'resend'])
+            ->middleware('throttle:repasse-verification')
+            ->name('api.v1.auth.resend-verification');
+        Route::post('/invitations/{token}/accept', [RegistrationController::class, 'acceptInvitation'])
+            ->middleware('throttle:repasse-registration')
+            ->name('api.v1.auth.invitations.accept');
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:repasse-login')
             ->name('api.v1.auth.login');
@@ -485,6 +499,12 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('admin')->middleware([
         'bearer.only', 'auth:api', 'session.current', 'permission:users.manage',
     ])->group(function (): void {
+        Route::get('/invitations', [TenantInvitationController::class, 'index'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.admin.invitations.index');
+        Route::post('/invitations', [TenantInvitationController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.invitations.store');
+        Route::delete('/invitations/{invitation}', [TenantInvitationController::class, 'revoke'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.invitations.revoke');
         Route::get('/users', [AdminUserController::class, 'index'])->name('api.v1.admin.users.index');
         Route::post('/users', [AdminUserController::class, 'store'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.store');

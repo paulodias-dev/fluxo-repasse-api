@@ -65,6 +65,7 @@ final class SaasDemoSeeder extends Seeder
                         'name' => 'Administrador '.$company['label'].' (DEMO)',
                         'password' => Hash::make($password),
                         'is_active' => true,
+                        'email_verified_at' => now(),
                     ]
                 );
                 if ($admin->wasRecentlyCreated) {
@@ -79,6 +80,7 @@ final class SaasDemoSeeder extends Seeder
                         'name' => 'Operador '.$company['label'].' (DEMO)',
                         'password' => Hash::make($password),
                         'is_active' => true,
+                        'email_verified_at' => now(),
                     ]
                 );
                 if ($user->wasRecentlyCreated) {

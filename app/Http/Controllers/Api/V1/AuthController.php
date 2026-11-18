@@ -27,22 +27,36 @@ final class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
-        $token = Auth::guard('api')->attempt([...$credentials, 'is_active' => true]);
+        $user = User::query()->where('email', $credentials['email'])->first();
 
-        if (! $token) {
+        if (! $user || ! Hash::check($credentials['password'], (string) $user->getRawOriginal('password'))) {
             $this->events->record('login_failed', $request);
 
             return response()->json(['message' => 'Credenciais inválidas.'], 401)
                 ->header('Cache-Control', 'no-store');
         }
 
-        $user = Auth::guard('api')->user();
-        if (! $user->tenant_id ||
-            ! Tenant::query()->whereKey($user->tenant_id)->where('is_active', true)->exists()) {
-            Auth::guard('api')->logout();
+        if ($user->email_verified_at === null) {
+            $this->events->record('login_blocked_unverified', $request, $user);
+
+            return response()->json([
+                'message' => 'Confirme seu e-mail antes de entrar. Se necessário, solicite um novo link de confirmação.',
+            ], 403)->header('Cache-Control', 'no-store');
+        }
+
+        if (! $user->is_active) {
+            $this->events->record('login_failed', $request, $user);
+
+            return response()->json(['message' => 'Credenciais inválidas.'], 401)
+                ->header('Cache-Control', 'no-store');
+        }
+
+        if (! $user->tenant_id || ! Tenant::query()->whereKey($user->tenant_id)->where('is_active', true)->exists()) {
             return response()->json(['message' => 'Empresa não autorizada.'], 403)
                 ->header('Cache-Control', 'no-store');
         }
+
+        $token = Auth::guard('api')->login($user);
         $this->events->record('login_succeeded', $request, $user);
 
         return $this->tokenResponse($token);

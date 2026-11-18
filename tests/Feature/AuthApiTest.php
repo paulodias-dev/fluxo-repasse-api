@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\EmailVerificationToken;
 use App\Models\User;
+use App\Notifications\VerifyRegistrationEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -102,10 +105,60 @@ final class AuthApiTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
     }
 
-    public function test_public_registration_remains_disabled(): void
+    public function test_public_registration_creates_isolated_tenant_and_owner(): void
     {
-        $this->postJson('/api/v1/auth/register', [])->assertNotFound();
-        $this->postJson('/api/v1/repasses', [])->assertNotFound();
+        Notification::fake();
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Proprietário da Revenda',
+            'company_name' => 'Revenda Teste',
+            'email' => 'owner@revenda.test',
+            'password' => 'Senha-Forte-123!',
+            'password_confirmation' => 'Senha-Forte-123!',
+            'terms_accepted' => true,
+        ])->assertCreated()->assertJsonPath('email', 'owner@revenda.test');
+
+        $user = User::query()->where('email', 'owner@revenda.test')->firstOrFail();
+        $this->assertDatabaseHas('tenants', [
+            'id' => $user->tenant_id,
+            'name' => 'Revenda Teste',
+            'is_active' => true,
+        ]);
+        $this->assertFalse($user->is_active);
+        $this->assertNull($user->email_verified_at);
+        $this->assertTrue($user->roles()->where('slug', 'tenant_admin')->exists());
+        Notification::assertSentTo($user, VerifyRegistrationEmail::class);
+        $this->assertSame(201, $response->status());
+    }
+
+    public function test_public_registration_requires_confirmation_before_login(): void
+    {
+        $user = User::factory()->unverified()->create([
+            'is_active' => false,
+            'password' => 'Strong-Passphrase-123!',
+        ]);
+        $plainToken = 'verification-token-for-test-1234567890';
+        EmailVerificationToken::query()->create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $plainToken),
+            'expires_at' => now()->addDay(),
+        ]);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Strong-Passphrase-123!',
+        ])->assertForbidden();
+
+        // Uma conta pública bloqueada não revela o estado do cadastro através
+        // da tentativa de login; a confirmação a torna elegível para entrar.
+        $this->postJson('/api/v1/auth/verify-email', ['token' => $plainToken])
+            ->assertOk();
+        $this->assertTrue((bool) $user->fresh()->is_active);
+        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Strong-Passphrase-123!',
+        ])->assertOk();
     }
 
     public function test_refresh_rotates_and_invalidates_old_token(): void

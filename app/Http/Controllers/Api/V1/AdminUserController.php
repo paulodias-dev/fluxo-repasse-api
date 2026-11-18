@@ -80,6 +80,9 @@ final class AdminUserController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
+                // A senha foi entregue diretamente pelo administrador; este
+                // fluxo não depende de confirmação de e-mail pública.
+                'email_verified_at' => now(),
             ]);
 
             if ($assigningRoles && count($roleIds) > 0) {

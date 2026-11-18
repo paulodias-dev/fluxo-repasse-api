@@ -51,5 +51,26 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(5)->by('login-identity:'.$email.'|'.$ip),
             ];
         });
+
+        RateLimiter::for('repasse-registration', function (Request $request): array {
+            $ip = $request->ip() ?? 'unknown';
+            $email = $request->input('email');
+            $identity = is_string($email) ? Str::lower(trim($email)) : '__invalid__';
+
+            return [
+                Limit::perMinute(5)->by('registration-ip:'.$ip),
+                Limit::perHour(10)->by('registration-identity:'.$identity),
+            ];
+        });
+
+        RateLimiter::for('repasse-verification', function (Request $request): array {
+            $ip = $request->ip() ?? 'unknown';
+            $email = $request->input('email');
+
+            return [
+                Limit::perMinute(10)->by('verification-ip:'.$ip),
+                Limit::perMinute(3)->by('verification-email:'.(is_string($email) ? Str::lower(trim($email)) : '__invalid__')),
+            ];
+        });
     }
 }

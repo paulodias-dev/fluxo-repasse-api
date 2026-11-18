@@ -18,6 +18,14 @@ final class TenantRoles
     {
         return DB::transaction(function () use ($tenantId): array {
             $result = [];
+            // O cadastro público também pode ser o primeiro fluxo executado
+            // após as migrations. Garanta que o catálogo global exista antes
+            // de montar os papéis isolados da empresa.
+            foreach (OperationalAccessCatalog::TECHNICAL_PERMISSIONS as $key => $description) {
+                Permission::query()->firstOrCreate(
+                    ['key' => $key], ['description' => $description]
+                );
+            }
             foreach ([
                 'tenant_admin' => [
                     'name' => 'Administrador',
