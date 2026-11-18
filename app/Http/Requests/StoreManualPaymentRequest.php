@@ -15,6 +15,7 @@ final class StoreManualPaymentRequest extends FormRequest
             'amount_cents' => ['required', 'integer', 'min:1', 'max:1000000000000'],
             'paid_on' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'external_reference' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'confirmed_external' => ['required', 'accepted'],
             'proof' => ['sometimes', 'nullable', 'file', 'max:10240',
                 'mimetypes:application/pdf,image/jpeg,image/png,image/webp'],
         ];
