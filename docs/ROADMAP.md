@@ -629,3 +629,12 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] React Metronic Demo 1 apenas componente interno da proposta; nenhuma rota/menu/shell/CSS/dependência paralela.
 - [ ] Homologação real após código MVP: migrations/QA SQLite/MySQL/Pint, build/lint e QA visual, sem afirmar execução. Regras bancárias/contratuais e execução financeira continuam sem aprovação.
 - Estimativa ponderada de implementação (não homologação): ~85% da matriz PROPOSTA, sem contar motor bancário como implementado.
+
+## Macro 49 — registro direto de repasses externos com menos atrito
+- [x] Fluxo pela ficha Financeiro, com pagador e destinatário explicitamente vinculados ao veículo, sem minuta, modelo percentual ou proposta.
+- [x] Reutiliza mesma tabela de relatos externos; uma migration de compatibilidade com origem de proposta anulável e SHA dos nomes congelados, sem duplicar ledger nem lançamentos financeiros.
+- [x] Sete endpoints autenticados, incluindo opções, lista, criação, CSV, detalhe, comprovante privado SHA e estorno justificado; JWT/session.current/cases.manage sem cenários.manage.
+- [x] Veículo vendido e arquivado aceita relatos sem reabrir, preservando compra, venda, despesas, receitas, margem e histórico.
+- [x] React usa mesmo workspace Metronic mobile-first com dois modos; antiga proposta funciona. OpenAPI 1.25, testes feature e estruturais escritos.
+- [ ] Testes reais, migrações MySQL/SQLite, build React, lint e QA visual após código MVP; repasses bancários reais sem políticas aprovadas permanecem NÃO implementados.
+- Evolução ponderada editorial somente código estimada ~86%, sem afirmar liquidação financeira.
