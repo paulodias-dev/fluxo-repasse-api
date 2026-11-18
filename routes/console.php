@@ -4,6 +4,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Services\TenantRoleProvisioner;
 use App\Support\OperationalAccessCatalog;
 use App\Support\OperationalAcceptance;
 use Database\Seeders\AdminUserSeeder;
@@ -15,12 +16,70 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
+
+// Provisionamento real de empresas (não usa credenciais fixas, nem compartilhadas).
+Artisan::command('repasse:tenant:create', function (): int {
+    $name = trim((string) $this->ask('Nome da empresa'));
+    $slug = Str::slug((string) $this->ask('Identificador da empresa (slug)'));
+    $adminName = trim((string) $this->ask('Nome do administrador'));
+    $email = Str::lower(trim((string) $this->ask('E-mail do administrador')));
+    $password = (string) $this->secret('Senha do administrador (mínimo 12 caracteres, maiúscula, minúscula, número e símbolo)');
+
+    $validator = Validator::make(
+        compact('name', 'slug', 'email', 'password') + ['admin_name' => $adminName],
+        [
+            'name' => ['required', 'string', 'min:2', 'max:180'],
+            'slug' => ['required', 'string', 'min:3', 'max:100', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                Rule::unique('tenants', 'slug')],
+            'admin_name' => ['required', 'string', 'min:2', 'max:255'],
+            'email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')],
+            'password' => ['required', Password::min(12)->mixedCase()->numbers()->symbols()],
+        ]
+    );
+    if ($validator->fails()) {
+        foreach ($validator->errors()->all() as $message) $this->error($message);
+        return Command::FAILURE;
+    }
+
+    try {
+        DB::transaction(function () use ($name, $slug, $adminName, $email, $password): void {
+            app(AdminUserSeeder::class)->run();
+            $tenantId = DB::table('tenants')->insertGetId([
+                'name' => $name, 'slug' => $slug, 'is_active' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $roles = app(TenantRoleProvisioner::class)->sync($tenantId);
+            $user = User::query()->create([
+                'name' => $adminName, 'email' => $email, 'password' => $password,
+                'tenant_id' => $tenantId,
+            ]);
+            $user->roles()->sync([$roles['administrator']->id]);
+        });
+    } catch (\Throwable $exception) {
+        $this->error('Não foi possível provisionar a empresa. Nenhum dado foi confirmado.');
+        return Command::FAILURE;
+    }
+
+    $this->info('Empresa criada, cargos Administrador/Usuário provisionados e administrador vinculado.');
+    $this->line('Identificador: '.$slug.' · acesso: '.$email);
+    return Command::SUCCESS;
+})->purpose('Criar tenant SaaS e seu administrador sem senha em argumentos/arquivos');
+
+// A conta criada depois sempre pertence a uma empresa, nunca ao limbo global.
+
 Artisan::command('repasse:user:create', function (): int {
     $name = trim((string) $this->ask('Nome completo'));
     $email = Str::lower(trim((string) $this->ask('E-mail')));
     $password = (string) $this->secret('Senha (mínimo 12 caracteres, maiúscula, minúscula, número e símbolo)');
+    $tenantSlug = Str::slug((string) $this->ask('Slug da empresa existente'));
+    $tenant = DB::table('tenants')->where('slug', $tenantSlug)->where('is_active', true)->first();
+    if (! $tenant) {
+        $this->error('Empresa inexistente ou inativa. Use repasse:tenant:create.');
+        return Command::FAILURE;
+    }
 
-    $data = ['name' => $name, 'email' => $email, 'password' => $password];
+    $data = ['name' => $name, 'email' => $email, 'password' => $password,
+        'tenant_id' => $tenant->id];
     $validator = Validator::make($data, [
         'name' => ['required', 'string', 'min:2', 'max:255'],
         'email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')],
@@ -35,8 +94,13 @@ Artisan::command('repasse:user:create', function (): int {
         return Command::FAILURE;
     }
 
-    User::query()->create($data);
-    $this->info('Usuário criado. Nenhuma permissão financeira foi concedida.');
+    DB::transaction(function () use ($data, $tenant): void {
+        app(AdminUserSeeder::class)->run();
+        $roles = app(TenantRoleProvisioner::class)->sync((int) $tenant->id);
+        $user = User::query()->create($data);
+        $user->roles()->sync([$roles['user']->id]);
+    });
+    $this->info('Usuário criado na empresa com cargo Usuário; sem acesso à administração.');
 
     return Command::SUCCESS;
 })->purpose('Criar usuário inicial sem credenciais fixas ou cadastro público');
@@ -112,6 +176,11 @@ Artisan::command('repasse:access:bootstrap {email : Conta existente que será ad
 
     if (! $user || ! $user->is_active) {
         $this->error('A conta precisa existir e estar ativa.');
+        return Command::FAILURE;
+    }
+
+    if ($user->tenant_id !== null) {
+        $this->error('Conta de empresa: use os cargos Administrador/Usuário dessa empresa, não platform_admin.');
         return Command::FAILURE;
     }
 
