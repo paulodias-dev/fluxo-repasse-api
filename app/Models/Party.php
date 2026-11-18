@@ -10,10 +10,10 @@ final class Party extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['type', 'name', 'email', 'phone', 'notes', 'tenant_id'];
+    protected $fillable = ['type', 'name', 'email', 'phone', 'notes', 'is_supplier', 'tenant_id'];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return ['is_active' => 'boolean', 'is_supplier' => 'boolean'];
     }
 }
