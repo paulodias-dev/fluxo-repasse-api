@@ -275,6 +275,27 @@ final class ExternalTransferReportsTest extends TestCase
         $this->withToken($jwt)->get("{$base}/export")->assertConflict();
     }
 
+    public function test_report_digest_blocks_mutation_of_original_amount_and_estorno(): void
+    {
+        $jwt = $this->token();
+        [$case, , $proposal, $base, $beneficiary] = $this->fixture($jwt);
+        $this->sale($jwt, $case);
+        $id = $this->create($jwt, $base, $this->input($proposal, $beneficiary))
+            ->assertCreated()->json('data.id');
+
+        DB::table('repasse_external_transfer_reports')->where('id', $id)
+            ->update(['amount_cents' => 2700]);
+        $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
+        $this->withToken($jwt)->get("{$base}/export")->assertConflict();
+        $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertConflict();
+        $this->withToken($jwt)->postJson("{$base}/{$id}/void", [
+            'reason' => 'Justificativa por divergência',
+        ])->assertConflict();
+        $this->assertDatabaseHas('repasse_external_transfer_reports', [
+            'id' => $id, 'voided_at' => null,
+        ]);
+    }
+
     public function test_summary_counts_all_records_before_pagination_and_csv_sanitizes_formulas(): void
     {
         $jwt = $this->token();
