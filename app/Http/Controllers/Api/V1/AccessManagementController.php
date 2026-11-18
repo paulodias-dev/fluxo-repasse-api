@@ -38,6 +38,13 @@ final class AccessManagementController extends Controller
 
     public function saveRole(Request $request, ?Role $role = null): JsonResponse
     {
+        // Papéis e permissões são dicionários globais neste MVP.
+        // Administração de tenant jamais altera RBAC de outras empresas.
+        if (! $request->user('api')->roles()->where('slug', 'platform_admin')->exists()) {
+            return response()->json(['message' => 'Papéis funcionais são gerenciados pela plataforma.'], 403)
+                ->header('Cache-Control', 'no-store');
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'slug' => [$role ? 'prohibited' : 'required', 'string', 'regex:/^[a-z][a-z0-9_]{2,79}$/',
