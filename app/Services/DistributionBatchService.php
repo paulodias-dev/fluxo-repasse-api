@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -120,11 +121,11 @@ final class DistributionBatchService
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
         return DB::transaction(function () use ($templateId, $revision, $rows, $requestKey, $digest, $request): array {
-            $existing = DB::table('repasse_distribution_batches')
+            $existing = TenantDB::table('repasse_distribution_batches')
                 ->where('request_key', $requestKey)->lockForUpdate()->first();
             if ($existing) return $this->replay($existing, $digest);
 
-            $templateRow = DB::table('repasse_distribution_templates')
+            $templateRow = TenantDB::table('repasse_distribution_templates')
                 ->where('id', $templateId)->lockForUpdate()->firstOrFail();
             if ((int) $templateRow->revision !== $revision) abort(409, 'Modelo alterado; confira a prévia novamente.');
             $template = $this->templates->show($templateId);
@@ -136,7 +137,7 @@ final class DistributionBatchService
             ]);
             $preview = $this->compute($template, $rows);
             foreach ($rows as $i => $row) {
-                if (DB::table('repasse_scenarios')->where('client_reference', $row['client_reference'])->exists()) {
+                if (TenantDB::table('repasse_scenarios')->where('client_reference', $row['client_reference'])->exists()) {
                     throw ValidationException::withMessages([
                         "rows.{$i}.client_reference" => 'Esta referência já foi usada em outra operação.',
                     ]);
@@ -144,7 +145,7 @@ final class DistributionBatchService
             }
 
             // Insert the idempotency lock BEFORE all scenario writes.
-            $inserted = DB::table('repasse_distribution_batches')->insertOrIgnore([
+            $inserted = TenantDB::table('repasse_distribution_batches')->insertOrIgnore([
                 'template_id' => $templateId,
                 'template_revision' => $revision,
                 'request_key' => $requestKey,
@@ -156,7 +157,7 @@ final class DistributionBatchService
                 'created_at' => now(),
             ]);
             if ($inserted === 0) {
-                $prior = DB::table('repasse_distribution_batches')
+                $prior = TenantDB::table('repasse_distribution_batches')
                     ->where('request_key', $requestKey)->lockForUpdate()->firstOrFail();
                 return $this->replay($prior, $digest);
             }
@@ -187,9 +188,9 @@ final class DistributionBatchService
                     'allocations' => $row['allocations'],
                 ];
             }
-            DB::table('repasse_distribution_batches')->where('request_key', $requestKey)
+            TenantDB::table('repasse_distribution_batches')->where('request_key', $requestKey)
                 ->update(['results' => json_encode($saved, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]);
-            DB::table('repasse_case_events')->insert([
+            TenantDB::table('repasse_case_events')->insert([
                 'repasse_case_id' => $template['case_id'],
                 'actor_user_id' => $request->user('api')->id,
                 'event_type' => 'distribution_batch_created',
@@ -212,7 +213,7 @@ final class DistributionBatchService
 
     public function list(array $filters): mixed
     {
-        $query = DB::table('repasse_distribution_batches as b')
+        $query = TenantDB::table('repasse_distribution_batches as b')
             ->join('repasse_distribution_templates as t', 't.id', '=', 'b.template_id')
             ->select('b.id', 'b.template_id', 't.name as template_name',
                 't.repasse_case_id as case_id', 'b.template_revision',
@@ -225,12 +226,12 @@ final class DistributionBatchService
 
     public function show(int $id): array
     {
-        return $this->toArray(DB::table('repasse_distribution_batches')->where('id', $id)->firstOrFail());
+        return $this->toArray(TenantDB::table('repasse_distribution_batches')->where('id', $id)->firstOrFail());
     }
 
     private function byKey(string $key): array
     {
-        return $this->toArray(DB::table('repasse_distribution_batches')
+        return $this->toArray(TenantDB::table('repasse_distribution_batches')
             ->where('request_key', $key)->firstOrFail());
     }
 
