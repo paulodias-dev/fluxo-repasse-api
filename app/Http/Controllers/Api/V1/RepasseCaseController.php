@@ -379,6 +379,11 @@ final class RepasseCaseController extends Controller
             }
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
+            if ($status === 'archived' && $current->status !== 'archived') {
+                throw ValidationException::withMessages([
+                    'status' => 'Para concluir, utilize a conferência de pendências e a ação Concluir veículo.',
+                ]);
+            }
 
             if (array_intersect(array_keys($data), ['sold_on', 'purchased_on', 'sale_amount_cents']) !== []) {
                 $value = static fn (string $field) => array_key_exists($field, $data)
