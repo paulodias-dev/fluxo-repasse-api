@@ -40,52 +40,12 @@ final class AccessManagementController extends Controller
 
     public function saveRole(Request $request, ?Role $role = null): JsonResponse
     {
-        // Papéis funcionais são templates da plataforma, compartilhados por
-        // todos os tenants. Editá-los aqui alteraria privilégios entre empresas.
-        abort(403, 'Cargos de administrador e usuário são gerenciados pela plataforma.');
-
-        $data = $request->validate([
-            'name' => ['required', 'string', 'min:2', 'max:100'],
-            'slug' => [$role ? 'prohibited' : 'required', 'string', 'regex:/^[a-z][a-z0-9_]{2,79}$/',
-                'max:80', Rule::unique('roles', 'slug')],
-            'permissions' => ['required', 'array'],
-            'permissions.*' => ['required', 'string', 'distinct', Rule::exists('permissions', 'key')],
-        ]);
-        $actor = $request->user('api');
-        $allowed = $actor->grantedPermissions();
-        $requested = $data['permissions'];
-        if (array_diff($requested, $allowed)) {
-            throw ValidationException::withMessages(['permissions' => 'Não é permitido conceder acessos superiores aos seus.']);
-        }
-        if ($role && ($role->slug === 'platform_admin' ||
-            $role->permissions()->whereNotIn('key', $allowed)->exists())) {
-            return response()->json(['message' => 'Este papel é protegido.'], 403);
-        }
-
-        $role = DB::transaction(function () use ($role, $data, $actor, $request): Role {
-            if ($role) {
-                $target = Role::query()->whereKey($role->id)->lockForUpdate()->firstOrFail();
-                if ($target->slug === 'platform_admin' ||
-                    $target->permissions()->whereNotIn('key', $actor->grantedPermissions())->exists()) {
-                    abort(403);
-                }
-                $target->name = trim($data['name']);
-                $target->save();
-            } else {
-                $target = Role::query()->create(['slug' => $data['slug'], 'name' => trim($data['name'])]);
-            }
-            $permissionIds = Permission::query()->whereIn('key', $data['permissions'])->pluck('id')->all();
-            $target->permissions()->sync($permissionIds);
-            // Alterações de privilégios invalidam tokens dos usuários afetados.
-            User::query()->whereHas('roles', fn ($q) => $q->whereKey($target->id))
-                ->increment('auth_version');
-            $this->events->record('access_role_saved', $request, $actor, $actor);
-            return $target->load('permissions:id,key');
-        });
+        // Cargos globais e imutáveis: alteração de template compartilhado
+        // por um tenant afetaria todas as empresas. Concessões individuais
+        // permanecem disponíveis em assign().
         return response()->json([
-            'data' => ['id' => $role->id, 'slug' => $role->slug, 'name' => $role->name,
-                'permissions' => $role->permissions->pluck('key')->values()],
-        ], 200)->header('Cache-Control', 'no-store');
+            'message' => 'Cargos funcionais são gerenciados pela plataforma.',
+        ], 403)->header('Cache-Control', 'no-store');
     }
 
     public function userRoles(Request $request, User $user): JsonResponse
