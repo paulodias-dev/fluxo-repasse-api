@@ -1,9 +1,10 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.25.0
+  version: 1.26.0
   description: |
     Contratos da fundação de identidade e conectividade.
+    SaaS MySQL único: todas as entidades operacionais possuem tenant_id obrigatório, derivado do JWT validado. Usuários têm uma empresa ativa; headers e parâmetros tenant_id não alteram o escopo.
     Inclui controle de ciclo de vida de conta, rotação global de sessões e auditoria de identidade.
     Respostas v1 aplicam Cache-Control no-store/private, Pragma no-cache, nosniff,
     Referrer-Policy no-referrer, X-Frame-Options DENY e CSP restritiva.
@@ -366,7 +367,7 @@ paths:
       summary: Autenticar com e-mail e senha
       tags: [Autenticação]
       operationId: login
-      description: Sem cadastro público. Sujeito a limite de tentativas por e-mail e IP.
+      description: E-mail globalmente único neste MVP, vinculado a uma empresa ativa. O JWT contém tid verificado a cada rota. Sem cadastro público. Sujeito a limite de tentativas por e-mail e IP.
       requestBody:
         required: true
         content:
@@ -4760,6 +4761,14 @@ components:
             roles:
               type: array
               items: { type: string }
+            tenant_id: { type: integer, minimum: 1, description: ID da empresa da sessão autenticada }
+            tenant:
+              type: object
+              required: [id, name, slug]
+              properties:
+                id: { type: integer, minimum: 1 }
+                name: { type: string }
+                slug: { type: string }
             access_diagnostic: { $ref: '#/components/schemas/AccessDiagnostic' }
     Error:
       type: object
