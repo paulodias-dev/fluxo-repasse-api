@@ -94,6 +94,9 @@ final class TenantQueryBuilder extends Builder
             if ($alias !== null) {
                 $last = $this->joins[count($this->joins) - 1];
                 $last->where($alias.'.tenant_id', '=', $this->tenantId);
+                // parent::join já copiou os bindings. A nova condição ON
+                // precisa ser adicionada também aos bindings do builder pai.
+                $this->addBinding([$this->tenantId], 'join');
             }
         }
 
