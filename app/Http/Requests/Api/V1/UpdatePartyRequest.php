@@ -34,6 +34,7 @@ final class UpdatePartyRequest extends FormRequest
     {
         return [
             'type' => ['sometimes', 'required', Rule::in(['person', 'company'])],
+            'is_supplier' => ['sometimes', 'boolean'],
             'name' => ['sometimes', 'required', 'string', 'min:2', 'max:180'],
             'email' => ['sometimes', 'nullable', 'email', 'max:254'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:40'],
