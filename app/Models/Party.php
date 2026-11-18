@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
+
 use Illuminate\Database\Eloquent\Model;
 
 final class Party extends Model
 {
-    protected $fillable = ['type', 'name', 'email', 'phone', 'notes', 'is_supplier'];
+    use BelongsToTenant;
+
+    protected $fillable = ['type', 'name', 'email', 'phone', 'notes', 'is_supplier', 'tenant_id'];
 
     protected function casts(): array
     {

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
+
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +15,7 @@ use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, BelongsToTenant;
 
     /**
      * The attributes that are mass assignable.
@@ -27,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'company_name',
         'avatar_path',
         'password',
+        'tenant_id',
     ];
 
     /**
@@ -58,7 +61,21 @@ class User extends Authenticatable implements JWTSubject
 
     public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Role::class);
+        $tenantId = \App\Support\TenantContext::current() ?? $this->tenant_id;
+        $roles = $this->belongsToMany(Role::class);
+        // Relações geradas por whereHas() no CLI não têm tenant_id do modelo:
+        // nesse caso quem chama deve escopar a query de users pelo tenant.
+        if ($tenantId === null) {
+            return $roles;
+        }
+
+        return $roles->where(function ($query) use ($tenantId): void {
+            $query->where('roles.tenant_id', $tenantId)
+                ->orWhere(function ($global): void {
+                    $global->whereNull('roles.tenant_id')
+                        ->where('roles.slug', 'platform_admin');
+                });
+        });
     }
 
     public function hasPermission(string $permission): bool
@@ -84,6 +101,6 @@ class User extends Authenticatable implements JWTSubject
     /** @return array<string, mixed> */
     public function getJWTCustomClaims(): array
     {
-        return ['av' => (int) $this->auth_version];
+        return ['av' => (int) $this->auth_version, 'tid' => (int) $this->tenant_id];
     }
 }

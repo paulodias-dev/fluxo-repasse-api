@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -33,7 +35,7 @@ final class ScenarioPlanner
 
     private function requireDraftCase(int $caseId): void
     {
-        $case = DB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
+        $case = TenantDB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
         if ($case->status !== 'draft') {
             throw ValidationException::withMessages(['case_id' => 'O dossiê precisa estar aberto para editar simulações.']);
         }
@@ -41,7 +43,7 @@ final class ScenarioPlanner
 
     private function validateParties(int $caseId, array $data): void
     {
-        $authorized = DB::table('repasse_case_parties as cp')
+        $authorized = TenantDB::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $caseId)->where('p.is_active', true)
             ->pluck('cp.party_id')->map(static fn ($id) => (int) $id)->all();
@@ -68,7 +70,7 @@ final class ScenarioPlanner
         $reference = $input['client_reference'];
 
         $result = DB::transaction(function () use ($caseId, $data, $digest, $reference, $request, $fork): array {
-            $existing = DB::table('repasse_scenarios')->where('client_reference', $reference)->first();
+            $existing = TenantDB::table('repasse_scenarios')->where('client_reference', $reference)->first();
             if ($existing) {
                 if (! hash_equals($existing->initial_digest, $digest)) abort(409, 'Referência já utilizada com outros dados.');
                 return ['id' => (int) $existing->id, 'created' => false];
@@ -76,7 +78,7 @@ final class ScenarioPlanner
             $this->requireDraftCase($caseId);
             $this->validateParties($caseId, $data);
             $now = now();
-            $inserted = DB::table('repasse_scenarios')->insertOrIgnore([
+            $inserted = TenantDB::table('repasse_scenarios')->insertOrIgnore([
                 'repasse_case_id' => $caseId, 'client_reference' => $reference,
                 'initial_digest' => $digest, 'current_digest' => $digest,
                 'title' => $data['title'], 'description' => $data['description'],
@@ -88,7 +90,7 @@ final class ScenarioPlanner
                 'updated_by' => $request->user('api')->id,
                 'created_at' => $now, 'updated_at' => $now,
             ]);
-            $row = DB::table('repasse_scenarios')->where('client_reference', $reference)->firstOrFail();
+            $row = TenantDB::table('repasse_scenarios')->where('client_reference', $reference)->firstOrFail();
             if (! hash_equals($row->initial_digest, $digest)) abort(409, 'Referência já utilizada com outros dados.');
             if ($inserted === 0) return ['id' => (int) $row->id, 'created' => false];
 
@@ -104,7 +106,7 @@ final class ScenarioPlanner
     {
         $data = $this->normalize($input);
         $changed = DB::transaction(function () use ($id, $input, $data, $request): bool {
-            $row = DB::table('repasse_scenarios')->where('id', $id)->lockForUpdate()->firstOrFail();
+            $row = TenantDB::table('repasse_scenarios')->where('id', $id)->lockForUpdate()->firstOrFail();
             if ((int) $row->revision !== (int) $input['revision']) abort(409, 'Revisão desatualizada. Recarregue antes de salvar.');
             $this->requireDraftCase((int) $row->repasse_case_id);
             if ($row->archived_at !== null) {
@@ -113,14 +115,14 @@ final class ScenarioPlanner
             $this->validateParties((int) $row->repasse_case_id, $data);
             $digest = $this->digest((int) $row->repasse_case_id, $data);
             if (hash_equals($row->current_digest, $digest)) return false;
-            DB::table('repasse_scenarios')->where('id', $id)->update([
+            TenantDB::table('repasse_scenarios')->where('id', $id)->update([
                 'title' => $data['title'], 'description' => $data['description'],
                 'gross_amount_cents' => $data['gross_amount_cents'],
                 'source_party_id' => $data['source_party_id'],
                 'current_digest' => $digest, 'revision' => (int) $row->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
             ]);
-            DB::table('repasse_scenario_allocations')->where('repasse_scenario_id', $id)->delete();
+            TenantDB::table('repasse_scenario_allocations')->where('repasse_scenario_id', $id)->delete();
             $this->saveLines($id, $data['allocations']);
             $this->version($id, $request, 'scenario_revised');
             return true;
@@ -131,12 +133,12 @@ final class ScenarioPlanner
     public function changeState(int $id, int $revision, string $action, Request $request): array
     {
         $changed = DB::transaction(function () use ($id, $revision, $action, $request): bool {
-            $row = DB::table('repasse_scenarios')->where('id', $id)->lockForUpdate()->firstOrFail();
+            $row = TenantDB::table('repasse_scenarios')->where('id', $id)->lockForUpdate()->firstOrFail();
             if ((int) $row->revision !== $revision) abort(409, 'Revisão desatualizada.');
             $this->requireDraftCase((int) $row->repasse_case_id);
             $archiving = $action === 'archive';
             if (($row->archived_at !== null) === $archiving) return false;
-            DB::table('repasse_scenarios')->where('id', $id)->update([
+            TenantDB::table('repasse_scenarios')->where('id', $id)->update([
                 'archived_at' => $archiving ? now() : null,
                 'revision' => (int) $row->revision + 1,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
@@ -169,7 +171,7 @@ final class ScenarioPlanner
     {
         $now = now();
         foreach ($allocations as $line) {
-            DB::table('repasse_scenario_allocations')->insert([
+            TenantDB::table('repasse_scenario_allocations')->insert([
                 'repasse_scenario_id' => $scenarioId, 'party_id' => $line['party_id'],
                 'amount_cents' => $line['amount_cents'], 'memo' => $line['memo'],
                 'created_at' => $now, 'updated_at' => $now,
@@ -181,13 +183,13 @@ final class ScenarioPlanner
     {
         $snapshot = $this->show($scenarioId);
         $serialized = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        DB::table('repasse_scenario_versions')->insert([
+        TenantDB::table('repasse_scenario_versions')->insert([
             'repasse_scenario_id' => $scenarioId, 'revision' => $snapshot['revision'],
             'event_type' => $event, 'snapshot' => $serialized,
             'sha256' => hash('sha256', $serialized),
             'actor_user_id' => $request->user('api')->id, 'created_at' => now(),
         ]);
-        DB::table('repasse_case_events')->insert([
+        TenantDB::table('repasse_case_events')->insert([
             'repasse_case_id' => $snapshot['case_id'],
             'actor_user_id' => $request->user('api')->id,
             'event_type' => $event, 'created_at' => now(),
@@ -196,12 +198,12 @@ final class ScenarioPlanner
 
     public function show(int $id): array
     {
-        $row = DB::table('repasse_scenarios as s')
+        $row = TenantDB::table('repasse_scenarios as s')
             ->leftJoin('parties as source', 'source.id', '=', 's.source_party_id')
             ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
             ->where('s.id', $id)->select('s.*', 'source.name as source_name',
                 'c.title as case_title', 'c.status as case_status')->firstOrFail();
-        $allocations = DB::table('repasse_scenario_allocations as a')
+        $allocations = TenantDB::table('repasse_scenario_allocations as a')
             ->join('parties as p', 'p.id', '=', 'a.party_id')
             ->where('a.repasse_scenario_id', $id)
             ->select('a.party_id', 'p.name as party_name', 'a.amount_cents', 'a.memo')
@@ -236,7 +238,7 @@ final class ScenarioPlanner
 
     public function list(array $filters): mixed
     {
-        $query = DB::table('repasse_scenarios')->select('id')->orderByDesc('id');
+        $query = TenantDB::table('repasse_scenarios')->select('id')->orderByDesc('id');
         if (! empty($filters['case_id'])) $query->where('repasse_case_id', $filters['case_id']);
         if (($filters['status'] ?? 'all') === 'active') $query->whereNull('archived_at');
         if (($filters['status'] ?? 'all') === 'archived') $query->whereNotNull('archived_at');
@@ -251,18 +253,18 @@ final class ScenarioPlanner
 
     public function summary(): array
     {
-        $counts = DB::table('repasse_scenarios')
+        $counts = TenantDB::table('repasse_scenarios')
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN archived_at IS NULL THEN 1 ELSE 0 END) as active')
             ->selectRaw('SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END) as archived')
             ->first();
         // Agregação SQL em centavos: evita N+1 e nunca soma versões históricas.
-        $allocations = DB::table('repasse_scenario_allocations')
+        $allocations = TenantDB::table('repasse_scenario_allocations')
             ->select('repasse_scenario_id')
             ->selectRaw('SUM(amount_cents) as allocated')
             ->selectRaw('COUNT(*) as lines')
             ->groupBy('repasse_scenario_id');
-        $balance = DB::table('repasse_scenarios as s')
+        $balance = TenantDB::table('repasse_scenarios as s')
             ->leftJoinSub($allocations, 'a', 'a.repasse_scenario_id', '=', 's.id')
             ->whereNull('s.archived_at')
             ->selectRaw('SUM(CASE WHEN s.source_party_id IS NOT NULL AND COALESCE(a.lines,0) > 0 AND COALESCE(a.allocated,0) = s.gross_amount_cents THEN 1 ELSE 0 END) as balanced')
@@ -279,7 +281,7 @@ final class ScenarioPlanner
     public function versions(int $id): mixed
     {
         $this->show($id);
-        return DB::table('repasse_scenario_versions')->where('repasse_scenario_id', $id)
+        return TenantDB::table('repasse_scenario_versions')->where('repasse_scenario_id', $id)
             ->select('revision', 'event_type', 'sha256', 'actor_user_id', 'created_at')
             ->orderByDesc('revision')->paginate(20);
     }
@@ -287,7 +289,7 @@ final class ScenarioPlanner
     public function versionDetail(int $id, int $revision): array
     {
         $this->show($id);
-        $row = DB::table('repasse_scenario_versions')
+        $row = TenantDB::table('repasse_scenario_versions')
             ->where('repasse_scenario_id', $id)->where('revision', $revision)->firstOrFail();
         $snapshot = json_decode($row->snapshot, true, 512, JSON_THROW_ON_ERROR);
         if (! HistoricalHashCompatibility::scenario($snapshot, $row->sha256)) {

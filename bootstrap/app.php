@@ -23,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // Executa antes do roteamento para correlacionar também 404/405 da API.
         $middleware->prepend(RequestCorrelationId::class);
         $middleware->api(append: [ApiSecurityHeaders::class]);
+        // Tenant JWT deve ser verificado ANTES do implicit model binding.
+        // Sem esta prioridade, Party $party poderia ser resolvida sem contexto.
+        $middleware->prependToPriorityList(
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            EnsureCurrentSession::class
+        );
         $middleware->alias(['bearer.only' => RequireBearerToken::class,
             'session.current' => EnsureCurrentSession::class,
             'permission' => EnsurePermission::class,

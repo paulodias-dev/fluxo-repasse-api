@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
+
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +27,7 @@ final class ExternalTransferReportService
 
     private function row(int $case, int $term, int $proposal, int $report): object
     {
-        return DB::table('repasse_external_transfer_reports')
+        return TenantDB::table('repasse_external_transfer_reports')
             ->where('repasse_case_id', $case)
             ->where('term_id', $term)
             ->where('proposal_id', $proposal)
@@ -149,7 +151,7 @@ final class ExternalTransferReportService
 
     private function filtered(int $case, int $term, int $proposal, string $status): \Illuminate\Database\Query\Builder
     {
-        $query = DB::table('repasse_external_transfer_reports')
+        $query = TenantDB::table('repasse_external_transfer_reports')
             ->where('repasse_case_id', $case)
             ->where('term_id', $term)
             ->where('proposal_id', $proposal);
@@ -167,7 +169,7 @@ final class ExternalTransferReportService
         $source = $this->proposal($case, $term, $proposal);
         $query = $this->filtered($case, $term, $proposal, $status);
         // Contadores usam toda a proposta, nunca apenas a página de 15.
-        $aggregates = DB::table('repasse_external_transfer_reports')
+        $aggregates = TenantDB::table('repasse_external_transfer_reports')
             ->where('proposal_id', $proposal)
             ->selectRaw('beneficiary_party_id')
             ->selectRaw('COALESCE(SUM(CASE WHEN voided_at IS NULL THEN amount_cents ELSE 0 END), 0) AS reported_cents')
@@ -278,12 +280,12 @@ final class ExternalTransferReportService
                 $case, $term, $proposal, $input, $request, $proof,
                 $extension, $sha, $actor, $normalized, $intent, &$storedPath
             ): array {
-                $vehicle = DB::table('repasse_cases')->where('id', $case)
+                $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                     ->lockForUpdate()->first(['id', 'sold_on', 'sale_amount_cents']);
                 if (! $vehicle) {
                     abort(404);
                 }
-                $prior = DB::table('repasse_external_transfer_reports')
+                $prior = TenantDB::table('repasse_external_transfer_reports')
                     ->where('request_key', $input['request_key'])->first();
                 if ($prior) {
                     if ((int) $prior->repasse_case_id !== $case
@@ -329,7 +331,7 @@ final class ExternalTransferReportService
                         'proof' => 'Não foi possível armazenar o comprovante privado.',
                     ]);
                 }
-                $id = DB::table('repasse_external_transfer_reports')->insertGetId([
+                $id = TenantDB::table('repasse_external_transfer_reports')->insertGetId([
                     'repasse_case_id' => $case,
                     'term_id' => $term,
                     'proposal_id' => $proposal,
@@ -376,12 +378,12 @@ final class ExternalTransferReportService
             ]);
         }
         DB::transaction(function () use ($case, $term, $proposal, $report, $reason, $request): void {
-            $vehicle = DB::table('repasse_cases')->where('id', $case)
+            $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                 ->lockForUpdate()->first(['id']);
             if (! $vehicle) {
                 abort(404);
             }
-            $row = DB::table('repasse_external_transfer_reports')
+            $row = TenantDB::table('repasse_external_transfer_reports')
                 ->where('id', $report)->where('repasse_case_id', $case)
                 ->where('term_id', $term)->where('proposal_id', $proposal)
                 ->lockForUpdate()->firstOrFail();
@@ -393,7 +395,7 @@ final class ExternalTransferReportService
                 }
                 abort(409, 'Registro já estornado com outra justificativa.');
             }
-            DB::table('repasse_external_transfer_reports')->where('id', $report)->update([
+            TenantDB::table('repasse_external_transfer_reports')->where('id', $report)->update([
                 'voided_at' => now(),
                 'voided_by' => $request->user('api')->id,
                 'void_reason' => $reason,
@@ -485,7 +487,7 @@ final class ExternalTransferReportService
     // Não registra obrigação nem comprova liquidação bancária.
     private function directQuery(int $case, string $status = 'all'): \Illuminate\Database\Query\Builder
     {
-        $query = DB::table('repasse_external_transfer_reports')
+        $query = TenantDB::table('repasse_external_transfer_reports')
             ->where('repasse_case_id', $case)
             ->whereNull('term_id')->whereNull('proposal_id');
         if ($status === 'reported') {
@@ -505,7 +507,7 @@ final class ExternalTransferReportService
     public function directOptions(int $case): array
     {
         $vehicle = $this->operations->ensureExists($case);
-        $parties = DB::table('repasse_case_parties as cp')
+        $parties = TenantDB::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $case)->where('p.is_active', true)
             ->orderBy('p.name')->get(['p.id', 'p.name'])
@@ -580,7 +582,7 @@ final class ExternalTransferReportService
 
     private function directParty(int $case, int $partyId): object
     {
-        $party = DB::table('repasse_case_parties as cp')
+        $party = TenantDB::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $case)
             ->where('p.id', $partyId)->where('p.is_active', true)
@@ -627,12 +629,12 @@ final class ExternalTransferReportService
                 $case, $input, $request, $proof, $extension,
                 $sha, $actor, $intent, $digest, &$path
             ): array {
-                $vehicle = DB::table('repasse_cases')->where('id', $case)
+                $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                     ->lockForUpdate()->first(['id', 'sold_on', 'sale_amount_cents']);
                 if (! $vehicle) {
                     abort(404);
                 }
-                $previous = DB::table('repasse_external_transfer_reports')
+                $previous = TenantDB::table('repasse_external_transfer_reports')
                     ->where('request_key', $input['request_key'])->first();
                 if ($previous) {
                     if ((int) $previous->repasse_case_id !== $case
@@ -673,7 +675,7 @@ final class ExternalTransferReportService
                         'proof' => 'Falha ao salvar comprovante privado.',
                     ]);
                 }
-                $id = DB::table('repasse_external_transfer_reports')->insertGetId([
+                $id = TenantDB::table('repasse_external_transfer_reports')->insertGetId([
                     'repasse_case_id' => $case,
                     'term_id' => null,
                     'proposal_id' => null,
@@ -723,7 +725,7 @@ final class ExternalTransferReportService
             ]);
         }
         DB::transaction(function () use ($case, $report, $reason, $request): void {
-            $vehicle = DB::table('repasse_cases')->where('id', $case)
+            $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                 ->lockForUpdate()->first(['id']);
             if (! $vehicle) {
                 abort(404);
@@ -737,7 +739,7 @@ final class ExternalTransferReportService
                 }
                 abort(409, 'Registro já estornado com justificativa diferente.');
             }
-            DB::table('repasse_external_transfer_reports')->where('id', $report)->update([
+            TenantDB::table('repasse_external_transfer_reports')->where('id', $report)->update([
                 'voided_at' => now(),
                 'voided_by' => $request->user('api')->id,
                 'void_reason' => $reason,

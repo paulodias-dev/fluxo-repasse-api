@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Models\User;
+use App\Models\Tenant;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
@@ -35,7 +36,14 @@ final class AuthController extends Controller
                 ->header('Cache-Control', 'no-store');
         }
 
-        $this->events->record('login_succeeded', $request, Auth::guard('api')->user());
+        $user = Auth::guard('api')->user();
+        if (! $user->tenant_id ||
+            ! Tenant::query()->whereKey($user->tenant_id)->where('is_active', true)->exists()) {
+            Auth::guard('api')->logout();
+            return response()->json(['message' => 'Empresa não autorizada.'], 403)
+                ->header('Cache-Control', 'no-store');
+        }
+        $this->events->record('login_succeeded', $request, $user);
 
         return $this->tokenResponse($token);
     }
@@ -50,6 +58,8 @@ final class AuthController extends Controller
                 ...$this->profileData($user),
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),
+                'tenant_id' => (int) $user->tenant_id,
+                'tenant' => Tenant::query()->whereKey($user->tenant_id)->first(['id', 'name', 'slug']),
                 'access_diagnostic' => $this->diagnostic($user),
             ],
         ])->header('Cache-Control', 'no-store');
@@ -102,6 +112,8 @@ final class AuthController extends Controller
                 ...$this->profileData($fresh),
                 'permissions' => $fresh->grantedPermissions(),
                 'roles' => $fresh->roles()->pluck('slug')->values()->all(),
+                'tenant_id' => (int) $fresh->tenant_id,
+                'tenant' => Tenant::query()->whereKey($fresh->tenant_id)->first(['id', 'name', 'slug']),
             ],
         ];
 
@@ -165,8 +177,11 @@ final class AuthController extends Controller
             $payload = JWTAuth::setToken($token)->getPayload();
             $user = User::query()->find($payload->get('sub'));
             $version = $payload->get('av');
+            $tenantId = $payload->get('tid');
 
-            if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
+            if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version ||
+                ! is_int($tenantId) || (int) $user->tenant_id !== $tenantId ||
+                ! Tenant::query()->whereKey($tenantId)->where('is_active', true)->exists()) {
                 JWTAuth::setToken($token)->invalidate();
 
                 return response()->json(['message' => 'Sessão inválida ou conta desativada.'], 401)

@@ -14,6 +14,7 @@ final class AuthEventRecorder
         $ip = $request?->ip();
 
         DB::table('auth_security_events')->insert([
+            'tenant_id' => $user?->tenant_id ?? $actor?->tenant_id,
             'user_id' => $user?->getKey(),
             'event_type' => $event,
             'actor_user_id' => $actor?->getKey(),

@@ -146,3 +146,37 @@ O runner força teste SQLite `:memory:`, não usa Docker nem toca na base MySQL 
 No Mac, a API passou 59 testes PHPUnit (329 asserções), 49 proteções e Pint em 67 arquivos na última execução informada. Após o PR da correção do aviso, repetir `QA_MODE=sqlite bash qa/run-local.sh` (MySQL operacional preservado).
 
 No repositório APP: `npm ci`, `npm run qa:local`. Com Laravel rodando em `http://127.0.0.1:8000`, `QA_INTEGRATION=1 npm run qa:local` valida prontidão, CORS, autenticação ausente e request IDs via GET/OPTIONS. Nenhum Docker necessário. Ver `docs/MACRO_11_QA_REACT_LOCAL.md`.
+
+## Macro 51 — instalação SaaS multiempresa (NOVO, 18/11/2026)
+
+A modelagem foi ALTERADA de single-empresa para SaaS com banco MySQL único e `tenant_id` em todas as tabelas operacionais. Para preservar a integridade, esta migração é **somente para banco vazio**. Em ambientes com dados reais, NÃO aplicar diretamente: preparar backfill por empresa e backup/restauração. No ambiente de desenvolvimento o responsável AUTORIZOU expressamente a reinstalação destrutiva:
+
+```bash
+# SOMENTE ambiente local/descartável: apaga todas as tabelas e dados desse banco!
+# Pode definir REPASSE_DEMO_PASSWORD no ambiente para conhecer a senha.
+php artisan migrate:fresh --seed
+```
+
+O `DatabaseSeeder` cadastra o catálogo de permissões global e os papéis funcionais independentes em cada empresa de demonstração:
+- `platform_admin`: papel técnico global, somente via CLI autorizada, nunca concedido no seeder aos usuários DEMO.
+- `tenant_admin` → **Administrador:** gerencia sua própria empresa, usuários, frota, participantes e módulos permitidos.
+- `tenant_user` → **Usuário:** frota, participantes e cenários sem gerenciar usuários/papéis.
+
+Somente local, `SaasDemoSeeder` cria **duas empresas fictícias**:
+- **Revenda Alfa — DEMONSTRAÇÃO**: `admin.demo-alfa@example.invalid` e `usuario.demo-alfa@example.invalid`
+- **Repasse Beta — DEMONSTRAÇÃO**: `admin.demo-beta@example.invalid` e `usuario.demo-beta@example.invalid`
+
+Cada empresa possui 5 participantes, 3 veículos (estoque/vendido/arquivado), despesas realizadas/previstas, receita extra, tarefa, checklist, modelos 60/40 e cenários/minutas demonstrativas via serviços do domínio. Nada declara pagamento externo realizado.
+
+**Senha:** `REPASSE_DEMO_PASSWORD` (opcional, mínimo 12 chars). Sem ela, o seeder gera uma senha aleatória e a exibe **uma vez no terminal na criação dos usuários**; não é gravada em código e não é enviada por e-mail.
+
+Provisionamento de empresa real (terminal administrativo; senha solicitada sem eco):
+```bash
+php artisan repasse:tenant:create repasse-nova "Repasse Nova Ltda." admin@exemplo.com.br
+php artisan repasse:user:create
+```
+O segundo comando pergunta o slug da empresa e cria um usuário funcional. Cadastrar outros usuários via admin React também os vincula ao tenant da sessão, sem aceitar tenant_id do cliente.
+
+**QA de isolamento:** testar dois logins de empresas diferentes, listagens, detalhe por ID de outra empresa (404), upload/download de documentos, filtros, dashboard, segurança de roles, JWT antigo e empresa desativada. `php artisan test --filter=SaasTenantIsolationTest`, `composer test`, `composer lint`. Estes comandos **não foram executados** via conector GitHub.
+
+**Importante:** `roles` agora possui `tenant_id` para cargos de empresa; `auth_security_events` registra tenant quando a identidade é conhecida. Os papéis Administrador/Usuário são separados por tenant, não modelos editáveis compartilhados. O comando `repasse:tenant:create` também provisiona esses cargos antes da conta inicial. O login retorna a identidade da empresa no endpoint `/api/v1/auth/me`, exibida no header do React.

@@ -638,3 +638,23 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] React usa mesmo workspace Metronic mobile-first com dois modos; antiga proposta funciona. OpenAPI 1.25, testes feature e estruturais escritos.
 - [ ] Testes reais, migrações MySQL/SQLite, build React, lint e QA visual após código MVP; repasses bancários reais sem políticas aprovadas permanecem NÃO implementados.
 - Evolução ponderada editorial somente código estimada ~86%, sem afirmar liquidação financeira.
+
+## Macro 51 — Fundação SaaS, isolamento e dados DEMO (18/11/2026)
+- [x] Escolha: MySQL único, colunas \`tenant_id\` obrigatórias em entidades operacionais e usuários.
+- [x] \`tenants\` + middleware verifica \`tid\` JWT, empresa ativa e auth_version.
+- [x] \`TenantDB\` para consultas operacionais e inserts, joins, updates e deletes com tenant verificado.
+- [x] Route binding e Eloquent protegidos por escopo antes da resolução de recursos.
+- [x] Seeding de \`Administrador\`, \`Usuário\` e proteção do \`platform_admin\` técnico.
+- [x] Seeder com 2 tenants e exemplos dos módulos sem dados/transferências falsas.
+- [x] CLI de provisionamento de empresa com usuário administrador e senha interativa.
+- [x] Teste feature de acesso cruzado/tenant desativado/dados de demonstração escrito.
+- [ ] Executar PHPUnit/SQLite, MySQL 8, Pint, migrations e QA navegador real. Não executar \`migrate:fresh\` em banco persistente.
+- [ ] Motor de repasses aprovado como obrigação financeira e parcelas, comprovante opcional tardio: implementação separada, não confundida com os documentos já existentes.
+
+### Endurecimento de RBAC da Macro 51
+- [x] Papéis `Administrador` e `Usuário` instanciados por tenant via `TenantRoles::provision()`, não editáveis como templates globais.
+- [x] `roles.tenant_id` (unicidade por empresa) e `auth_security_events.tenant_id` (auditoria segregada) com migration aditiva após fundação SaaS.
+- [x] Criação/edição/atribuição de cargos usando `tenant_id` validado; IDs de outros tenants geram 404/422 e não alteram permissões.
+- [x] Seeding opcional local: demo Alfa/Beta com administrador/usuário, veículos, tarefas, checklist, notas, fornecedores, despesas, receitas, cenários, modelos e condições comerciais.
+- [x] React exibe o nome da empresa vindo de sessão JWT no header Metronic, sem header ou query de troca de tenant.
+- [ ] QA real: executar migrations + seeder em banco descartável, validar dados, isolamento de cada endpoint, permissões, lint/build e experiência mobile.

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDB;
+
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\CaseOperations;
@@ -20,7 +22,7 @@ final class CaseWorkController extends Controller
         $this->operations->ensureExists($case);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
 
-        return response()->json(DB::table('repasse_case_tasks as t')
+        return response()->json(TenantDB::table('repasse_case_tasks as t')
             ->leftJoin('users as u', 'u.id', '=', 't.assigned_to')
             ->where('t.repasse_case_id', $case)
             ->select('t.id', 't.repasse_case_id', 't.title', 't.details',
@@ -46,7 +48,7 @@ final class CaseWorkController extends Controller
         if (mb_strlen($title) < 2) throw ValidationException::withMessages(['title' => 'Título inválido.']);
         $id = DB::transaction(function () use ($request, $case, $data, $title): int {
             $this->operations->editable($case);
-            $id = DB::table('repasse_case_tasks')->insertGetId([
+            $id = TenantDB::table('repasse_case_tasks')->insertGetId([
                 'repasse_case_id' => $case, 'title' => $title,
                 'details' => $data['details'] ?? null, 'status' => 'pending',
                 'priority' => $data['priority'] ?? 'normal',
@@ -78,7 +80,7 @@ final class CaseWorkController extends Controller
         if (array_key_exists('assigned_to', $data)) $this->validateAssignment($data['assigned_to']);
         $changed = DB::transaction(function () use ($request, $case, $task, $data): bool {
             $this->operations->editable($case);
-            $existing = DB::table('repasse_case_tasks')
+            $existing = TenantDB::table('repasse_case_tasks')
                 ->where('repasse_case_id', $case)->where('id', $task)->lockForUpdate()->firstOrFail();
 
             $updates = [];
@@ -95,7 +97,7 @@ final class CaseWorkController extends Controller
                 $updates['completed_at'] = $updates['status'] === 'done' ? now() : null;
             }
             $updates['updated_at'] = now();
-            DB::table('repasse_case_tasks')->where('id', $task)->update($updates);
+            TenantDB::table('repasse_case_tasks')->where('id', $task)->update($updates);
             $this->operations->event($case, $request, 'task_updated');
             return true;
         });
@@ -107,7 +109,7 @@ final class CaseWorkController extends Controller
     {
         $this->operations->ensureExists($case);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
-        return response()->json(DB::table('repasse_case_checklist')
+        return response()->json(TenantDB::table('repasse_case_checklist')
             ->where('repasse_case_id', $case)
             ->select('id', 'label', 'checked_at', 'checked_by', 'created_at')
             ->orderBy('id')->paginate(50))
@@ -122,7 +124,7 @@ final class CaseWorkController extends Controller
         if (mb_strlen($label) < 2) throw ValidationException::withMessages(['label' => 'Descrição inválida.']);
         $id = DB::transaction(function () use ($request, $case, $label): int {
             $this->operations->editable($case);
-            $id = DB::table('repasse_case_checklist')->insertGetId([
+            $id = TenantDB::table('repasse_case_checklist')->insertGetId([
                 'repasse_case_id' => $case, 'label' => $label,
                 'created_by' => $request->user('api')->getAuthIdentifier(),
                 'created_at' => now(), 'updated_at' => now(),
@@ -130,7 +132,7 @@ final class CaseWorkController extends Controller
             $this->operations->event($case, $request, 'checklist_added');
             return $id;
         });
-        return response()->json(['data' => DB::table('repasse_case_checklist')->where('id', $id)->first()], 201)
+        return response()->json(['data' => TenantDB::table('repasse_case_checklist')->where('id', $id)->first()], 201)
             ->header('Cache-Control', 'no-store');
     }
 
@@ -144,7 +146,7 @@ final class CaseWorkController extends Controller
         if ($data === []) throw ValidationException::withMessages(['label' => 'Informe uma alteração.']);
         DB::transaction(function () use ($request, $case, $item, $data): void {
             $this->operations->editable($case);
-            $existing = DB::table('repasse_case_checklist')->where('repasse_case_id', $case)
+            $existing = TenantDB::table('repasse_case_checklist')->where('repasse_case_id', $case)
                 ->where('id', $item)->lockForUpdate()->firstOrFail();
             $updates = [];
             if (array_key_exists('label', $data)) {
@@ -158,10 +160,10 @@ final class CaseWorkController extends Controller
             }
             if ($updates === []) return;
             $updates['updated_at'] = now();
-            DB::table('repasse_case_checklist')->where('id', $item)->update($updates);
+            TenantDB::table('repasse_case_checklist')->where('id', $item)->update($updates);
             $this->operations->event($case, $request, 'checklist_updated');
         });
-        return response()->json(['data' => DB::table('repasse_case_checklist')
+        return response()->json(['data' => TenantDB::table('repasse_case_checklist')
             ->where('repasse_case_id', $case)->where('id', $item)->firstOrFail()])
             ->header('Cache-Control', 'no-store');
     }
@@ -170,7 +172,7 @@ final class CaseWorkController extends Controller
     {
         $this->operations->ensureExists($case);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
-        return response()->json(DB::table('repasse_case_notes as notes')
+        return response()->json(TenantDB::table('repasse_case_notes as notes')
             ->leftJoin('users as u', 'u.id', '=', 'notes.author_id')
             ->where('notes.repasse_case_id', $case)
             ->select('notes.id', 'notes.body', 'notes.author_id', 'u.name as author_name', 'notes.created_at')
@@ -186,7 +188,7 @@ final class CaseWorkController extends Controller
         if (mb_strlen($body) < 2) throw ValidationException::withMessages(['body' => 'Nota inválida.']);
         $id = DB::transaction(function () use ($request, $case, $body): int {
             $this->operations->editable($case);
-            $id = DB::table('repasse_case_notes')->insertGetId([
+            $id = TenantDB::table('repasse_case_notes')->insertGetId([
                 'repasse_case_id' => $case, 'body' => $body,
                 'author_id' => $request->user('api')->getAuthIdentifier(),
                 'created_at' => now(),
@@ -194,13 +196,13 @@ final class CaseWorkController extends Controller
             $this->operations->event($case, $request, 'note_added');
             return $id;
         });
-        return response()->json(['data' => DB::table('repasse_case_notes')
+        return response()->json(['data' => TenantDB::table('repasse_case_notes')
             ->where('id', $id)->first()], 201)->header('Cache-Control', 'no-store');
     }
 
     private function task(int $case, int $id): object
     {
-        return DB::table('repasse_case_tasks as t')
+        return TenantDB::table('repasse_case_tasks as t')
             ->leftJoin('users as u', 'u.id', '=', 't.assigned_to')
             ->where('t.repasse_case_id', $case)->where('t.id', $id)
             ->select('t.id', 't.repasse_case_id', 't.title', 't.details', 't.status',

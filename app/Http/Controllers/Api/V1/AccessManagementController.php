@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\TenantContext;
 use App\Services\AuthEventRecorder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,13 +22,14 @@ final class AccessManagementController extends Controller
     {
         $actor = $request->user('api');
         $keys = $actor->grantedPermissions();
-        $roles = Role::query()->with('permissions:id,key')->withCount('users')
-            ->where('slug', '!=', 'platform_admin')->orderBy('name')->get()
+        $roles = Role::query()->where('tenant_id', TenantContext::requireId())
+            ->with('permissions:id,key')->withCount('users')->orderBy('name')->get()
             ->map(fn (Role $role) => [
                 'id' => $role->id, 'slug' => $role->slug, 'name' => $role->name,
                 'permissions' => $role->permissions->pluck('key')->values(),
                 'users_count' => $role->users_count,
-                'editable' => $role->permissions->pluck('key')->diff($keys)->isEmpty(),
+                'editable' => ! in_array($role->slug, ['tenant_admin', 'tenant_user'], true)
+                    && $role->permissions->pluck('key')->diff($keys)->isEmpty(),
             ]);
         return response()->json([
             'roles' => $roles,
@@ -38,10 +40,18 @@ final class AccessManagementController extends Controller
 
     public function saveRole(Request $request, ?Role $role = null): JsonResponse
     {
+        // Somente papéis do tenant autenticado. Padrões funcionais protegidos;
+        // cargos personalizados jamais afetam outra empresa.
+        $tenantId = TenantContext::requireId();
+        if ($role && ((int) $role->tenant_id !== $tenantId ||
+            in_array($role->slug, ['tenant_admin', 'tenant_user'], true))) {
+            abort((int) $role->tenant_id === $tenantId ? 403 : 404);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'slug' => [$role ? 'prohibited' : 'required', 'string', 'regex:/^[a-z][a-z0-9_]{2,79}$/',
-                'max:80', Rule::unique('roles', 'slug')],
+                'max:80', Rule::unique('roles', 'slug')->where('tenant_id', $tenantId)],
             'permissions' => ['required', 'array'],
             'permissions.*' => ['required', 'string', 'distinct', Rule::exists('permissions', 'key')],
         ]);
@@ -51,22 +61,23 @@ final class AccessManagementController extends Controller
         if (array_diff($requested, $allowed)) {
             throw ValidationException::withMessages(['permissions' => 'Não é permitido conceder acessos superiores aos seus.']);
         }
-        if ($role && ($role->slug === 'platform_admin' ||
+        if ($role && (in_array($role->slug, ['platform_admin', 'tenant_admin', 'tenant_user'], true) ||
             $role->permissions()->whereNotIn('key', $allowed)->exists())) {
             return response()->json(['message' => 'Este papel é protegido.'], 403);
         }
 
-        $role = DB::transaction(function () use ($role, $data, $actor, $request): Role {
+        $role = DB::transaction(function () use ($role, $data, $actor, $request, $tenantId): Role {
             if ($role) {
-                $target = Role::query()->whereKey($role->id)->lockForUpdate()->firstOrFail();
-                if ($target->slug === 'platform_admin' ||
+                $target = Role::query()->where('tenant_id', $tenantId)->whereKey($role->id)->lockForUpdate()->firstOrFail();
+                if (in_array($target->slug, ['platform_admin', 'tenant_admin', 'tenant_user'], true) ||
                     $target->permissions()->whereNotIn('key', $actor->grantedPermissions())->exists()) {
                     abort(403);
                 }
                 $target->name = trim($data['name']);
                 $target->save();
             } else {
-                $target = Role::query()->create(['slug' => $data['slug'], 'name' => trim($data['name'])]);
+                $target = Role::query()->create(['tenant_id' => $tenantId,
+                    'slug' => $data['slug'], 'name' => trim($data['name'])]);
             }
             $permissionIds = Permission::query()->whereIn('key', $data['permissions'])->pluck('id')->all();
             $target->permissions()->sync($permissionIds);
@@ -89,7 +100,7 @@ final class AccessManagementController extends Controller
         }
         return response()->json([
             'user_id' => $user->id,
-            'roles' => $user->roles()->where('slug', '!=', 'platform_admin')
+            'roles' => $user->roles()->where('tenant_id', TenantContext::requireId())
                 ->get(['roles.id', 'roles.slug', 'roles.name']),
         ])->header('Cache-Control', 'no-store');
     }
@@ -98,7 +109,8 @@ final class AccessManagementController extends Controller
     {
         $data = $request->validate([
             'role_ids' => ['required', 'array'],
-            'role_ids.*' => ['integer', 'distinct', Rule::exists('roles', 'id')],
+            'role_ids.*' => ['integer', 'distinct',
+                Rule::exists('roles', 'id')->where('tenant_id', TenantContext::requireId())],
         ]);
         $actor = $request->user('api');
         if ($user->id === $actor->id) {
@@ -108,7 +120,8 @@ final class AccessManagementController extends Controller
         DB::transaction(function () use ($user, $actor, $request, $data, $allowed): void {
             $target = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
             if ($target->roles()->where('slug', 'platform_admin')->exists()) abort(403);
-            $selected = Role::query()->whereIn('id', $data['role_ids'])->with('permissions')->get();
+            $selected = Role::query()->where('tenant_id', TenantContext::requireId())
+                ->whereIn('id', $data['role_ids'])->with('permissions')->get();
             if ($selected->count() !== count($data['role_ids']) ||
                 $selected->contains(fn (Role $role) => $role->slug === 'platform_admin' ||
                     $role->permissions->pluck('key')->diff($allowed)->isNotEmpty())) {

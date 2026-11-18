@@ -28,14 +28,15 @@ final class AdminUserSeeder extends Seeder
 
             $existing = $role->permissions()->pluck('permissions.id')->all();
             $missing = array_values(array_diff($ids, $existing));
-            if ($missing === []) return;
+            if ($missing !== []) {
+                $role->permissions()->syncWithoutDetaching($missing);
+                User::query()->whereHas('roles', fn ($q) => $q->whereKey($role->id))
+                    ->increment('auth_version');
+            }
 
-            $role->permissions()->syncWithoutDetaching($missing);
+            // Papéis Administrador/Usuário de cada empresa são provisionados
+            // por TenantRoles::provision(), NÃO partilhados entre tenants.
 
-            // Privileges have changed. All JWTs issued to existing members of
-            // this role must be invalidated, including JWTs already in memory.
-            User::query()->whereHas('roles', fn ($q) => $q->whereKey($role->id))
-                ->increment('auth_version');
         });
 
         // This seeder never creates, identifies or automatically promotes a user.
