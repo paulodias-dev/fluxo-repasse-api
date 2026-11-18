@@ -50,6 +50,7 @@ final class TenantDB
             return DB::table($table);
         }
 
-        return new TenantQueryBuilder(TenantContext::requireId(), $table, $alias);
+        return (new TenantQueryBuilder(DB::connection()))
+            ->scopeTo(TenantContext::requireId(), $table, $alias);
     }
 }
