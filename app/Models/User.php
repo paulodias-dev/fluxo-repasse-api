@@ -60,6 +60,12 @@ class User extends Authenticatable implements JWTSubject
     {
         // Login/refresh acontecem sem contexto; dentro do tenant, TODAS as
         // buscas e route bindings por User ficam automaticamente delimitados.
+        static::creating(static function (User $user): void {
+            $tenant = app(TenantContext::class)->current();
+            if ($tenant !== null && $user->tenant_id === null) {
+                $user->tenant_id = $tenant;
+            }
+        });
         static::saving(static function (User $user): void {
             $tenant = app(TenantContext::class)->current();
             if ($tenant !== null && (int) $user->tenant_id !== $tenant) {
