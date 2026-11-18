@@ -34,6 +34,7 @@ final class StorePartyRequest extends FormRequest
     {
         return [
             'type' => ['required', Rule::in(['person', 'company'])],
+            'is_supplier' => ['sometimes', 'boolean'],
             'name' => ['required', 'string', 'min:2', 'max:180'],
             'email' => ['nullable', 'email', 'max:254'],
             'phone' => ['nullable', 'string', 'max:40'],

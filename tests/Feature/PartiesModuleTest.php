@@ -74,6 +74,21 @@ final class PartiesModuleTest extends TestCase
         $this->assertDatabaseHas('party_events', ['event_type' => 'party_created']);
     }
 
+    public function test_supplier_classification_is_persisted_and_filterable(): void
+    {
+        $token = $this->userToken(true);
+        $response = $this->withToken($token)->postJson('/api/v1/parties', [
+            'type' => 'company', 'name' => 'Oficina Fornecedora', 'is_supplier' => true,
+        ]);
+
+        $response->assertCreated()->assertJsonPath('data.is_supplier', true);
+        $this->assertDatabaseHas('parties', ['name' => 'Oficina Fornecedora', 'is_supplier' => true]);
+
+        $this->withToken($token)->getJson('/api/v1/parties?is_supplier=1')
+            ->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Oficina Fornecedora');
+    }
+
     public function test_list_search_type_and_status_filters_work(): void
     {
         Party::query()->create(['type' => 'person', 'name' => 'Aline Exemplo', 'email' => 'aline@example.test']);
