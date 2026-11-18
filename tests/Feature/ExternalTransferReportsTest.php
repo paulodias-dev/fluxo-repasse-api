@@ -170,6 +170,7 @@ final class ExternalTransferReportsTest extends TestCase
         $row = DB::table('repasse_external_transfer_reports')->find($id);
         $this->assertNotNull($row);
         Storage::disk('local')->assertExists($row->proof_path);
+        $this->get("{$base}/{$id}/proof", ['Accept' => 'application/json'])->assertUnauthorized();
         $this->withToken($jwt)->get("{$base}/{$id}/proof")
             ->assertOk()->assertHeader('Content-Type', 'application/octet-stream');
         $csv = $this->withToken($jwt)->get("{$base}/export")->assertOk()->streamedContent();
@@ -231,6 +232,9 @@ final class ExternalTransferReportsTest extends TestCase
         }
         $this->withToken($jwt)->getJson(
             "/api/v1/repasse-cases/{$otherCase}/commercial-terms/{$proposal['term_id']}/preparation/proposals/{$proposal['id']}/external-transfers"
+        )->assertNotFound();
+        $this->withToken($jwt)->get(
+            "/api/v1/repasse-cases/{$otherCase}/commercial-terms/{$proposal['term_id']}/preparation/proposals/{$proposal['id']}/external-transfers/export"
         )->assertNotFound();
         $this->create($jwt, $base, [
             ...$data, 'beneficiary_party_id' => $otherBeneficiary->id,
