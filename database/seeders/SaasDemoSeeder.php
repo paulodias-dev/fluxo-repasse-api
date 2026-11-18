@@ -125,6 +125,7 @@ final class SaasDemoSeeder extends Seeder
             $partyIds[] = $this->firstId('parties', $tenantId,
                 ['name' => $name], [
                     'type' => $type, 'is_active' => true,
+                    'is_supplier' => $type === 'company',
                     'created_at' => $now, 'updated_at' => $now,
                 ]);
         }
@@ -210,6 +211,14 @@ final class SaasDemoSeeder extends Seeder
                 'created_by' => $admin->id,
                 'completed_at' => $index === 2 ? $now : null,
                 'created_at' => $now, 'updated_at' => $now,
+            ]);
+
+            // Notas internas de exemplo: texto de treinamento, não fato bancário.
+            $this->firstId('repasse_case_notes', $tenantId, [
+                'repasse_case_id' => $id,
+                'body' => 'Acompanhar revisão documental e custos — EXEMPLO DEMO '.$label,
+            ], [
+                'author_id' => $admin->id, 'created_at' => $now,
             ]);
 
             $this->firstId('repasse_case_checklist', $tenantId, [
