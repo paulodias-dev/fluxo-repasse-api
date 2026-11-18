@@ -1,5 +1,25 @@
 # Requisitos pendentes — fonte de verdade do negócio
 
+## Atualização formal do MVP em 18/11/2026 (prevalece sobre perguntas históricas)
+As perguntas mais antigas abaixo foram redigidas quando o escopo não estava aprovado.
+As decisões posteriores das Macros 49, 51, 52 e 53 **substituem** essas indefinições:
+- MVP SaaS de banco único, tenant_id obrigatório, usuário vinculado a uma empresa por sessão JWT, perfis Administrador e Usuário.
+- Veículo 360 registra compra, venda, despesas, receitas e participantes.
+- Repasses são **manuais**: venda datada obrigatória, base declarada pelo operador,
+  valor fixo ou percentual explícito, comissão expressa, taxa/imposto manual.
+- Distribuição rascunho e aprovação com concessão independente (autor pode aprovar se
+  autorizado), parcelas externas com comprovante opcional privado, UUID idempotente,
+  estorno/cancelamento justificado e trilha auditável.
+- Relatos externos anteriores são **fontes diferentes**: sem baixas cruzadas automáticas.
+- Não integrar PSP, PIX, remessa, conciliação bancária nem deduzir tributo automaticamente
+  no MVP aprovado. Estas funções exigiriam um novo escopo explícito.
+- Encerramento exige ciência de repasses pendentes, sem quitação automática.
+
+**Pendente antes de considerar 100% do código:** análise final de invariantes de
+pagamentos/estornos e alçadas, contratos e UX de integração; realizar depois
+homologação separada em MySQL e dispositivos. O histórico a seguir NÃO reabre
+as decisões já aprovadas.
+
 O conteúdo do Gemini não foi acessível. Estes pontos são **perguntas**, não decisões:
 - Objetivo e jornada de cada persona; hierarquia de usuários, papéis e aprovação.
 - Origem/destino dos valores, eventos geradores, comissão, retenção, impostos, cálculo, arredondamento, moeda e limite.

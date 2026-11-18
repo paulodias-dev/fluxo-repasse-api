@@ -11,7 +11,10 @@ info:
     Toda resposta da API expõe X-Request-ID gerado pelo servidor, para correlação de erros sem dados privados.
     Cadastro de pessoas e empresas é apenas um diretório sem valores ou transferências.
     Central operacional: tarefas, checklist, notas, anexos privados, dashboard e exportação CSV.
-    Sem cálculos, saldos, aprovação financeira, remessas, gateway ou liquidação.
+    A partir das Macros 52/53 existem distribuições financeiras manuais aprováveis e
+    parcelas externas declaradas pelo operador, com saldos internos e auditoria.
+    Estes controles não executam nem conciliam pagamentos bancários.
+    Registros externos anteriores ficam segregados, sem dupla contagem.
 servers:
   - url: /api/v1
 tags:
@@ -25,6 +28,7 @@ tags:
   - name: Revisão documental
   - name: Revisões comerciais
   - name: Central comercial
+  - name: Financeiro
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:

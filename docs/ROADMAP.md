@@ -658,3 +658,21 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Seeding opcional local: demo Alfa/Beta com administrador/usuário, veículos, tarefas, checklist, notas, fornecedores, despesas, receitas, cenários, modelos e condições comerciais.
 - [x] React exibe o nome da empresa vindo de sessão JWT no header Metronic, sem header ou query de troca de tenant.
 - [ ] QA real: executar migrations + seeder em banco descartável, validar dados, isolamento de cada endpoint, permissões, lint/build e experiência mobile.
+
+
+## Macroentrega 52 (integrada na main) e 53 (em revisão) — MVP SaaS manual
+- [x] Motor de obrigações internas em centavos, distribuição fixa/percentual,
+  alçadas explícitas, parcelas informadas, comprovantes privados opcionais,
+  UUID+digest idempotentes e estornos.
+- [x] Um tenant por JWT, Admin/Usuário por empresa, papéis isolados e escopo
+  \`TenantDB\` para todas as novas tabelas de distribuição.
+- [x] Na Macro 53, relatório consolidado por veículo diferencia aprovado,
+  parcela da obrigação e declarações antigas, SEM compensação automática.
+- [x] Revisão SHA de encerramento passou a incluir rascunhos, saldo e possível
+  sobreposição; travas contra alteração de compra/venda e desvinculação de
+  participante com obrigação aprovada/ativa.
+- [x] Metronic Demo 1 PWA mantém a aba Financeiro existente e indicadores col-6.
+- [ ] Verificar transversalmente invariantes, integração e alçadas restantes
+  até 100% do código MVP; homologação MySQL/React/dispositivos é etapa posterior.
+- **Evolução ponderada editorial de código após Macro 53: ~95,5%.**
+- **Sem** PSP, gateway bancário, liquidação verificada ou tributos presumidos.
