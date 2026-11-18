@@ -16,6 +16,8 @@ final class OperationalAccessCatalog
         'scenarios.manage' => 'Criar e consultar cenários hipotéticos sem movimentar dinheiro',
         'scenario_reviews.manage' => 'Emitir parecer documental sem aprovação financeira',
         'packages.manage' => 'Emitir pacotes documentais privados sem aprovação financeira',
+        'financial.manage' => 'Preparar repasses e registrar pagamentos externos',
+        'financial.approve' => 'Aprovar obrigações e cancelar planos financeiros',
     ];
 
     public const MODULES = [
@@ -29,6 +31,7 @@ final class OperationalAccessCatalog
         'commercial_reviews' => ['name' => 'Revisões comerciais documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
         'reviews' => ['name' => 'Revisões documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
         'packages' => ['name' => 'Pacotes documentais', 'requires' => ['cases.manage', 'scenarios.manage']],
+        'settlements' => ['name' => 'Repasses manuais', 'requires' => ['cases.manage', 'financial.manage']],
     ];
 
     public static function keys(): array
