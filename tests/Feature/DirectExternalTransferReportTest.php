@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -144,7 +146,7 @@ final class DirectExternalTransferReportTest extends TestCase
         $base = "/api/v1/repasse-cases/{$case}/external-transfers";
         $id = $this->send($jwt, $base, $this->input($payer, $beneficiary))
             ->assertCreated()->json('data.id');
-        $original = DB::table('repasse_external_transfer_reports')->find($id);
+        $original = TenantDatabase::table('repasse_external_transfer_reports')->find($id);
         Storage::disk('local')->assertExists($original->proof_path);
         $this->withToken($jwt)->postJson("{$base}/{$id}/void", [
             'reason' => 'Declaração registrada incorretamente',
@@ -165,7 +167,7 @@ final class DirectExternalTransferReportTest extends TestCase
             ->assertJsonPath('data.reports.total', 1);
         $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertOk();
         $this->assertDatabaseCount('repasse_external_transfer_reports', 1);
-        $this->assertSame(1, DB::table('repasse_case_events')
+        $this->assertSame(1, TenantDatabase::table('repasse_case_events')
             ->where('repasse_case_id', $case)
             ->where('event_type', 'external_transfer_voided')->count());
     }
@@ -239,7 +241,7 @@ final class DirectExternalTransferReportTest extends TestCase
         $base = "/api/v1/repasse-cases/{$case}/external-transfers";
         $id = $this->send($jwt, $base, $this->input($payer, $beneficiary))
             ->assertCreated()->json('data.id');
-        DB::table('repasse_external_transfer_reports')->where('id', $id)
+        TenantDatabase::table('repasse_external_transfer_reports')->where('id', $id)
             ->update(['payer_name' => 'Nome adulterado']);
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertConflict();
@@ -267,7 +269,7 @@ final class DirectExternalTransferReportTest extends TestCase
         $second = $this->withToken($jwt)->getJson("{$base}?page=2")->assertOk()
             ->assertJsonCount(2, 'data.reports.data');
         $id = $second->json('data.reports.data.0.id');
-        DB::table('repasse_external_transfer_reports')->where('id', $id)
+        TenantDatabase::table('repasse_external_transfer_reports')->where('id', $id)
             ->update(['amount_cents' => 1]);
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/export")->assertConflict();

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -112,9 +114,9 @@ final class CommercialPortfolioTest extends TestCase
             ->assertJsonPath('data.terms.data.0.financial_authorization', false);
 
         // Existing term remains a historical snapshot when its template advances.
-        DB::table('repasse_distribution_templates')->where('id', $firstTemplate)
+        TenantDatabase::table('repasse_distribution_templates')->where('id', $firstTemplate)
             ->update(['revision' => 2]);
-        DB::table('repasse_cases')->where('id', $second)->update(['status' => 'archived']);
+        TenantDatabase::table('repasse_cases')->where('id', $second)->update(['status' => 'archived']);
 
         $this->withToken($jwt)->getJson('/api/v1/commercial-portfolio')
             ->assertOk()->assertJsonPath('data.summary.model_outdated', 1)
@@ -144,10 +146,10 @@ final class CommercialPortfolioTest extends TestCase
         [$first, $template, $firstTerm] = $this->fixture($jwt, 'Carro Acompanhado');
         [$second] = $this->fixture($jwt, 'Carro Pendente');
 
-        $commercial = DB::table('repasse_commercial_terms')->where('id', $firstTerm)->first();
-        $version = DB::table('repasse_commercial_term_versions')->where('term_id', $firstTerm)
+        $commercial = TenantDatabase::table('repasse_commercial_terms')->where('id', $firstTerm)->first();
+        $version = TenantDatabase::table('repasse_commercial_term_versions')->where('term_id', $firstTerm)
             ->where('revision', 1)->first();
-        DB::table('repasse_commercial_reviews')->insert([
+        TenantDatabase::table('repasse_commercial_reviews')->insert([
             'term_id' => $firstTerm,
             'request_key' => (string) \Illuminate\Support\Str::uuid(),
             'payload_digest' => str_repeat('a', 64),
@@ -224,7 +226,7 @@ final class CommercialPortfolioTest extends TestCase
             'expected_snapshot_sha256' => $sourceSha,
             'adjustments' => [],
         ])->assertCreated()->json('data');
-        $payer = DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+        $payer = TenantDatabase::table('repasse_case_parties')->where('repasse_case_id', $case)
             ->orderBy('id')->value('party_id');
         $proposalBase = "{$preparation}/proposals";
         for ($i = 0; $i < 2; $i++) {
@@ -282,7 +284,7 @@ final class CommercialPortfolioTest extends TestCase
                 'evidence_ids' => [],
             ]
         )->assertOk();
-        DB::table('repasse_commercial_terms')->where('id', $term)
+        TenantDatabase::table('repasse_commercial_terms')->where('id', $term)
             ->update(['updated_at' => now()->addMinute()]);
         $this->withToken($jwt)->getJson("{$base}?proposals=term_edited")
             ->assertOk()->assertJsonPath('data.terms.total', 1)
@@ -320,7 +322,7 @@ final class CommercialPortfolioTest extends TestCase
             'expected_snapshot_sha256' => $sha,
             'adjustments' => [],
         ])->assertCreated()->json('data');
-        $payer = DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+        $payer = TenantDatabase::table('repasse_case_parties')->where('repasse_case_id', $case)
             ->orderBy('id')->value('party_id');
         $this->withToken($jwt)->postJson("{$base}/{$term}/preparation/proposals", [
             'request_key' => (string) Str::uuid(),

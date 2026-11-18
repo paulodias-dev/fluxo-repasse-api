@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -192,7 +194,7 @@ final class CasePackagesTest extends TestCase
         $package = $this->withToken($jwt)->postJson($base, $input + [
             'request_key' => (string) Str::uuid(), 'expected_manifest_sha256' => $hash,
         ])->assertCreated()->json('data.id');
-        $path = DB::table('repasse_case_evidence')->where('id', $ids['file'])->value('storage_path');
+        $path = TenantDatabase::table('repasse_case_evidence')->where('id', $ids['file'])->value('storage_path');
         Storage::disk('local')->put($path, 'conteúdo modificado após emissão');
         $this->withToken($jwt)->getJson("$base/$package/integrity")
             ->assertOk()->assertJsonPath('data.manifest_integrity', true)

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -167,7 +169,7 @@ final class ExternalTransferReportsTest extends TestCase
             ->assertJsonPath('data.reports.total', 1)
             ->assertJsonPath('data.reports.data.0.id', $id);
 
-        $row = DB::table('repasse_external_transfer_reports')->find($id);
+        $row = TenantDatabase::table('repasse_external_transfer_reports')->find($id);
         $this->assertNotNull($row);
         Storage::disk('local')->assertExists($row->proof_path);
         $this->get("{$base}/{$id}/proof", ['Accept' => 'application/json'])->assertUnauthorized();
@@ -209,7 +211,7 @@ final class ExternalTransferReportsTest extends TestCase
         $this->withToken($jwt)->getJson("{$base}?status=reported")->assertOk()
             ->assertJsonPath('data.reports.total', 0);
         $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertOk();
-        $this->assertSame(1, DB::table('repasse_case_events')
+        $this->assertSame(1, TenantDatabase::table('repasse_case_events')
             ->where('repasse_case_id', $case)->where('event_type', 'external_transfer_voided')
             ->count());
         $this->assertDatabaseCount('repasse_external_transfer_reports', 1);
@@ -264,12 +266,12 @@ final class ExternalTransferReportsTest extends TestCase
         $this->sale($jwt, $case);
         $id = $this->create($jwt, $base, $this->input($proposal, $beneficiary))
             ->assertCreated()->json('data.id');
-        $row = DB::table('repasse_external_transfer_reports')->find($id);
+        $row = TenantDatabase::table('repasse_external_transfer_reports')->find($id);
         Storage::disk('local')->put($row->proof_path, 'arquivo adulterado');
         $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertConflict();
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertOk()
             ->assertJsonPath('data.bank_confirmed', false);
-        DB::table('repasse_obligation_proposals')->where('id', $proposal['id'])
+        TenantDatabase::table('repasse_obligation_proposals')->where('id', $proposal['id'])
             ->update(['snapshot_sha256' => str_repeat('0', 64)]);
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/export")->assertConflict();
@@ -283,7 +285,7 @@ final class ExternalTransferReportsTest extends TestCase
         $id = $this->create($jwt, $base, $this->input($proposal, $beneficiary))
             ->assertCreated()->json('data.id');
 
-        DB::table('repasse_external_transfer_reports')->where('id', $id)
+        TenantDatabase::table('repasse_external_transfer_reports')->where('id', $id)
             ->update(['amount_cents' => 2700]);
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/export")->assertConflict();

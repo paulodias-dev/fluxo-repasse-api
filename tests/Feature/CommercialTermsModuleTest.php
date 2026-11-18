@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -601,7 +603,7 @@ final class CommercialTermsModuleTest extends TestCase
         $page = $this->withToken($jwt)->getJson("{$base}/records?page=2")
             ->assertOk()->assertJsonCount(2, 'data');
         $id = $page->json('data.0.id');
-        DB::table('repasse_preparation_records')->where('id', $id)
+        TenantDatabase::table('repasse_preparation_records')->where('id', $id)
             ->update(['snapshot_sha256' => str_repeat('0', 64)]);
         $this->withToken($jwt)->getJson("{$base}/records/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/records/{$id}/export")->assertConflict();
@@ -682,7 +684,7 @@ final class CommercialTermsModuleTest extends TestCase
         ])->assertConflict();
         $this->withToken($jwt)->postJson($base, $payload)
             ->assertOk()->assertJsonPath('created', false);
-        DB::table('repasse_obligation_proposals')->where('id', $id)
+        TenantDatabase::table('repasse_obligation_proposals')->where('id', $id)
             ->update(['snapshot_sha256' => str_repeat('0', 64)]);
         $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
         $this->withToken($jwt)->get("{$base}/{$id}/export")->assertConflict();

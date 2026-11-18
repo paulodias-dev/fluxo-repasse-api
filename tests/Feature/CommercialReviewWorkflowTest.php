@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -210,7 +212,7 @@ final class CommercialReviewWorkflowTest extends TestCase
         [$case, $term] = $this->fixture($token);
         $id = $this->withToken($token)->postJson('/api/v1/commercial-reviews', $this->application($case, $term))
             ->assertCreated()->json('data.id');
-        DB::table('repasse_commercial_review_events')->where('review_id', $id)
+        TenantDatabase::table('repasse_commercial_review_events')->where('review_id', $id)
             ->update(['body' => 'conteúdo adulterado']);
         $this->withToken($token)->getJson("/api/v1/commercial-reviews/$id/integrity")
             ->assertOk()->assertJsonPath('data.valid', false)
