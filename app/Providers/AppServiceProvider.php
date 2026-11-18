@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -12,7 +13,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->scoped(TenantContext::class, fn () => new TenantContext);
     }
 
     public function boot(): void
