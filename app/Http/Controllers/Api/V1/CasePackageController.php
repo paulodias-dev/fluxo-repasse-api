@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use App\Services\CasePackageService;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +19,7 @@ final class CasePackageController extends Controller
 
     public function options(Request $request, int $case): JsonResponse
     {
-        DB::table('repasse_cases')->where('id', $case)->firstOrFail();
+        TenantTable::table('repasse_cases')->where('id', $case)->firstOrFail();
         $filters = $request->validate([
             'kind' => ['required', Rule::in(['evidence', 'scenarios', 'reviews'])],
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
@@ -27,13 +29,13 @@ final class CasePackageController extends Controller
         $term = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
 
         $query = match ($filters['kind']) {
-            'evidence' => DB::table('repasse_case_evidence')->where('repasse_case_id', $case)
+            'evidence' => TenantTable::table('repasse_case_evidence')->where('repasse_case_id', $case)
                 ->whereNull('archived_at')
                 ->select('id', 'original_name as title', 'size_bytes', 'sha256', 'created_at'),
-            'scenarios' => DB::table('repasse_scenarios')->where('repasse_case_id', $case)
+            'scenarios' => TenantTable::table('repasse_scenarios')->where('repasse_case_id', $case)
                 ->whereNull('archived_at')
                 ->select('id', 'title', 'revision', 'gross_amount_cents', 'created_at'),
-            'reviews' => DB::table('repasse_scenario_reviews as r')
+            'reviews' => TenantTable::table('repasse_scenario_reviews as r')
                 ->join('repasse_scenarios as s', 's.id', '=', 'r.scenario_id')
                 ->where('s.repasse_case_id', $case)
                 ->select('r.id', 'r.status', 'r.scenario_id',

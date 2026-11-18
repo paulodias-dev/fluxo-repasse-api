@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use App\Services\CaseOperations;
 use App\Services\CommercialTermsService;
@@ -120,7 +122,7 @@ final class CommercialTermsController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
         ]);
         $this->cases->ensureExists($case);
-        $query = DB::table('repasse_commercial_terms')->where('repasse_case_id', $case);
+        $query = TenantTable::table('repasse_commercial_terms')->where('repasse_case_id', $case);
         if (($filters['status'] ?? 'all') === 'active') $query->whereNull('archived_at');
         if (($filters['status'] ?? 'all') === 'archived') $query->whereNotNull('archived_at');
         if (trim($filters['search'] ?? '') !== '') {
