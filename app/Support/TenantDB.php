@@ -48,6 +48,9 @@ final class TenantDB
         'repasse_preparation_records' => ['repasse_cases', 'repasse_case_id'],
         'repasse_obligation_proposals' => ['repasse_cases', 'repasse_case_id'],
         'repasse_external_transfer_reports' => ['repasse_cases', 'repasse_case_id'],
+        'repasse_payment_plans' => ['repasse_cases', 'repasse_case_id'],
+        'repasse_plan_payments' => ['repasse_payment_plans', 'plan_id'],
+        'repasse_plan_events' => ['repasse_payment_plans', 'plan_id'],
     ];
 
     public static function table(string $table): Builder
