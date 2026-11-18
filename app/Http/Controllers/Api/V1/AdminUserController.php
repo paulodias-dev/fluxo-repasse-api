@@ -63,7 +63,8 @@ final class AdminUserController extends Controller
 
         $user = DB::transaction(function () use ($request, $data, $roleIds, $assigningRoles, $actor): User {
             if ($assigningRoles) {
-                $roles = Role::query()->whereIn('id', $roleIds)->with('permissions')->get();
+                $roles = Role::query()->whereIn('id', $roleIds)
+                    ->whereIn('slug', ['tenant_admin', 'tenant_user'])->with('permissions')->get();
                 $allowed = $actor->grantedPermissions();
 
                 if ($roles->count() !== count($roleIds) ||
@@ -123,7 +124,8 @@ final class AdminUserController extends Controller
                     abort(403, 'Papéis protegidos não podem ser substituídos.');
                 }
 
-                $roles = Role::query()->whereIn('id', $roleIds)->with('permissions')->get();
+                $roles = Role::query()->whereIn('id', $roleIds)
+                    ->whereIn('slug', ['tenant_admin', 'tenant_user'])->with('permissions')->get();
                 if ($roles->count() !== count($roleIds) ||
                     $roles->contains(fn (Role $role) => $role->slug === 'platform_admin' ||
                         $role->permissions->pluck('key')->diff($allowed)->isNotEmpty())) {
