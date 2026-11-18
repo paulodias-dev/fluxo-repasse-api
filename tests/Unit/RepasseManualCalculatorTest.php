@@ -27,6 +27,15 @@ final class RepasseManualCalculatorTest extends TestCase
         $this->assertSame([50, 51], array_column($lines, 'amount_cents'));
     }
 
+    public function test_valor_irrisorio_nao_gera_linha_zero(): void
+    {
+        $this->expectException(ValidationException::class);
+        (new RepasseManualCalculator())->calculate(1, [
+            ['beneficiary_party_id' => 1, 'kind' => 'repasse', 'mode' => 'percentage', 'basis_points' => 5000],
+            ['beneficiary_party_id' => 2, 'kind' => 'repasse', 'mode' => 'percentage', 'basis_points' => 5000],
+        ]);
+    }
+
     public function test_nao_cria_saldo_residual_ou_tributos_percentuais_automaticos(): void
     {
         foreach ([

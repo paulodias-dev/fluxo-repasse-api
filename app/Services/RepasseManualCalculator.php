@@ -71,6 +71,14 @@ final class RepasseManualCalculator
             $calculated[$index]['amount_cents']++;
             $remaining--;
         }
+        // Uma linha de R$ 0,00 não deve virar obrigação financeira sem valor.
+        foreach ($calculated as $line) {
+            if ($line['amount_cents'] < 1) {
+                throw ValidationException::withMessages([
+                    'lines' => 'Cada destino precisa receber ao menos um centavo após arredondamento.',
+                ]);
+            }
+        }
         if ($remaining !== 0 || array_sum(array_column($calculated, 'amount_cents')) !== $base) {
             throw ValidationException::withMessages(['lines' => 'Distribuição não fecha com a base informada.']);
         }
