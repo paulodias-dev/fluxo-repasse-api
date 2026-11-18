@@ -232,8 +232,10 @@ final class RepasseCaseController extends Controller
             $review = $this->verifyCloseout($case, $data['expected_closeout_sha256'],
                 $data['acknowledge_pending']);
 
+            $purchasedOn = DB::table('repasse_cases')->where('id', $case)
+                ->value('purchased_on');
             $this->assertSaleCoherence(
-                $data['sold_on'], $vehicle->purchased_on, $data['sale_amount_cents']
+                $data['sold_on'], $purchasedOn, $data['sale_amount_cents']
             );
 
             $buyer = trim((string) ($data['buyer_name'] ?? ''));
