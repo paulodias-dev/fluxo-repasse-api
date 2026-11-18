@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
@@ -13,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
@@ -45,13 +47,73 @@ final class AuthController extends Controller
         return response()->json([
             'data' => [
                 'id' => $user->getAuthIdentifier(),
-                'name' => $user->name,
-                'email' => $user->email,
+                ...$this->profileData($user),
                 'permissions' => $user->grantedPermissions(),
                 'roles' => $user->roles()->pluck('slug')->values()->all(),
                 'access_diagnostic' => $this->diagnostic($user),
             ],
         ])->header('Cache-Control', 'no-store');
+    }
+
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = $request->user('api');
+        $data = $request->validated();
+        $oldAvatarPath = $user->avatar_path;
+        $newAvatarPath = null;
+
+        if ($request->hasFile('avatar')) {
+            $newAvatarPath = $request->file('avatar')->store('avatars/'.$user->getKey(), 'public');
+        }
+
+        try {
+            [$fresh, $emailChanged] = DB::transaction(function () use ($user, $data, $newAvatarPath): array {
+                $current = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+                $emailChanged = $current->email !== $data['email'];
+
+                unset($data['avatar']);
+                if ($newAvatarPath !== null) {
+                    $data['avatar_path'] = $newAvatarPath;
+                }
+
+                $current->fill($data);
+                if ($emailChanged) {
+                    $current->auth_version = (int) $current->auth_version + 1;
+                }
+                $current->save();
+
+                return [$current, $emailChanged];
+            });
+        } catch (\Throwable $exception) {
+            if ($newAvatarPath !== null) {
+                Storage::disk('public')->delete($newAvatarPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($oldAvatarPath !== null && $newAvatarPath !== null && str_starts_with($oldAvatarPath, 'avatars/')) {
+            Storage::disk('public')->delete($oldAvatarPath);
+        }
+
+        $response = [
+            'data' => [
+                'id' => $fresh->getKey(),
+                ...$this->profileData($fresh),
+                'permissions' => $fresh->grantedPermissions(),
+                'roles' => $fresh->roles()->pluck('slug')->values()->all(),
+            ],
+        ];
+
+        if ($emailChanged) {
+            $token = Auth::guard('api')->login($fresh);
+            $response['access_token'] = $token;
+            $response['expires_in'] = Auth::guard('api')->factory()->getTTL() * 60;
+        }
+
+        $this->events->record($emailChanged ? 'account_email_changed' : 'account_updated', $request, $fresh);
+
+        return response()->json($response)->header('Cache-Control', 'no-store');
     }
 
     public function access(): JsonResponse
@@ -76,6 +138,20 @@ final class AuthController extends Controller
             'admin_role_incomplete' => $platformAdmin && $missing !== [],
             'modules' => OperationalAccessCatalog::modulesFor($granted),
             'financial_operations_enabled' => false,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function profileData(User $user): array
+    {
+        return [
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'company_name' => $user->company_name,
+            'avatar_url' => $user->avatar_path !== null
+                ? Storage::disk('public')->url($user->avatar_path)
+                : null,
         ];
     }
 

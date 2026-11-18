@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 final class AuthApiTest extends TestCase
@@ -32,6 +34,42 @@ final class AuthApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.email', $user->email)
             ->assertJsonMissingPath('data.password');
+    }
+
+    public function test_authenticated_user_can_update_profile_and_avatar(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
+        $token = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Strong-Passphrase-123!',
+        ])->assertOk()->json('access_token');
+
+        $response = $this->withToken($token)->post('/api/v1/auth/profile', [
+            'name' => 'Administrador do Repasse',
+            'email' => 'admin.updated@example.test',
+            'phone' => '(82) 99999-9999',
+            'company_name' => 'Fluxo Sistemas',
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 512, 512),
+        ], ['Accept' => 'application/json']);
+
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['name', 'email', 'phone', 'company_name', 'avatar_url'], 'access_token', 'expires_in'])
+            ->assertJsonPath('data.name', 'Administrador do Repasse')
+            ->assertJsonPath('data.email', 'admin.updated@example.test');
+
+        $updated = $user->fresh();
+        $this->assertNotNull($updated?->avatar_path);
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'phone' => '(82) 99999-9999',
+            'company_name' => 'Fluxo Sistemas',
+        ]);
+        Storage::disk('public')->assertExists($updated->avatar_path);
+
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+        $this->withToken($response->json('access_token'))->getJson('/api/v1/auth/me')
+            ->assertOk()->assertJsonPath('data.avatar_url', $response->json('data.avatar_url'));
     }
 
     public function test_invalid_credentials_do_not_create_session(): void
