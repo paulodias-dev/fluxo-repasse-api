@@ -465,4 +465,304 @@ final class ExternalTransferReportService
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
+
+    // Macro 49 — mesma tabela documental, sem exigir modelos/comissões/minutas.
+    // Não registra obrigação nem comprova liquidação bancária.
+    private function directQuery(int $case, string $status = 'all'): \Illuminate\Database\Query\Builder
+    {
+        $query = DB::table('repasse_external_transfer_reports')
+            ->where('repasse_case_id', $case)
+            ->whereNull('term_id')->whereNull('proposal_id');
+        if ($status === 'reported') {
+            $query->whereNull('voided_at');
+        } elseif ($status === 'voided') {
+            $query->whereNotNull('voided_at');
+        }
+
+        return $query;
+    }
+
+    private function directRow(int $case, int $report): object
+    {
+        return $this->directQuery($case)->where('id', $report)->firstOrFail();
+    }
+
+    public function directOptions(int $case): array
+    {
+        $vehicle = $this->operations->ensureExists($case);
+        $parties = DB::table('repasse_case_parties as cp')
+            ->join('parties as p', 'p.id', '=', 'cp.party_id')
+            ->where('cp.repasse_case_id', $case)->where('p.is_active', true)
+            ->orderBy('p.name')->get(['p.id', 'p.name'])
+            ->map(static fn (object $p): array => [
+                'id' => (int) $p->id, 'name' => $p->name,
+            ])->all();
+
+        return [
+            'vehicle_id' => $case,
+            'sold_on' => $vehicle->sold_on,
+            'sale_registered' => $vehicle->sold_on !== null
+                && $vehicle->sale_amount_cents !== null,
+            'parties' => $parties,
+            'report_only' => true,
+            'bank_confirmed' => false,
+            'payment_executed' => false,
+        ];
+    }
+
+    public function directIndex(int $case, string $status = 'all'): array
+    {
+        $this->operations->ensureExists($case);
+        $all = $this->directQuery($case);
+        $totals = (clone $all)->selectRaw('
+            COALESCE(SUM(CASE WHEN voided_at IS NULL THEN amount_cents ELSE 0 END), 0) AS reported_cents,
+            COALESCE(SUM(CASE WHEN voided_at IS NULL THEN 1 ELSE 0 END), 0) AS reported_count,
+            COALESCE(SUM(CASE WHEN voided_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS voided_count
+        ')->first();
+        $perParty = (clone $all)->whereNull('voided_at')
+            ->select('beneficiary_party_id', 'beneficiary_name')
+            ->selectRaw('COUNT(*) AS reported_count')
+            ->selectRaw('SUM(amount_cents) AS reported_cents')
+            ->groupBy('beneficiary_party_id', 'beneficiary_name')
+            ->orderBy('beneficiary_name')->get()->map(
+                static fn (object $row): array => [
+                    'beneficiary_party_id' => (int) $row->beneficiary_party_id,
+                    'beneficiary_party_name' => $row->beneficiary_name,
+                    'reported_cents' => (int) $row->reported_cents,
+                    'reported_count' => (int) $row->reported_count,
+                ]
+            )->all();
+        $page = $this->directQuery($case, $status)->orderByDesc('id')
+            ->paginate(15)->through(fn (object $row): array => $this->item($row, null));
+
+        return [
+            'summary' => [
+                'total_reported_cents' => (int) $totals->reported_cents,
+                'reported_count' => (int) $totals->reported_count,
+                'voided_count' => (int) $totals->voided_count,
+                'by_beneficiary' => $perParty,
+                'hypothetical_reference_cents' => null,
+                'bank_confirmed' => false,
+                'payment_executed' => false,
+                'obligation_created' => false,
+            ],
+            'reports' => $page,
+        ];
+    }
+
+    public function directShow(int $case, int $report): array
+    {
+        $this->operations->ensureExists($case);
+
+        return $this->item($this->directRow($case, $report), null);
+    }
+
+    private function directParty(int $case, int $partyId): object
+    {
+        $party = DB::table('repasse_case_parties as cp')
+            ->join('parties as p', 'p.id', '=', 'cp.party_id')
+            ->where('cp.repasse_case_id', $case)
+            ->where('p.id', $partyId)->where('p.is_active', true)
+            ->first(['p.id', 'p.name']);
+        if (! $party) {
+            throw ValidationException::withMessages([
+                'party' => 'Selecione apenas participantes ativos deste veículo.',
+            ]);
+        }
+
+        return $party;
+    }
+
+    public function directStore(int $case, array $input, Request $request): array
+    {
+        $proof = $request->file('proof');
+        if (! $proof instanceof UploadedFile || ! $proof->isValid()) {
+            throw ValidationException::withMessages(['proof' => 'Comprovante inválido.']);
+        }
+        $extension = $this->proofExtension($proof);
+        $sha = hash_file('sha256', $proof->getRealPath());
+        $actor = (int) $request->user('api')->id;
+        $intent = [
+            'case_id' => $case,
+            'term_id' => null,
+            'proposal_id' => null,
+            'expected_proposal_sha256' => null,
+            'payer_party_id' => (int) $input['payer_party_id'],
+            'beneficiary_party_id' => (int) $input['beneficiary_party_id'],
+            'amount_cents' => (int) $input['amount_cents'],
+            'transferred_on' => $input['transferred_on'],
+            'external_reference' => trim((string) ($input['external_reference'] ?? '')) ?: null,
+            'operator_note' => trim((string) ($input['operator_note'] ?? '')) ?: null,
+            'confirmed_external' => true,
+            'proof_sha256' => $sha,
+        ];
+        $digest = hash('sha256', json_encode($intent, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $path = null;
+
+        try {
+            // Sem retry de transação após escrita física do arquivo. O cliente
+            // pode repetir request_key+conteúdo em caso de falha de rede.
+            $result = DB::transaction(function () use (
+                $case, $input, $request, $proof, $extension,
+                $sha, $actor, $intent, $digest, &$path
+            ): array {
+                $vehicle = DB::table('repasse_cases')->where('id', $case)
+                    ->lockForUpdate()->first(['id', 'sold_on', 'sale_amount_cents']);
+                if (! $vehicle) {
+                    abort(404);
+                }
+                $previous = DB::table('repasse_external_transfer_reports')
+                    ->where('request_key', $input['request_key'])->first();
+                if ($previous) {
+                    if ((int) $previous->repasse_case_id !== $case
+                        || $previous->proposal_id !== null
+                        || $previous->term_id !== null
+                        || (int) $previous->reported_by !== $actor
+                        || ! hash_equals($previous->intent_sha256, $digest)) {
+                        abort(409, 'UUID já usada em outro registro.');
+                    }
+
+                    return ['id' => (int) $previous->id, 'created' => false];
+                }
+                if ($vehicle->sold_on === null || $vehicle->sale_amount_cents === null) {
+                    throw ValidationException::withMessages([
+                        'case' => 'Registre a venda datada antes de informar repasse externo.',
+                    ]);
+                }
+
+                $payer = $this->directParty($case, $intent['payer_party_id']);
+                $beneficiary = $this->directParty($case, $intent['beneficiary_party_id']);
+                $path = 'repasse-external-proofs/'.$case.'/'.Str::uuid().'.'.$extension;
+                $handle = fopen($proof->getRealPath(), 'rb');
+                try {
+                    $stored = Storage::disk('local')->put($path, $handle);
+                } finally {
+                    if (is_resource($handle)) {
+                        fclose($handle);
+                    }
+                }
+                if (! $stored) {
+                    throw ValidationException::withMessages([
+                        'proof' => 'Falha ao salvar comprovante privado.',
+                    ]);
+                }
+                $id = DB::table('repasse_external_transfer_reports')->insertGetId([
+                    'repasse_case_id' => $case,
+                    'term_id' => null,
+                    'proposal_id' => null,
+                    'proposal_sha256' => null,
+                    'payer_party_id' => (int) $payer->id,
+                    'beneficiary_party_id' => (int) $beneficiary->id,
+                    'payer_name' => $payer->name,
+                    'beneficiary_name' => $beneficiary->name,
+                    'request_key' => $input['request_key'],
+                    'intent_sha256' => $digest,
+                    'amount_cents' => $intent['amount_cents'],
+                    'transferred_on' => $intent['transferred_on'],
+                    'external_reference' => $intent['external_reference'],
+                    'operator_note' => $intent['operator_note'],
+                    'proof_name' => $this->safeFileName($proof->getClientOriginalName()),
+                    'proof_path' => $path,
+                    'proof_mime' => $proof->getMimeType(),
+                    'proof_size_bytes' => $proof->getSize(),
+                    'proof_sha256' => $sha,
+                    'reported_by' => $actor,
+                    'reported_at' => now(),
+                ]);
+                $this->operations->event($case, $request, 'external_transfer_reported');
+
+                return ['id' => $id, 'created' => true];
+            });
+        } catch (Throwable $error) {
+            if ($path !== null) {
+                Storage::disk('local')->delete($path);
+            }
+            throw $error;
+        }
+
+        return [
+            'data' => $this->directShow($case, (int) $result['id']),
+            'created' => $result['created'],
+        ];
+    }
+
+    public function directVoid(int $case, int $report, string $reason, Request $request): array
+    {
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 5) {
+            throw ValidationException::withMessages([
+                'reason' => 'Informe motivo do estorno (mínimo cinco caracteres).',
+            ]);
+        }
+        DB::transaction(function () use ($case, $report, $reason, $request): void {
+            $vehicle = DB::table('repasse_cases')->where('id', $case)
+                ->lockForUpdate()->first(['id']);
+            if (! $vehicle) {
+                abort(404);
+            }
+            $row = $this->directQuery($case)->where('id', $report)
+                ->lockForUpdate()->firstOrFail();
+            $this->item($row, null); // Integridade antes de qualquer mutação.
+            if ($row->voided_at !== null) {
+                if ($row->void_reason === $reason) {
+                    return;
+                }
+                abort(409, 'Registro já estornado com justificativa diferente.');
+            }
+            DB::table('repasse_external_transfer_reports')->where('id', $report)->update([
+                'voided_at' => now(),
+                'voided_by' => $request->user('api')->id,
+                'void_reason' => $reason,
+            ]);
+            $this->operations->event($case, $request, 'external_transfer_voided');
+        }, 3);
+
+        return $this->directShow($case, $report);
+    }
+
+    public function directProof(int $case, int $report): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $this->directShow($case, $report);
+
+        return $this->downloadProof($this->directRow($case, $report));
+    }
+
+    public function directExport(int $case, string $status = 'all'): StreamedResponse
+    {
+        $this->operations->ensureExists($case);
+        $query = $this->directQuery($case, $status);
+        return response()->streamDownload(function () use ($query): void {
+            $out = fopen('php://output', 'wb');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'ID', 'Pagador declarado', 'Favorecido declarado', 'Valor centavos',
+                'Data informada', 'Referência externa', 'Observação',
+                'Situação', 'Justificativa estorno', 'Comprovante SHA-256',
+                'Criado em', 'Confirmação bancária',
+            ], ';');
+            $query->orderBy('id')->chunkById(100, function ($rows) use ($out): void {
+                foreach ($rows as $row) {
+                    $this->item($row, null); // Inspeciona digest e escopo.
+                    fputcsv($out, [
+                        $row->id,
+                        $this->csvSafe($row->payer_name),
+                        $this->csvSafe($row->beneficiary_name),
+                        $row->amount_cents, $row->transferred_on,
+                        $this->csvSafe($row->external_reference),
+                        $this->csvSafe($row->operator_note),
+                        $row->voided_at ? 'ESTORNADO' : 'DECLARADO PELO OPERADOR',
+                        $this->csvSafe($row->void_reason),
+                        $row->proof_sha256, $row->reported_at,
+                        'NÃO CONFERIDO PELO BANCO',
+                    ], ';');
+                }
+            }, 'id');
+            fclose($out);
+        }, 'veiculo-'.$case.'-repasses-externos.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
 }
