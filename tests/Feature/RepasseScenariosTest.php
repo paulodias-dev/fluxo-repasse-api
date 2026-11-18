@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Support\TenantDatabase;
+
 use App\Models\Party;
 use App\Models\Permission;
 use App\Models\Role;
@@ -208,7 +210,7 @@ final class RepasseScenariosTest extends TestCase
             'revision' => 2, 'action' => 'reopen',
         ])->assertUnprocessable();
         $this->withToken($token)->getJson("/api/v1/finance/scenarios/{$id}")
-            ->assertOk()->assertJsonPath('data.archived_at', DB::table('repasse_scenarios')->find($id)->archived_at);
+            ->assertOk()->assertJsonPath('data.archived_at', TenantDatabase::table('repasse_scenarios')->find($id)->archived_at);
     }
 
     public function test_csv_is_private_and_contains_no_execution_instruction(): void
