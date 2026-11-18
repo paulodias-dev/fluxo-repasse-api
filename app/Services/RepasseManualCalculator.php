@@ -56,6 +56,15 @@ final class RepasseManualCalculator
         }
 
         $remaining = $base - $total;
+        // Não permitir percentuais explicitamente superiores a 100%,
+        // ainda que uma base pequena arredonde para os mesmos centavos.
+        $bpsTotal = array_sum(array_filter(array_column($calculated, 'basis_points'),
+            static fn ($bps): bool => $bps !== null));
+        if ($bpsTotal > 10000) {
+            throw ValidationException::withMessages([
+                'lines' => 'Os percentuais não podem ultrapassar 100% da base.',
+            ]);
+        }
         // A diferença aceitável não pode ser inventada para completar
         // uma base mal distribuída. Só distribuir centavos de arredondamento.
         $fractionTotal = array_sum($remainders);

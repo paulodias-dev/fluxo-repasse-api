@@ -195,7 +195,7 @@ Route::prefix('v1')->group(function (): void {
                 Route::post('/{settlement}/payments', [ControlledRepasseController::class, 'pay'])
                     ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.pay');
                 Route::post('/{settlement}/payments/{payment}/void', [ControlledRepasseController::class, 'voidPayment'])
-                    ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.payment.void');
+                    ->middleware(['permission:repasse.approve', 'throttle:repasse-admin-write'])->name('api.v1.settlements.payment.void');
                 Route::get('/{settlement}/payments/{payment}/proof', [ControlledRepasseController::class, 'proof'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.payment.proof');
             });

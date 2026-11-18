@@ -102,6 +102,14 @@ final class RepasseCaseController extends Controller
         $saleResult = $vehicle->sold_on === null || $sale === null || $currentCost === null
             ? null : $sale + $realizedIncome - $currentCost;
 
+        // Cursores append-only evitam aceitar um snapshot antigo quando
+        // duas operações diferentes conservam os mesmos totais e contagens.
+        $caseEventCursor = (int) TenantDB::table('repasse_case_events')
+            ->where('repasse_case_id', $case)->max('id');
+        $repasseEventCursor = (int) TenantDB::table('repasse_settlement_events as e')
+            ->join('repasse_settlements as s', 's.id', '=', 'e.settlement_id')
+            ->where('s.repasse_case_id', $case)->max('e.id');
+
         return [
             'id' => (int) $vehicle->id,
             'title' => $vehicle->title,
@@ -121,6 +129,8 @@ final class RepasseCaseController extends Controller
             'open_tasks_count' => $openTasks,
             'pending_checklist_count' => $pendingChecklist,
             'documents_count' => $documents,
+            'case_event_cursor' => $caseEventCursor,
+            'repasse_event_cursor' => $repasseEventCursor,
             // Pendências para ciência, NÃO quitação ou impeditivo absoluto de arquivo.
             'repasse_draft_count' => $repasses['controlled']['draft_count'],
             'repasse_approved_count' => $repasses['controlled']['approved_count'],

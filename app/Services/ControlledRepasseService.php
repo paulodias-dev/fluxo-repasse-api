@@ -312,7 +312,10 @@ final class ControlledRepasseService
     {
         DB::transaction(function () use ($case, $id, $payment, $reason, $actor): void {
             $this->vehicle($case, true);
-            $this->settlement($case, $id, true);
+            $settlement = $this->settlement($case, $id, true);
+            if ($settlement->status !== 'approved') {
+                abort(409, 'Somente parcelas de distribuições aprovadas podem ser estornadas.');
+            }
             $row = TenantDB::table('repasse_settlement_payments')
                 ->where('settlement_id', $id)->where('id', $payment)->lockForUpdate()->first();
             if (! $row) abort(404);
@@ -327,12 +330,20 @@ final class ControlledRepasseService
         return $this->show($case, $id);
     }
 
-    public function cancel(int $case, int $id, string $reason, int $actor): array
+    public function cancel(
+        int $case, int $id, string $reason, int $actor, bool $mayApprove
+    ): array
     {
-        DB::transaction(function () use ($case, $id, $reason, $actor): void {
+        DB::transaction(function () use ($case, $id, $reason, $actor, $mayApprove): void {
             $this->vehicle($case, true);
             $row = $this->settlement($case, $id, true);
             if ($row->status === 'cancelled') abort(409, 'Distribuição já cancelada.');
+            // O autor pode retirar apenas o próprio rascunho. Uma obrigação já
+            // aprovada somente pode ser cancelada por quem possui a alçada.
+            if (! $mayApprove && ! ($row->status === 'draft'
+                && (int) $row->created_by === $actor)) {
+                abort(403, 'É necessária permissão de aprovação para cancelar esta distribuição.');
+            }
             if (TenantDB::table('repasse_settlement_payments')
                 ->where('settlement_id', $id)->whereNull('voided_at')->exists()) {
                 abort(409, 'Estorne os pagamentos registrados antes de cancelar esta distribuição.');

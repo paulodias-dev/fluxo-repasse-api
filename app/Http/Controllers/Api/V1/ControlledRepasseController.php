@@ -87,8 +87,11 @@ final class ControlledRepasseController extends Controller
     {
         $this->only($request, ['reason']);
         $input = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:500']]);
+        $actor = $request->user('api');
+
         return $this->json(['data' => $this->service->cancel(
-            $case, $settlement, $input['reason'], (int) $request->user('api')->id
+            $case, $settlement, $input['reason'], (int) $actor->id,
+            $actor->hasPermission('repasse.approve'),
         )]);
     }
 
