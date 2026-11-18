@@ -17,6 +17,8 @@ final class EnsureTenantContext
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Não reutilizar o tenant de uma requisição anterior (Octane / QA).
+        app(TenantContext::class)->clear();
         // These routes do not access tenant business data. Auth identity is
         // globally unique by email; tenant is resolved after successful login.
         if ($request->is(
