@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
+use App\Support\TenantRoles;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CommercialTermsService;
@@ -44,17 +44,17 @@ final class SaasDemoSeeder extends Seeder
             ],
         ];
 
-        $adminRole = Role::query()->where('slug', 'tenant_admin')->firstOrFail();
-        $userRole = Role::query()->where('slug', 'tenant_user')->firstOrFail();
-
         foreach ($companies as $company) {
             DB::transaction(function () use (
-                $company, $password, $adminRole, $userRole, &$createdUsers
+                $company, $password, &$createdUsers
             ): void {
                 $tenant = Tenant::query()->firstOrCreate(
                     ['slug' => $company['slug']],
                     ['name' => $company['name'], 'is_active' => true]
                 );
+                $roles = TenantRoles::provision((int) $tenant->id);
+                $adminRole = $roles['tenant_admin'];
+                $userRole = $roles['tenant_user'];
                 $slug = $company['slug'];
                 $adminEmail = 'admin.'.$slug.'@example.invalid';
                 $userEmail = 'usuario.'.$slug.'@example.invalid';
