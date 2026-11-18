@@ -3861,7 +3861,7 @@ components:
         financial_authorization, payment_executed, obligation_created]
       properties:
         id: { type: integer, minimum: 1 }
-        proposal_id: { type: integer, minimum: 1 }
+        proposal_id: { type: integer, minimum: 1, nullable: true, description: 'NULL no relato direto' }
         payer_party_id: { type: integer, minimum: 1 }
         payer_party_name: { type: string }
         beneficiary_party_id: { type: integer, minimum: 1 }
@@ -3899,10 +3899,10 @@ components:
             Indicadores de registros informados e comparativo com valores
             hipotéticos. difference_to_reference_cents NÃO é saldo devedor.
           properties:
-            proposal_id: { type: integer }
-            proposal_sha256: { type: string }
+            proposal_id: { type: integer, nullable: true }
+            proposal_sha256: { type: string, nullable: true }
             proposal_source_stale: { type: boolean }
-            hypothetical_reference_cents: { type: integer, format: int64 }
+            hypothetical_reference_cents: { type: integer, format: int64, nullable: true }
             total_reported_cents: { type: integer, format: int64 }
             reported_count: { type: integer }
             voided_count: { type: integer }
@@ -3916,9 +3916,9 @@ components:
                 properties:
                   beneficiary_party_id: { type: integer }
                   beneficiary_party_name: { type: string, nullable: true }
-                  reference_cents: { type: integer, format: int64 }
+                  reference_cents: { type: integer, format: int64, nullable: true }
                   reported_cents: { type: integer, format: int64 }
-                  difference_to_reference_cents: { type: integer, format: int64 }
+                  difference_to_reference_cents: { type: integer, format: int64, nullable: true }
                   reported_count: { type: integer }
                   voided_count: { type: integer }
         reports: { type: object, description: 'Paginador Laravel de ExternalTransferReport, 15 por página' }
