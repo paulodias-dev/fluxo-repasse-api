@@ -44,8 +44,34 @@ final class ExternalTransferReportService
         return collect($proposal['snapshot']['lines'])->keyBy('party_id')->all();
     }
 
+    /**
+     * Reconstitui a intenção assinada por digest na criação. Estornos são
+     * metadados posteriores e não alteram os campos financeiros originais.
+     */
+    private function assertRecordIntegrity(object $row): void
+    {
+        $intent = [
+            'case_id' => (int) $row->repasse_case_id,
+            'term_id' => (int) $row->term_id,
+            'proposal_id' => (int) $row->proposal_id,
+            'expected_proposal_sha256' => $row->proposal_sha256,
+            'beneficiary_party_id' => (int) $row->beneficiary_party_id,
+            'amount_cents' => (int) $row->amount_cents,
+            'transferred_on' => (string) $row->transferred_on,
+            'external_reference' => $row->external_reference,
+            'operator_note' => $row->operator_note,
+            'confirmed_external' => true,
+            'proof_sha256' => $row->proof_sha256,
+        ];
+        $hash = hash('sha256', json_encode($intent, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        if (! hash_equals($row->intent_sha256, $hash)) {
+            abort(409, 'Registro externo com valores ou comprovante adulterados.');
+        }
+    }
+
     private function item(object $row, array $proposal): array
     {
+        $this->assertRecordIntegrity($row);
         $beneficiary = $this->lines($proposal)[(int) $row->beneficiary_party_id] ?? null;
         if (! $beneficiary
             || (int) $row->payer_party_id !== (int) $proposal['snapshot']['payer_party_id']
@@ -326,6 +352,7 @@ final class ExternalTransferReportService
                 ->where('term_id', $term)->where('proposal_id', $proposal)
                 ->lockForUpdate()->firstOrFail();
             $this->proposal($case, $term, $proposal);
+            $this->assertRecordIntegrity($row);
             if ($row->voided_at !== null) {
                 if ($row->void_reason === $reason) {
                     return; // Retry sem novo evento ou exclusão de histórico.
@@ -389,6 +416,7 @@ final class ExternalTransferReportService
             ], ';');
             $query->orderBy('id')->chunkById(100, function ($rows) use ($out, $source, $names): void {
                 foreach ($rows as $row) {
+                    $this->assertRecordIntegrity($row);
                     $beneficiary = $names[(int) $row->beneficiary_party_id] ?? null;
                     if (! $beneficiary || ! hash_equals($row->proposal_sha256, $source['snapshot_sha256'])) {
                         abort(409, 'Referência de relatório externo inconsistente.');
