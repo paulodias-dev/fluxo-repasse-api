@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Support\TenantRoles;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\CommercialTermsService;
 use App\Services\DistributionTemplateService;
 use App\Services\ScenarioPlanner;
+use App\Support\TenantRoles;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 /**
  * Dados FICTIONAIS para testar TODOS os tenants sem criar pagamentos falsos.
  * Somente local/testing. Instalação limpa: php artisan migrate:fresh --seed
- * REPASSE_DEMO_PASSWORD permite definir previamente a senha de teste.
+ * A senha das contas criadas é aleatória e exibida uma vez no terminal.
  */
 final class SaasDemoSeeder extends Seeder
 {
@@ -25,12 +25,11 @@ final class SaasDemoSeeder extends Seeder
     {
         if (! app()->environment(['local', 'testing'])) {
             $this->command?->warn('Demonstração desabilitada fora de local/testing.');
+
             return;
         }
 
-        $configured = env('REPASSE_DEMO_PASSWORD');
-        $password = is_string($configured) && strlen($configured) >= 12
-            ? $configured : Str::password(20, symbols: true);
+        $password = Str::password(20, symbols: true);
         $createdUsers = false;
 
         $companies = [
@@ -68,7 +67,9 @@ final class SaasDemoSeeder extends Seeder
                         'is_active' => true,
                     ]
                 );
-                if ($admin->wasRecentlyCreated) $createdUsers = true;
+                if ($admin->wasRecentlyCreated) {
+                    $createdUsers = true;
+                }
                 $admin->roles()->syncWithoutDetaching([$adminRole->id]);
 
                 $user = User::query()->firstOrCreate(
@@ -80,7 +81,9 @@ final class SaasDemoSeeder extends Seeder
                         'is_active' => true,
                     ]
                 );
-                if ($user->wasRecentlyCreated) $createdUsers = true;
+                if ($user->wasRecentlyCreated) {
+                    $createdUsers = true;
+                }
                 $user->roles()->syncWithoutDetaching([$userRole->id]);
 
                 $this->populateTenant((int) $tenant->id, $company['label'], $admin, $user);
@@ -91,8 +94,7 @@ final class SaasDemoSeeder extends Seeder
             $this->command?->warn('=== CONTAS SOMENTE DE DEMONSTRAÇÃO ===');
             $this->command?->line('admin.demo-alfa@example.invalid  |  usuario.demo-alfa@example.invalid');
             $this->command?->line('admin.demo-beta@example.invalid  |  usuario.demo-beta@example.invalid');
-            $this->command?->line('Senha: '.($configured && strlen($configured) >= 12
-                ? '(configurada por REPASSE_DEMO_PASSWORD)' : $password));
+            $this->command?->line('Senha gerada nesta execução: '.$password);
             $this->command?->warn('Troque as senhas e NÃO use estes usuários em produção.');
         }
     }
@@ -100,9 +102,13 @@ final class SaasDemoSeeder extends Seeder
     private function firstId(string $table, int $tenantId, array $unique, array $values): int
     {
         $query = DB::table($table)->where('tenant_id', $tenantId);
-        foreach ($unique as $key => $value) $query->where($key, $value);
+        foreach ($unique as $key => $value) {
+            $query->where($key, $value);
+        }
         $id = $query->value('id');
-        if ($id !== null) return (int) $id;
+        if ($id !== null) {
+            return (int) $id;
+        }
 
         return (int) DB::table($table)->insertGetId([
             'tenant_id' => $tenantId,
@@ -192,7 +198,9 @@ final class SaasDemoSeeder extends Seeder
                     ...$vehicle, 'created_by' => $admin->id,
                     'updated_by' => $admin->id, 'created_at' => $now, 'updated_at' => $now,
                 ]);
-            if ($index === 0) $firstDraft = $id;
+            if ($index === 0) {
+                $firstDraft = $id;
+            }
 
             foreach (array_slice($partyIds, 0, 4) as $partyId) {
                 $this->firstId('repasse_case_parties', $tenantId, [
@@ -263,7 +271,9 @@ final class SaasDemoSeeder extends Seeder
             }
         }
 
-        if ($firstDraft === null) return;
+        if ($firstDraft === null) {
+            return;
+        }
 
         // Usa os MESMOS serviços da API para gerar hashes e versões válidas,
         // sem inserir minutas ou históricos artificiais inconsistentes.

@@ -153,7 +153,6 @@ A modelagem foi ALTERADA de single-empresa para SaaS com banco MySQL único e `t
 
 ```bash
 # SOMENTE ambiente local/descartável: apaga todas as tabelas e dados desse banco!
-# Pode definir REPASSE_DEMO_PASSWORD no ambiente para conhecer a senha.
 php artisan migrate:fresh --seed
 ```
 
@@ -168,7 +167,7 @@ Somente local, `SaasDemoSeeder` cria **duas empresas fictícias**:
 
 Cada empresa possui 5 participantes, 3 veículos (estoque/vendido/arquivado), despesas realizadas/previstas, receita extra, tarefa, checklist, modelos 60/40 e cenários/minutas demonstrativas via serviços do domínio. Nada declara pagamento externo realizado.
 
-**Senha:** `REPASSE_DEMO_PASSWORD` (opcional, mínimo 12 chars). Sem ela, o seeder gera uma senha aleatória e a exibe **uma vez no terminal na criação dos usuários**; não é gravada em código e não é enviada por e-mail.
+**Senha:** o seeder gera uma senha aleatória e a exibe **uma vez no terminal na criação dos usuários**; ela não depende de `.env`, não é gravada em código e não é enviada por e-mail.
 
 Provisionamento de empresa real (terminal administrativo; senha solicitada sem eco):
 ```bash
@@ -176,6 +175,12 @@ php artisan repasse:tenant:create repasse-nova "Repasse Nova Ltda." admin@exempl
 php artisan repasse:user:create
 ```
 O segundo comando pergunta o slug da empresa e cria um usuário funcional. Cadastrar outros usuários via admin React também os vincula ao tenant da sessão, sem aceitar tenant_id do cliente.
+
+Para preparar rapidamente o tenant de desenvolvimento usado pela interface:
+```bash
+php artisan repasse:tenant:seed
+```
+O comando é bloqueado fora de `local/testing`, é idempotente e cria o administrador `admin.repasse@fluxosistemas.com.br` com a senha de teste definida para o ambiente local. Não executar nem reutilizar essa credencial em produção.
 
 **QA de isolamento:** testar dois logins de empresas diferentes, listagens, detalhe por ID de outra empresa (404), upload/download de documentos, filtros, dashboard, segurança de roles, JWT antigo e empresa desativada. `php artisan test --filter=SaasTenantIsolationTest`, `composer test`, `composer lint`. Estes comandos **não foram executados** via conector GitHub.
 

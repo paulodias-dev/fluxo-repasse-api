@@ -10,9 +10,8 @@ final class DatabaseSeeder extends Seeder
     {
         $this->call(AdminUserSeeder::class);
 
-        // Os dados DEMO nunca entram na produção por migrate --seed.
-        if (app()->environment('local') ||
-            (app()->environment('testing') && env('REPASSE_SEED_DEMO') === 'true')) {
+        // Os dados DEMO só entram em ambientes locais/de teste, nunca em produção.
+        if (app()->environment(['local', 'testing'])) {
             $this->call(SaasDemoSeeder::class);
         }
     }

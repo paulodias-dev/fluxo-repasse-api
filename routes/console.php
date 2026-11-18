@@ -12,6 +12,7 @@ use Database\Seeders\AdminUserSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -52,6 +53,69 @@ Artisan::command('repasse:tenant:create {slug : Identificador único da empresa}
     $this->info('Empresa e primeiro administrador criados. Nenhum dado de outra empresa foi compartilhado.');
     return Command::SUCCESS;
 })->purpose('Provisionar uma empresa isolada e seu administrador inicial, sem senhas em argumentos');
+
+Artisan::command('repasse:tenant:seed', function (): int {
+    if (! app()->environment(['local', 'testing'])) {
+        $this->error('Este comando de teste só pode ser executado em local ou testing.');
+
+        return Command::FAILURE;
+    }
+
+    $slug = 'fluxo-repasse';
+    $name = 'Fluxo Repasse';
+    $email = 'admin.repasse@fluxosistemas.com.br';
+    $adminName = 'Administrador do Repasse';
+    $password = 'Tki&rn3233';
+
+    app(AdminUserSeeder::class)->run();
+
+    try {
+        DB::transaction(function () use ($slug, $name, $email, $adminName, $password): void {
+            $tenant = Tenant::query()->firstOrCreate(
+                ['slug' => $slug],
+                ['name' => $name, 'is_active' => true]
+            );
+
+            $admin = User::query()->where('email', $email)->lockForUpdate()->first();
+            if ($admin && (int) $admin->tenant_id !== (int) $tenant->id) {
+                throw new RuntimeException('O e-mail informado já pertence a outra empresa.');
+            }
+
+            if (! $admin) {
+                $admin = User::query()->create([
+                    'tenant_id' => $tenant->id,
+                    'name' => $adminName,
+                    'email' => $email,
+                    'password' => $password,
+                    'is_active' => true,
+                ]);
+            } else {
+                $passwordChanged = ! Hash::check($password, (string) $admin->getRawOriginal('password'));
+                $statusChanged = ! $admin->is_active;
+                $admin->name = $adminName;
+                $admin->is_active = true;
+                if ($passwordChanged || $statusChanged) {
+                    $admin->password = $password;
+                    $admin->auth_version = (int) $admin->auth_version + 1;
+                }
+                $admin->save();
+            }
+
+            $roles = TenantRoles::provision((int) $tenant->id);
+            $admin->roles()->syncWithoutDetaching([$roles['tenant_admin']->id]);
+        });
+    } catch (RuntimeException $exception) {
+        $this->error($exception->getMessage());
+
+        return Command::FAILURE;
+    }
+
+    $this->info('Tenant Fluxo Repasse e administrador inicial prontos para teste.');
+    $this->line('Usuário: '.$email);
+    $this->warn('Comando exclusivo para desenvolvimento/testes; não use esta credencial em produção.');
+
+    return Command::SUCCESS;
+})->purpose('Criar ou atualizar o tenant Fluxo Repasse e seu administrador de teste');
 
 Artisan::command('repasse:user:create', function (): int {
     $slug = Str::lower(trim((string) $this->ask('Slug da empresa existente')));
