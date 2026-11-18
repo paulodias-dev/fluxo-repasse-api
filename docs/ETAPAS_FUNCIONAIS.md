@@ -160,3 +160,10 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Interface no fluxo já existente Condições comerciais > Preparação > Apuração, Metronic Demo 1 com col-6 mobile e desktop preservado, sem novo shell.
 - [x] OpenAPI 1.21 + documentação + testes PHP escritos, execução adiada para homologação do MVP.
 - [ ] Etapa monetária real e suas regras de negócio **não aprovadas**. Sem obrigação, saldo, cobrança, PSP/Pix, pagamento ou conciliação.
+
+## Macro 46 — Carteira documental consolidada na Central Comercial
+- [x] Filtrar propostas por presença e revisão posterior da minuta; indicadores/CSV calculados na API antes de paginar.
+- [x] Mostrar contagem, última proposta e rateio hipotético consolidado por minuta sem criar obrigação.
+- [x] Link profundo para veículo, minuta, apuração e proposta exatas no mesmo Metronic mobile-first.
+- [x] JWT/duas permissões, sem novas migrations, módulos ou lógica de pagamento; OpenAPI 1.22 e testes escritos.
+- [ ] Verificação real em PHPUnit/MySQL/React e QA visual somente na homologação final do MVP.
