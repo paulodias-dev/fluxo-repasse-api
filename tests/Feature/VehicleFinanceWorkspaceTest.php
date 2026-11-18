@@ -451,9 +451,7 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('entry');
 
         $other = $this->entry($jwt, $first, ['status' => 'planned']);
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/$first", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/$first");
         $this->withToken($jwt)->postJson(
             "/api/v1/repasse-cases/$first/finance/entries/$other/realize",
             ['effective_on' => now()->toDateString()]
@@ -510,9 +508,7 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         $vehicle = $this->vehicle($token);
         $old = $this->entry($token, $vehicle);
         $base = "/api/v1/repasse-cases/$vehicle/finance";
-        $this->withToken($token)->patchJson(
-            "/api/v1/repasse-cases/$vehicle", ['status' => 'archived']
-        )->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/$vehicle");
 
         $this->withToken($token)->getJson("$base/entries")->assertOk();
         $this->withToken($token)->getJson("$base/report")->assertOk();

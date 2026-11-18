@@ -61,9 +61,7 @@ final class RepasseCasesTest extends TestCase
         $this->withToken($token)->patchJson("$url/$id", [
             'title' => 'Caso documental editado',
         ])->assertOk()->assertJsonPath('changed', true);
-        $this->withToken($token)->patchJson("$url/$id", [
-            'status' => 'archived',
-        ])->assertOk()->assertJsonPath('data.status', 'archived');
+        $this->archiveVehicleForQa($token, "$url/$id");
         $this->withToken($token)->postJson("$url/$id/parties", [
             'party_id' => $party->id,
         ])->assertUnprocessable();

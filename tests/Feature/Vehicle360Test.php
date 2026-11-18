@@ -157,7 +157,7 @@ final class Vehicle360Test extends TestCase
         $this->withToken($token)->postJson("/api/v1/repasse-cases/$other/finance/entries/$entry/void", [])
             ->assertNotFound();
 
-        $this->withToken($token)->patchJson($base, ['status' => 'archived'])->assertOk();
+        $this->archiveVehicleForQa($token, $base);
         $this->withToken($token)->patchJson($base, ['plate' => 'AAA1B22'])->assertUnprocessable();
         $this->withToken($token)->postJson("$base/finance/entries", [
             'kind' => 'expense', 'status' => 'planned', 'category' => 'frete',

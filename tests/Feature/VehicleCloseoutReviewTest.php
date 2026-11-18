@@ -129,8 +129,7 @@ final class VehicleCloseoutReviewTest extends TestCase
 
         // Arquivamento não quita operações nem apaga tarefas/documentos;
         // o operador poderá reabrir a ficha mais tarde.
-        $this->withToken($token)->patchJson($base, ['status' => 'archived'])
-            ->assertOk()->assertJsonPath('data.status', 'archived');
+        $this->archiveVehicleForQa($token, $base);
         $this->withToken($token)->getJson("{$base}/closeout-review")
             ->assertOk()->assertJsonPath('data.open_tasks_count', 17)
             ->assertJsonPath('data.sale_result_cents', 1810000)
@@ -164,9 +163,7 @@ final class VehicleCloseoutReviewTest extends TestCase
             ->assertJsonPath('data.documents_count', 0);
 
         // Encerrar acompanhamento não exige venda fictícia nem data inventada.
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$id}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$id}");
         $this->withToken($token)->getJson($endpoint)->assertOk()
             ->assertJsonPath('data.sold_on', null)
             ->assertJsonPath('data.sale_result_cents', null)

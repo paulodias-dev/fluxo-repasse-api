@@ -92,9 +92,7 @@ final class CaseOperationsTest extends TestCase
     {
         $token = $this->token();
         $case = $this->createCase($token);
-        $this->withToken($token)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($token, "/api/v1/repasse-cases/{$case}");
         $base = "/api/v1/repasse-cases/{$case}";
         $this->withToken($token)->postJson("$base/tasks", ['title' => 'Tarefa proibida'])->assertUnprocessable();
         $this->withToken($token)->postJson("$base/checklist", ['label' => 'Checklist proibido'])->assertUnprocessable();
