@@ -53,6 +53,7 @@ final class VehicleFinanceCategoryController extends Controller
                 $this->operations->editable($case);
                 $id = TenantDB::table('repasse_financial_categories')->insertGetId([
                     'kind' => $data['kind'], 'name' => $name, 'slug' => $slug,
+                    'tenant_id' => \App\Support\TenantContext::id(),
                     'is_active' => true,
                     'created_by' => $request->user('api')->getAuthIdentifier(),
                     'created_at' => now(), 'updated_at' => now(),
