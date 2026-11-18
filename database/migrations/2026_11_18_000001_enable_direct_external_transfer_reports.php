@@ -16,6 +16,7 @@ return new class extends Migration
             $table->char('proposal_sha256', 64)->nullable()->change();
             $table->string('payer_name', 180)->nullable();
             $table->string('beneficiary_name', 180)->nullable();
+            $table->char('participants_sha256', 64)->nullable();
             $table->index(['repasse_case_id', 'proposal_id', 'id'], 'ext_transfer_case_origin_idx');
         });
     }
@@ -32,7 +33,7 @@ return new class extends Migration
         }
         Schema::table('repasse_external_transfer_reports', function (Blueprint $table): void {
             $table->dropIndex('ext_transfer_case_origin_idx');
-            $table->dropColumn(['payer_name', 'beneficiary_name']);
+            $table->dropColumn(['payer_name', 'beneficiary_name', 'participants_sha256']);
             $table->unsignedBigInteger('term_id')->nullable(false)->change();
             $table->unsignedBigInteger('proposal_id')->nullable(false)->change();
             $table->char('proposal_sha256', 64)->nullable(false)->change();
