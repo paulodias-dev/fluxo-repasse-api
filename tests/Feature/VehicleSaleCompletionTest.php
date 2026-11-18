@@ -255,4 +255,31 @@ final class VehicleSaleCompletionTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('sold_on');
     }
 
+
+    public function test_generic_vehicle_patch_cannot_skip_closeout_review_and_acknowledgement(): void
+    {
+        $jwt = $this->token();
+        $id = $this->vehicle($jwt);
+        $base = '/api/v1/repasse-cases/'.$id;
+        $this->withToken($jwt)->postJson($base.'/tasks', [
+            'title' => 'Pendência que exige ciência',
+        ])->assertCreated();
+
+        $this->withToken($jwt)->patchJson($base, [
+            'status' => 'archived',
+        ])->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->getJson($base)->assertOk()->assertJsonPath('data.status', 'draft');
+
+        $sha = $this->withToken($jwt)->getJson($base.'/closeout-review')
+            ->assertOk()->json('data.review_sha256');
+        $this->postJson($base.'/complete', [
+            'expected_closeout_sha256' => $sha,
+            'acknowledge_pending' => false,
+        ])->assertUnprocessable()->assertJsonValidationErrors('acknowledge_pending');
+        $this->postJson($base.'/complete', [
+            'expected_closeout_sha256' => $sha,
+            'acknowledge_pending' => true,
+        ])->assertOk()->assertJsonPath('data.status', 'archived');
+    }
+
 }
