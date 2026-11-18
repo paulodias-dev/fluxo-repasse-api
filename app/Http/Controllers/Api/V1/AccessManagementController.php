@@ -22,12 +22,12 @@ final class AccessManagementController extends Controller
         $actor = $request->user('api');
         $keys = $actor->grantedPermissions();
         $roles = Role::query()->with('permissions:id,key')->withCount('users')
-            ->where('slug', '!=', 'platform_admin')->orderBy('name')->get()
+            ->whereIn('slug', ['tenant_admin', 'tenant_user'])->orderBy('name')->get()
             ->map(fn (Role $role) => [
                 'id' => $role->id, 'slug' => $role->slug, 'name' => $role->name,
                 'permissions' => $role->permissions->pluck('key')->values(),
                 'users_count' => $role->users_count,
-                'editable' => $role->permissions->pluck('key')->diff($keys)->isEmpty(),
+                'editable' => false,
             ]);
         return response()->json([
             'roles' => $roles,
