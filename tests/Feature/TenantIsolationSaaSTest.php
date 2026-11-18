@@ -117,6 +117,7 @@ final class TenantIsolationSaaSTest extends TestCase
                 'name' => 'Pessoa da empresa B',
                 'email' => 'empresa-b@example.test',
                 'password' => 'Strong-Passphrase-123!',
+                'password_confirmation' => 'Strong-Passphrase-123!',
                 'role_ids' => [],
             ])->assertCreated()->json('data.id');
         $this->assertDatabaseHas('tenant_users', [
