@@ -19,6 +19,8 @@ final class SaasTenancyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $createLegacyTestTenant = false;
+
     protected function setUp(): void
     {
         parent::setUp();
