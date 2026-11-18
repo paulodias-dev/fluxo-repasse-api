@@ -50,6 +50,21 @@ final class ExternalTransferReportService
      */
     private function assertRecordIntegrity(object $row): void
     {
+        if ($row->proposal_id === null) {
+            $parties = [
+                'payer_party_id' => (int) $row->payer_party_id,
+                'payer_name' => $row->payer_name,
+                'beneficiary_party_id' => (int) $row->beneficiary_party_id,
+                'beneficiary_name' => $row->beneficiary_name,
+            ];
+            $sha = hash('sha256', json_encode(
+                $parties, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE
+            ));
+            if (! is_string($row->participants_sha256)
+                || ! hash_equals($row->participants_sha256, $sha)) {
+                abort(409, 'Participantes originais da declaração com integridade divergente.');
+            }
+        }
         $intent = [
             'case_id' => (int) $row->repasse_case_id,
             'term_id' => $row->term_id === null ? null : (int) $row->term_id,
@@ -638,6 +653,12 @@ final class ExternalTransferReportService
 
                 $payer = $this->directParty($case, $intent['payer_party_id']);
                 $beneficiary = $this->directParty($case, $intent['beneficiary_party_id']);
+                $partiesSha = hash('sha256', json_encode([
+                    'payer_party_id' => (int) $payer->id,
+                    'payer_name' => $payer->name,
+                    'beneficiary_party_id' => (int) $beneficiary->id,
+                    'beneficiary_name' => $beneficiary->name,
+                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
                 $path = 'repasse-external-proofs/'.$case.'/'.Str::uuid().'.'.$extension;
                 $handle = fopen($proof->getRealPath(), 'rb');
                 try {
@@ -661,6 +682,7 @@ final class ExternalTransferReportService
                     'beneficiary_party_id' => (int) $beneficiary->id,
                     'payer_name' => $payer->name,
                     'beneficiary_name' => $beneficiary->name,
+                    'participants_sha256' => $partiesSha,
                     'request_key' => $input['request_key'],
                     'intent_sha256' => $digest,
                     'amount_cents' => $intent['amount_cents'],
