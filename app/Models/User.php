@@ -3,7 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\TenantContext;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -24,6 +26,7 @@ class User extends Authenticatable implements JWTSubject
         'name',
         'email',
         'password',
+        'tenant_id',
     ];
 
     /**
@@ -51,6 +54,18 @@ class User extends Authenticatable implements JWTSubject
             'is_active' => 'boolean',
             'auth_version' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Login/refresh acontecem sem contexto; dentro do tenant, TODAS as
+        // buscas e route bindings por User ficam automaticamente delimitados.
+        static::addGlobalScope('current_tenant', static function (Builder $query): void {
+            $tenant = app(TenantContext::class)->current();
+            if ($tenant !== null) {
+                $query->where('users.tenant_id', $tenant);
+            }
+        });
     }
 
     public function roles(): BelongsToMany
