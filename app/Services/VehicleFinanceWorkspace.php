@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantDatabase;
+
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +15,7 @@ final class VehicleFinanceWorkspace
     public function category(array $data): array
     {
         if (isset($data['category_id'])) {
-            $category = DB::table('repasse_financial_categories')
+            $category = TenantDatabase::table('repasse_financial_categories')
                 ->where('id', $data['category_id'])->lockForUpdate()->first();
             if (! $category || ! $category->is_active || $category->kind !== $data['kind']) {
                 throw ValidationException::withMessages([
@@ -32,7 +34,7 @@ final class VehicleFinanceWorkspace
         // catalogue category. Active catalogue names resolve automatically.
         $slug = Str::slug($name);
         if ($slug !== '') {
-            $registered = DB::table('repasse_financial_categories')
+            $registered = TenantDatabase::table('repasse_financial_categories')
                 ->where('kind', $data['kind'])->where('slug', mb_substr($slug, 0, 100))
                 ->lockForUpdate()->first();
             if ($registered) {
@@ -60,7 +62,7 @@ final class VehicleFinanceWorkspace
 
     public function event(int $case, int $entry, Request $request, string $type, array $details = []): void
     {
-        DB::table('repasse_case_financial_events')->insert([
+        TenantDatabase::table('repasse_case_financial_events')->insert([
             'repasse_case_id' => $case,
             'entry_id' => $entry,
             'actor_user_id' => $request->user('api')->getAuthIdentifier(),
@@ -72,21 +74,21 @@ final class VehicleFinanceWorkspace
 
     public function entry(int $case, int $entry): object
     {
-        return DB::table('repasse_case_financial_entries')
+        return TenantDatabase::table('repasse_case_financial_entries')
             ->where('repasse_case_id', $case)->where('id', $entry)->firstOrFail();
     }
 
     public function withDocuments(int $case, int $entry): array
     {
         $record = $this->entry($case, $entry);
-        $documents = DB::table('repasse_case_financial_documents as l')
+        $documents = TenantDatabase::table('repasse_case_financial_documents as l')
             ->join('repasse_case_evidence as d', 'd.id', '=', 'l.evidence_id')
             ->where('l.repasse_case_id', $case)->where('l.entry_id', $entry)
             ->select('d.id', 'd.original_name', 'd.mime', 'd.size_bytes', 'd.sha256',
                 'd.archived_at', 'd.created_at', 'l.linked_by', 'l.created_at as linked_at')
             ->orderBy('l.id')->get();
 
-        $eventQuery = DB::table('repasse_case_financial_events as e')
+        $eventQuery = TenantDatabase::table('repasse_case_financial_events as e')
             ->leftJoin('users as u', 'u.id', '=', 'e.actor_user_id')
             ->where('e.repasse_case_id', $case)->where('e.entry_id', $entry)
             ->select('e.id', 'e.event_type', 'e.details', 'e.actor_user_id',
@@ -102,7 +104,7 @@ final class VehicleFinanceWorkspace
 
     public function filtered(int $case, array $filters): Builder
     {
-        $query = DB::table('repasse_case_financial_entries')
+        $query = TenantDatabase::table('repasse_case_financial_entries')
             ->where('repasse_case_id', $case);
         if (! ($filters['include_voided'] ?? false)) $query->whereNull('voided_at');
         foreach (['kind', 'status', 'category_id'] as $field) {

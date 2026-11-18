@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantDatabase;
+
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,18 +48,18 @@ final class ScenarioReviewService
         $digest = $this->requestDigest($scenarioId, $input);
         $requestKey = strtolower($input['request_key']);
         $result = DB::transaction(function () use ($scenarioId, $input, $request, $requestKey, $digest, $actor): array {
-            $existing = DB::table('repasse_scenario_reviews')->where('request_key', $requestKey)->first();
+            $existing = TenantDatabase::table('repasse_scenario_reviews')->where('request_key', $requestKey)->first();
             if ($existing) {
                 if (! hash_equals($existing->payload_digest, $digest) || (int) $existing->requested_by !== $actor) {
                     abort(409, 'Chave de solicitação já utilizada em outra revisão.');
                 }
                 return ['id' => (int) $existing->id, 'created' => false];
             }
-            $scenario = DB::table('repasse_scenarios')->where('id', $scenarioId)
+            $scenario = TenantDatabase::table('repasse_scenarios')->where('id', $scenarioId)
                 ->lockForUpdate()->firstOrFail();
             // A concurrent retry may have inserted the key while this request
             // waited for the scenario lock. Use a locking/current read here.
-            $afterLock = DB::table('repasse_scenario_reviews')
+            $afterLock = TenantDatabase::table('repasse_scenario_reviews')
                 ->where('request_key', $requestKey)->lockForUpdate()->first();
             if ($afterLock) {
                 if (! hash_equals($afterLock->payload_digest, $digest) || (int) $afterLock->requested_by !== $actor) {
@@ -65,14 +67,14 @@ final class ScenarioReviewService
                 }
                 return ['id' => (int) $afterLock->id, 'created' => false];
             }
-            $case = DB::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
+            $case = TenantDatabase::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
             if ($scenario->archived_at !== null || $case->status !== 'draft') {
                 throw ValidationException::withMessages(['scenario_id' => 'O cenário e o dossiê precisam estar abertos.']);
             }
             if ((int) $scenario->revision !== (int) $input['scenario_revision']) {
                 abort(409, 'Revisão desatualizada. Recarregue o cenário.');
             }
-            $previous = DB::table('repasse_scenario_reviews')
+            $previous = TenantDatabase::table('repasse_scenario_reviews')
                 ->where('scenario_id', $scenarioId)
                 ->where('scenario_revision', $scenario->revision)
                 // After changes_requested, the operator may submit the SAME scenario
@@ -87,7 +89,7 @@ final class ScenarioReviewService
                     throw ValidationException::withMessages(['assigned_to' => 'Solicitante/criador não pode revisar a própria proposta.']);
                 }
             }
-            $id = DB::table('repasse_scenario_reviews')->insertGetId([
+            $id = TenantDatabase::table('repasse_scenario_reviews')->insertGetId([
                 'scenario_id' => $scenarioId,
                 'request_key' => $requestKey, 'payload_digest' => $digest,
                 'scenario_revision' => $scenario->revision,
@@ -118,9 +120,9 @@ final class ScenarioReviewService
             if ($review->status !== 'pending') {
                 throw ValidationException::withMessages(['status' => 'Esta solicitação já está encerrada.']);
             }
-            $scenario = DB::table('repasse_scenarios')->where('id', $review->scenario_id)
+            $scenario = TenantDatabase::table('repasse_scenarios')->where('id', $review->scenario_id)
                 ->lockForUpdate()->firstOrFail();
-            $case = DB::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
+            $case = TenantDatabase::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
             if ($this->stale($review, $scenario, $case)) abort(409, 'O cenário foi alterado ou arquivado. Reenvie uma revisão atual.');
             if ($actor === (int) $review->requested_by || $actor === (int) $scenario->created_by) {
                 abort(403, 'Segregação de funções: não é permitido revisar a própria proposta.');
@@ -128,7 +130,7 @@ final class ScenarioReviewService
             if ($review->assigned_to !== null && $actor !== (int) $review->assigned_to) {
                 abort(403, 'Esta revisão está atribuída a outra pessoa.');
             }
-            DB::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
+            TenantDatabase::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
                 'status' => $input['decision'], 'revision' => (int) $review->revision + 1,
                 'decision_note' => trim($input['note']),
                 'decided_at' => now(), 'decided_by' => $actor, 'updated_at' => now(),
@@ -146,7 +148,7 @@ final class ScenarioReviewService
     {
         $actor = (int) $request->user('api')->id;
         DB::transaction(function () use ($reviewId, $input, $actor): void {
-            $review = DB::table('repasse_scenario_reviews')->where('id', $reviewId)
+            $review = TenantDatabase::table('repasse_scenario_reviews')->where('id', $reviewId)
                 ->lockForUpdate()->firstOrFail();
             $this->appendEvent($reviewId, 'comment', $actor, trim($input['body']), [
                 'review_status' => $review->status,
@@ -164,9 +166,9 @@ final class ScenarioReviewService
             if ($review->status !== 'pending') {
                 throw ValidationException::withMessages(['status' => 'Somente uma revisão pendente pode ser atribuída.']);
             }
-            $scenario = DB::table('repasse_scenarios')->where('id', $review->scenario_id)
+            $scenario = TenantDatabase::table('repasse_scenarios')->where('id', $review->scenario_id)
                 ->lockForUpdate()->firstOrFail();
-            $case = DB::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
+            $case = TenantDatabase::table('repasse_cases')->where('id', $scenario->repasse_case_id)->firstOrFail();
             if ($this->stale($review, $scenario, $case)) abort(409, 'Revisão desatualizada.');
             $assignee = isset($input['assigned_to']) ? (int) $input['assigned_to'] : null;
             if ($assignee !== null) {
@@ -176,7 +178,7 @@ final class ScenarioReviewService
                 }
             }
             if ($assignee === ($review->assigned_to === null ? null : (int) $review->assigned_to)) return;
-            DB::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
+            TenantDatabase::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
                 'assigned_to' => $assignee, 'revision' => (int) $review->revision + 1,
                 'updated_at' => now(),
             ]);
@@ -197,7 +199,7 @@ final class ScenarioReviewService
             if ($review->status !== 'pending') {
                 throw ValidationException::withMessages(['status' => 'Somente revisões pendentes podem ser retiradas.']);
             }
-            DB::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
+            TenantDatabase::table('repasse_scenario_reviews')->where('id', $reviewId)->update([
                 'status' => 'withdrawn', 'revision' => (int) $review->revision + 1,
                 'updated_at' => now(),
             ]);
@@ -208,7 +210,7 @@ final class ScenarioReviewService
 
     private function lock(int $id, int $revision): object
     {
-        $review = DB::table('repasse_scenario_reviews')->where('id', $id)->lockForUpdate()->firstOrFail();
+        $review = TenantDatabase::table('repasse_scenario_reviews')->where('id', $id)->lockForUpdate()->firstOrFail();
         if ((int) $review->revision !== $revision) abort(409, 'Revisão de análise desatualizada. Atualize a página.');
         return $review;
     }
@@ -224,7 +226,7 @@ final class ScenarioReviewService
     private function appendEvent(int $reviewId, string $event, int $actor, ?string $body, array $details): void
     {
         // Call only while holding the parent review row lock; the next sequence is serialized.
-        $previous = DB::table('repasse_scenario_review_events')
+        $previous = TenantDatabase::table('repasse_scenario_review_events')
             ->where('review_id', $reviewId)->orderByDesc('sequence')->first();
         $sequence = $previous ? (int) $previous->sequence + 1 : 1;
         $previousHash = $previous?->event_hash;
@@ -235,7 +237,7 @@ final class ScenarioReviewService
             'previous_hash' => $previousHash,
         ];
         $hash = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        DB::table('repasse_scenario_review_events')->insert([
+        TenantDatabase::table('repasse_scenario_review_events')->insert([
             'review_id' => $reviewId, 'sequence' => $sequence,
             'event_type' => $event, 'actor_user_id' => $actor,
             'body' => $body, 'details' => json_encode($details, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
@@ -245,7 +247,7 @@ final class ScenarioReviewService
 
     private function caseEvent(int $caseId, int $actor, string $type): void
     {
-        DB::table('repasse_case_events')->insert([
+        TenantDatabase::table('repasse_case_events')->insert([
             'repasse_case_id' => $caseId, 'actor_user_id' => $actor,
             'event_type' => $type, 'created_at' => now(),
         ]);
@@ -253,7 +255,7 @@ final class ScenarioReviewService
 
     public function show(int $reviewId): array
     {
-        $row = DB::table('repasse_scenario_reviews as r')
+        $row = TenantDatabase::table('repasse_scenario_reviews as r')
             ->join('repasse_scenarios as s', 's.id', '=', 'r.scenario_id')
             ->join('repasse_cases as c', 'c.id', '=', 's.repasse_case_id')
             ->leftJoin('users as requester', 'requester.id', '=', 'r.requested_by')
@@ -322,7 +324,7 @@ final class ScenarioReviewService
         $this->show($reviewId);
         $previousHash = null;
         $expectedSequence = 1;
-        foreach (DB::table('repasse_scenario_review_events')
+        foreach (TenantDatabase::table('repasse_scenario_review_events')
             ->where('review_id', $reviewId)->orderBy('sequence')->cursor() as $event) {
             $details = json_decode($event->details, true, 512, JSON_THROW_ON_ERROR);
             $payload = [
