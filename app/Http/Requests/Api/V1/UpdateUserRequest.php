@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Support\TenantContext;
 
 final class UpdateUserRequest extends FormRequest
 {
@@ -31,7 +32,7 @@ final class UpdateUserRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($this->route('user')?->getKey())],
             'roles' => ['prohibited'],
             'role_ids' => ['sometimes', 'array', 'max:20'],
-            'role_ids.*' => ['required', 'integer', 'distinct', Rule::exists('roles', 'id')],
+            'role_ids.*' => ['required', 'integer', 'distinct', Rule::exists('roles', 'id')->where('tenant_id', TenantContext::requireId())],
             'permissions' => ['prohibited'],
             'password' => ['prohibited'],
             'is_active' => ['prohibited'],
