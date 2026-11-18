@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -44,7 +45,7 @@ final class CommercialReviewService
     {
         // Any requester, current creator/editor, or author of the frozen version
         // is barred from deciding or assigning the review to themself.
-        $versionAuthor = DB::table('repasse_commercial_term_versions')
+        $versionAuthor = TenantDB::table('repasse_commercial_term_versions')
             ->where('term_id', $term->id)->where('revision', $review->term_revision)
             ->value('actor_user_id');
         return in_array($actor, array_filter([
@@ -54,7 +55,7 @@ final class CommercialReviewService
 
     private function row(int $id, ?int $revision = null): object
     {
-        $review = DB::table('repasse_commercial_reviews')
+        $review = TenantDB::table('repasse_commercial_reviews')
             ->where('id', $id)->lockForUpdate()->firstOrFail();
         if ($revision !== null && (int) $review->revision !== $revision) {
             abort(409, 'Versão da análise desatualizada. Recarregue antes de continuar.');
@@ -64,7 +65,7 @@ final class CommercialReviewService
 
     private function current(object $review, bool $requireActive = true): array
     {
-        $term = DB::table('repasse_commercial_terms')
+        $term = TenantDB::table('repasse_commercial_terms')
             ->where('id', $review->term_id)->lockForUpdate()->firstOrFail();
         if ((int) $term->revision !== (int) $review->term_revision
             || ! hash_equals($term->content_sha256, $review->term_sha256)
@@ -80,7 +81,7 @@ final class CommercialReviewService
     private function event(int $review, string $type, int $actor, ?string $body, array $details): void
     {
         // Call only when holding the review lock or immediately after inserting it.
-        $prior = DB::table('repasse_commercial_review_events')
+        $prior = TenantDB::table('repasse_commercial_review_events')
             ->where('review_id', $review)->orderByDesc('sequence')->first();
         $sequence = $prior ? (int) $prior->sequence + 1 : 1;
         $payload = [
@@ -88,7 +89,7 @@ final class CommercialReviewService
             'actor_user_id' => $actor, 'body' => $body, 'details' => $details,
             'previous_hash' => $prior?->event_hash,
         ];
-        DB::table('repasse_commercial_review_events')->insert([
+        TenantDB::table('repasse_commercial_review_events')->insert([
             'review_id' => $review, 'sequence' => $sequence,
             'event_type' => $type, 'actor_user_id' => $actor,
             'body' => $body,
@@ -105,10 +106,10 @@ final class CommercialReviewService
         $digest = $this->digest($data);
         $requestKey = strtolower($data['request_key']);
         $result = DB::transaction(function () use ($data, $request, $actor, $digest, $requestKey): array {
-            $term = DB::table('repasse_commercial_terms')->where('id', $data['term_id'])
+            $term = TenantDB::table('repasse_commercial_terms')->where('id', $data['term_id'])
                 ->lockForUpdate()->firstOrFail();
             if ((int) $term->repasse_case_id !== (int) $data['case_id']) abort(404);
-            $existing = DB::table('repasse_commercial_reviews')->where('request_key', $requestKey)->first();
+            $existing = TenantDB::table('repasse_commercial_reviews')->where('request_key', $requestKey)->first();
             if ($existing) {
                 if (! hash_equals($existing->payload_digest, $digest)
                     || (int) $existing->requested_by !== $actor) {
@@ -122,7 +123,7 @@ final class CommercialReviewService
             if ($this->incompatible((int) $data['case_id'], (int) $data['term_id'])) {
                 abort(409, 'Minuta e vínculos devem estar ativos e atuais antes de solicitar conferência.');
             }
-            $open = DB::table('repasse_commercial_reviews')
+            $open = TenantDB::table('repasse_commercial_reviews')
                 ->where('term_id', $term->id)->where('term_revision', $term->revision)
                 ->whereIn('status', ['pending', 'reviewed'])->exists();
             if ($open) abort(409, 'Esta versão já foi enviada ou conferida. Edite ou retire a análise existente.');
@@ -138,7 +139,7 @@ final class CommercialReviewService
                 }
             }
             $version = $this->terms->version((int) $term->repasse_case_id, (int) $term->id, (int) $term->revision);
-            $id = DB::table('repasse_commercial_reviews')->insertGetId([
+            $id = TenantDB::table('repasse_commercial_reviews')->insertGetId([
                 'term_id' => $term->id, 'request_key' => $requestKey,
                 'payload_digest' => $digest, 'term_revision' => $term->revision,
                 'term_sha256' => $term->content_sha256,
@@ -175,7 +176,7 @@ final class CommercialReviewService
                 }
             }
             if ($assigned === ($review->assigned_to === null ? null : (int) $review->assigned_to)) return;
-            DB::table('repasse_commercial_reviews')->where('id', $id)->update([
+            TenantDB::table('repasse_commercial_reviews')->where('id', $id)->update([
                 'assigned_to' => $assigned, 'revision' => $review->revision + 1,
                 'updated_at' => now(),
             ]);
@@ -195,7 +196,7 @@ final class CommercialReviewService
             if ($review->status !== 'pending') {
                 throw ValidationException::withMessages(['status' => 'Somente análises pendentes podem receber comentários.']);
             }
-            $term = DB::table('repasse_commercial_terms')->where('id', $review->term_id)->firstOrFail();
+            $term = TenantDB::table('repasse_commercial_terms')->where('id', $review->term_id)->firstOrFail();
             $this->event($id, 'comment', $actor, trim($input['body']), ['status' => $review->status]);
             $this->cases->event((int) $term->repasse_case_id, $request, 'commercial_review_commented');
         }, 3);
@@ -220,7 +221,7 @@ final class CommercialReviewService
                     'decision' => 'Campos e vínculos precisam estar completos para registrar conferência documental.',
                 ]);
             }
-            DB::table('repasse_commercial_reviews')->where('id', $id)->update([
+            TenantDB::table('repasse_commercial_reviews')->where('id', $id)->update([
                 'status' => $input['decision'], 'decision_note' => trim($input['note']),
                 'decided_by' => $actor, 'decided_at' => now(),
                 'revision' => $review->revision + 1, 'updated_at' => now(),
@@ -244,11 +245,11 @@ final class CommercialReviewService
             if ($review->status !== 'pending') {
                 throw ValidationException::withMessages(['status' => 'Somente análises pendentes podem ser retiradas.']);
             }
-            DB::table('repasse_commercial_reviews')->where('id', $id)->update([
+            TenantDB::table('repasse_commercial_reviews')->where('id', $id)->update([
                 'status' => 'withdrawn', 'revision' => $review->revision + 1, 'updated_at' => now(),
             ]);
             $this->event($id, 'withdrawn', $actor, trim($input['note']), []);
-            $term = DB::table('repasse_commercial_terms')->where('id', $review->term_id)->firstOrFail();
+            $term = TenantDB::table('repasse_commercial_terms')->where('id', $review->term_id)->firstOrFail();
             $this->cases->event((int) $term->repasse_case_id, $request, 'commercial_review_withdrawn');
         }, 3);
         return ['data' => $this->show($id)];
@@ -256,7 +257,7 @@ final class CommercialReviewService
 
     private function base(): \Illuminate\Database\Query\Builder
     {
-        return DB::table('repasse_commercial_reviews as r')
+        return TenantDB::table('repasse_commercial_reviews as r')
             ->join('repasse_commercial_terms as t', 't.id', '=', 'r.term_id')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->leftJoin('repasse_distribution_templates as m', 'm.id', '=', 't.template_id')
@@ -363,7 +364,7 @@ final class CommercialReviewService
     public function events(int $id): mixed
     {
         $this->show($id);
-        return DB::table('repasse_commercial_review_events')->where('review_id', $id)
+        return TenantDB::table('repasse_commercial_review_events')->where('review_id', $id)
             ->select('sequence', 'event_type', 'actor_user_id', 'body',
                 'previous_hash', 'event_hash', 'created_at')
             ->orderBy('sequence')->paginate(25);
@@ -374,7 +375,7 @@ final class CommercialReviewService
         $snapshot = $this->snapshot($id);
         $expected = 1;
         $previous = null;
-        foreach (DB::table('repasse_commercial_review_events')
+        foreach (TenantDB::table('repasse_commercial_review_events')
             ->where('review_id', $id)->orderBy('sequence')->cursor() as $event) {
             $details = json_decode($event->details, true, 512, JSON_THROW_ON_ERROR);
             $payload = [
