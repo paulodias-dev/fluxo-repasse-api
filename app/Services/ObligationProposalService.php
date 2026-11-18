@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -44,7 +45,7 @@ final class ObligationProposalService
 
     private function row(int $case, int $term, int $proposal): object
     {
-        return DB::table('repasse_obligation_proposals')
+        return TenantDB::table('repasse_obligation_proposals')
             ->where('id', $proposal)->where('repasse_case_id', $case)
             ->where('term_id', $term)->firstOrFail();
     }
@@ -83,7 +84,7 @@ final class ObligationProposalService
         $this->preparation->show($case, $term);
 
         return [
-            'parties' => DB::table('repasse_case_parties as cp')
+            'parties' => TenantDB::table('repasse_case_parties as cp')
                 ->join('parties as p', 'p.id', '=', 'cp.party_id')
                 ->where('cp.repasse_case_id', $case)->where('p.is_active', true)
                 ->orderBy('p.name')->get(['p.id', 'p.name'])
@@ -98,7 +99,7 @@ final class ObligationProposalService
     {
         $current = $this->preparation->show($case, $term);
 
-        return DB::table('repasse_obligation_proposals')
+        return TenantDB::table('repasse_obligation_proposals')
             ->where('repasse_case_id', $case)->where('term_id', $term)
             ->select('id', 'preparation_record_id', 'payer_party_id', 'created_by',
                 'created_at', 'snapshot_sha256', 'source_snapshot_sha256')
@@ -163,15 +164,15 @@ final class ObligationProposalService
         $intent = $this->sha(['case_id' => $case, 'term_id' => $term, 'input' => $input]);
 
         return DB::transaction(function () use ($case, $term, $input, $actor, $intent): array {
-            $vehicle = DB::table('repasse_cases')->where('id', $case)
+            $vehicle = TenantDB::table('repasse_cases')->where('id', $case)
                 ->lockForUpdate()->first(['id', 'status']);
-            $termRow = DB::table('repasse_commercial_terms')
+            $termRow = TenantDB::table('repasse_commercial_terms')
                 ->where('id', $term)->where('repasse_case_id', $case)
                 ->lockForUpdate()->first(['id', 'archived_at']);
             if (! $vehicle || ! $termRow) {
                 abort(404);
             }
-            $previous = DB::table('repasse_obligation_proposals')
+            $previous = TenantDB::table('repasse_obligation_proposals')
                 ->where('request_key', $input['request_key'])->first();
             if ($previous) {
                 if ((int) $previous->repasse_case_id !== $case
@@ -193,7 +194,7 @@ final class ObligationProposalService
                 || $record['stale']) {
                 abort(409, 'Apuração alterada ou desatualizada. Revise a fonte.');
             }
-            $payer = DB::table('repasse_case_parties as cp')
+            $payer = TenantDB::table('repasse_case_parties as cp')
                 ->join('parties as p', 'p.id', '=', 'cp.party_id')
                 ->where('cp.repasse_case_id', $case)
                 ->where('p.id', $input['payer_party_id'])->where('p.is_active', true)
@@ -244,7 +245,7 @@ final class ObligationProposalService
                 'payment_enabled' => false,
                 'executable' => false,
             ];
-            $id = DB::table('repasse_obligation_proposals')->insertGetId([
+            $id = TenantDB::table('repasse_obligation_proposals')->insertGetId([
                 'repasse_case_id' => $case,
                 'term_id' => $term,
                 'preparation_record_id' => $record['id'],
