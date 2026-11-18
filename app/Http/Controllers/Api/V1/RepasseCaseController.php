@@ -135,6 +135,81 @@ final class RepasseCaseController extends Controller
         ])->header('Cache-Control', 'no-store, private');
     }
 
+    private function hasOpenCloseoutItems(array $review): bool
+    {
+        return (int) $review['open_tasks_count']
+            + (int) $review['pending_checklist_count']
+            + (int) $review['expense_planned_count']
+            + (int) $review['income_planned_count'] > 0;
+    }
+
+    /**
+     * Deve ser invocado DENTRO de transação para impedir o TOCTOU entre
+     * conferir pendências e gravar o estado do veículo.
+     * CaseOperations::editable() dos demais módulos bloqueia a mesma linha.
+     */
+    private function verifyCloseout(int $case, string $expectedSha, bool $acknowledge): array
+    {
+        $vehicle = DB::table('repasse_cases')->where('id', $case)
+            ->lockForUpdate()->first();
+        if (! $vehicle) {
+            abort(404);
+        }
+        if ($vehicle->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'status' => 'Veículo já concluído. Reabra para editar.',
+            ]);
+        }
+
+        $review = $this->closeoutSnapshot($case);
+        if (! hash_equals($this->closeoutHash($review), $expectedSha)) {
+            abort(409, 'Os custos ou pendências mudaram. Confira novamente antes de concluir.');
+        }
+        if ($this->hasOpenCloseoutItems($review) && ! $acknowledge) {
+            throw ValidationException::withMessages([
+                'acknowledge_pending' => 'Confirme a ciência das pendências antes de concluir.',
+            ]);
+        }
+
+        return $review;
+    }
+
+    /**
+     * Macro 47 — concluir a ficha (com ou sem venda) numa transação.
+     * Continua possível encerrar veículo sem venda registrada.
+     */
+    public function completeVehicle(Request $request, int $case): JsonResponse
+    {
+        $this->rejectUnknown($request, [
+            'expected_closeout_sha256', 'acknowledge_pending',
+        ]);
+        $data = $request->validate([
+            'expected_closeout_sha256' => ['required', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'acknowledge_pending' => ['required', 'boolean'],
+        ]);
+        $pending = DB::transaction(function () use ($request, $case, $data): bool {
+            $review = $this->verifyCloseout(
+                $case, $data['expected_closeout_sha256'], $data['acknowledge_pending']
+            );
+            DB::table('repasse_cases')->where('id', $case)->update([
+                'status' => 'archived',
+                'updated_by' => $request->user('api')->id,
+                'updated_at' => now(),
+            ]);
+            $this->record($case, $request, 'case_archived');
+
+            return $this->hasOpenCloseoutItems($review);
+        }, 3);
+
+        return response()->json([
+            'data' => $this->details($case),
+            'pending_acknowledged' => $pending,
+            'financial_authorization' => false,
+            'payment_executed' => false,
+            'obligation_created' => false,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     /**
      * Macro 47 — registrar/revisar venda e concluir o acompanhamento
      * atomicamente. NUNCA lança receita extra, dívida, quitação ou repasse.
@@ -154,33 +229,8 @@ final class RepasseCaseController extends Controller
         ]);
 
         $result = DB::transaction(function () use ($request, $case, $data): array {
-            // Todos os escritores de financeiro, checklist, tarefas e anexos
-            // também obtêm lock da linha pai via CaseOperations::editable().
-            $vehicle = DB::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
-            if (! $vehicle) {
-                abort(404);
-            }
-            if ($vehicle->status !== 'draft') {
-                throw ValidationException::withMessages([
-                    'status' => 'Este veículo está concluído. Reabra para revisar a venda.',
-                ]);
-            }
-
-            $review = $this->closeoutSnapshot($case);
-            $actualSha = $this->closeoutHash($review);
-            if (! hash_equals($actualSha, $data['expected_closeout_sha256'])) {
-                abort(409, 'Os custos ou pendências do veículo mudaram. Confira novamente antes de concluir.');
-            }
-
-            $pending = (int) $review['open_tasks_count']
-                + (int) $review['pending_checklist_count']
-                + (int) $review['expense_planned_count']
-                + (int) $review['income_planned_count'];
-            if ($pending > 0 && ! $data['acknowledge_pending']) {
-                throw ValidationException::withMessages([
-                    'acknowledge_pending' => 'Confirme que viu as pendências antes de concluir.',
-                ]);
-            }
+            $review = $this->verifyCloseout($case, $data['expected_closeout_sha256'],
+                $data['acknowledge_pending']);
 
             $this->assertSaleCoherence(
                 $data['sold_on'], $vehicle->purchased_on, $data['sale_amount_cents']
@@ -201,7 +251,7 @@ final class RepasseCaseController extends Controller
 
             return [
                 'review' => $review,
-                'pending_acknowledged' => $pending > 0,
+                'pending_acknowledged' => $this->hasOpenCloseoutItems($review),
             ];
         }, 3);
 
