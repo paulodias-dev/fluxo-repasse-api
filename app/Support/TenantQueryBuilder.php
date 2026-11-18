@@ -39,6 +39,17 @@ final class TenantQueryBuilder extends Builder
         return $values;
     }
 
+    public function update(array $values)
+    {
+        // Even a future service passing tenant_id in an update cannot move
+        // a row into another tenant.
+        if (array_key_exists('tenant_id', $values)) {
+            $values['tenant_id'] = $this->tenantId;
+        }
+
+        return parent::update($values);
+    }
+
     public function insert(array $values)
     {
         return parent::insert($this->applyTenant($values));
