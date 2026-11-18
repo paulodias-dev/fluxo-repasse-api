@@ -3,6 +3,7 @@
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Tenant;
 use App\Services\AuthEventRecorder;
 use App\Support\OperationalAccessCatalog;
 use App\Support\OperationalAcceptance;
@@ -15,7 +16,49 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
+Artisan::command('repasse:tenant:create {slug : Identificador único da empresa} {name : Razão/nome da empresa} {email : E-mail inicial do administrador}', function (): int {
+    $slug = Str::lower(trim((string) $this->argument('slug')));
+    $name = trim((string) $this->argument('name'));
+    $email = Str::lower(trim((string) $this->argument('email')));
+    $adminName = trim((string) $this->ask('Nome do administrador'));
+    $password = (string) $this->secret('Senha inicial (mín. 12, maiúscula/minúscula/número/símbolo)');
+
+    $validator = Validator::make(compact('slug', 'name', 'email', 'password', 'adminName'), [
+        'slug' => ['required', 'regex:/^[a-z0-9][a-z0-9-]{2,99}$/', 'unique:tenants,slug'],
+        'name' => ['required', 'string', 'min:2', 'max:180'],
+        'adminName' => ['required', 'string', 'min:2', 'max:255'],
+        'email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')],
+        'password' => ['required', Password::min(12)->mixedCase()->numbers()->symbols()],
+    ]);
+    if ($validator->fails()) {
+        foreach ($validator->errors()->all() as $error) $this->error($error);
+        return Command::FAILURE;
+    }
+    app(AdminUserSeeder::class)->run();
+
+    DB::transaction(function () use ($slug, $name, $email, $adminName, $password): void {
+        $tenant = Tenant::query()->create(['slug' => $slug, 'name' => $name, 'is_active' => true]);
+        $admin = User::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => $adminName,
+            'email' => $email,
+            'password' => $password,
+        ]);
+        $role = Role::query()->where('slug', 'tenant_admin')->firstOrFail();
+        $admin->roles()->sync([$role->id]);
+    });
+
+    $this->info('Empresa e primeiro administrador criados. Nenhum dado de outra empresa foi compartilhado.');
+    return Command::SUCCESS;
+})->purpose('Provisionar uma empresa isolada e seu administrador inicial, sem senhas em argumentos');
+
 Artisan::command('repasse:user:create', function (): int {
+    $slug = Str::lower(trim((string) $this->ask('Slug da empresa existente')));
+    $tenant = Tenant::query()->where('slug', $slug)->where('is_active', true)->first();
+    if (! $tenant) {
+        $this->error('Empresa não localizada ou desativada.');
+        return Command::FAILURE;
+    }
     $name = trim((string) $this->ask('Nome completo'));
     $email = Str::lower(trim((string) $this->ask('E-mail')));
     $password = (string) $this->secret('Senha (mínimo 12 caracteres, maiúscula, minúscula, número e símbolo)');
@@ -35,8 +78,12 @@ Artisan::command('repasse:user:create', function (): int {
         return Command::FAILURE;
     }
 
-    User::query()->create($data);
-    $this->info('Usuário criado. Nenhuma permissão financeira foi concedida.');
+    DB::transaction(function () use ($data, $tenant): void {
+        $user = User::query()->create([...$data, 'tenant_id' => $tenant->id]);
+        $role = Role::query()->where('slug', 'tenant_user')->firstOrFail();
+        $user->roles()->sync([$role->id]);
+    });
+    $this->info('Usuário funcional da empresa criado. Sem acesso a outras empresas.');
 
     return Command::SUCCESS;
 })->purpose('Criar usuário inicial sem credenciais fixas ou cadastro público');
