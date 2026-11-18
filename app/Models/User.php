@@ -4,6 +4,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use App\Support\TenantContext;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -55,7 +58,40 @@ class User extends Authenticatable implements JWTSubject
 
     public function roles(): BelongsToMany
     {
+        if (TenantContext::active() && DB::table('tenants')->count() > 1) {
+            return $this->belongsToMany(Role::class, 'tenant_role_user')
+                ->wherePivot('tenant_id', TenantContext::id())
+                ->withPivotValue('tenant_id', TenantContext::id());
+        }
+
         return $this->belongsToMany(Role::class);
+    }
+
+    public function belongsToLegacyPlatformAdmin(): bool
+    {
+        return $this->belongsToMany(Role::class, 'role_user')
+            ->where('slug', 'platform_admin')->exists();
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (User $user): void {
+            if (! Schema::hasTable('tenant_users')) {
+                return;
+            }
+            // Novos usuários herdam APENAS o tenant corrente; na instalação
+            // de empresa única, preserva os seeders/factories antigos.
+            $id = TenantContext::active() ? TenantContext::id()
+                : (DB::table('tenants')->count() === 1
+                    ? (int) DB::table('tenants')->value('id') : null);
+            if ($id) {
+                DB::table('tenant_users')->updateOrInsert(
+                    ['tenant_id' => $id, 'user_id' => $user->id],
+                    ['membership_role' => 'member', 'is_active' => true,
+                        'created_at' => now(), 'updated_at' => now()]
+                );
+            }
+        });
     }
 
     public function hasPermission(string $permission): bool
