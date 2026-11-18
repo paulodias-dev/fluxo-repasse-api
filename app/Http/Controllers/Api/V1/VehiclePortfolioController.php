@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDB;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VehiclePortfolioIndexRequest;
 use Illuminate\Database\Query\Builder;
@@ -287,7 +288,7 @@ final class VehiclePortfolioController extends Controller
 
     private function joined(string $today): Builder
     {
-        $tasks = DB::table('repasse_case_tasks')
+        $tasks = TenantDB::table('repasse_case_tasks')
             ->select('repasse_case_id')
             ->selectRaw("SUM(CASE WHEN status IN ('pending', 'doing') THEN 1 ELSE 0 END) AS open_tasks")
             ->selectRaw(
@@ -295,17 +296,17 @@ final class VehiclePortfolioController extends Controller
                 [$today]
             )->groupBy('repasse_case_id');
 
-        $checks = DB::table('repasse_case_checklist')
+        $checks = TenantDB::table('repasse_case_checklist')
             ->select('repasse_case_id')
             ->selectRaw('COUNT(*) AS pending_checklist')
             ->whereNull('checked_at')->groupBy('repasse_case_id');
 
-        $documents = DB::table('repasse_case_evidence')
+        $documents = TenantDB::table('repasse_case_evidence')
             ->select('repasse_case_id')
             ->selectRaw('COUNT(*) AS documents_count')
             ->whereNull('archived_at')->groupBy('repasse_case_id');
 
-        $money = DB::table('repasse_case_financial_entries')
+        $money = TenantDB::table('repasse_case_financial_entries')
             ->select('repasse_case_id')->whereNull('voided_at')
             ->selectRaw("SUM(CASE WHEN kind = 'expense' AND status = 'realized'
                 THEN amount_cents ELSE 0 END) AS realized_expenses")
@@ -317,7 +318,7 @@ final class VehiclePortfolioController extends Controller
                 THEN amount_cents ELSE 0 END) AS planned_income")
             ->groupBy('repasse_case_id');
 
-        return DB::table('repasse_cases as c')
+        return TenantDB::table('repasse_cases as c')
             ->leftJoinSub($tasks, 't', static fn ($join) => $join->on('t.repasse_case_id', '=', 'c.id'))
             ->leftJoinSub($checks, 'k', static fn ($join) => $join->on('k.repasse_case_id', '=', 'c.id'))
             ->leftJoinSub($documents, 'd', static fn ($join) => $join->on('d.repasse_case_id', '=', 'c.id'))
