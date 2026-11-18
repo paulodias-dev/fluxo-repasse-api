@@ -52,9 +52,14 @@ final class ExternalTransferReportService
     {
         $intent = [
             'case_id' => (int) $row->repasse_case_id,
-            'term_id' => (int) $row->term_id,
-            'proposal_id' => (int) $row->proposal_id,
+            'term_id' => $row->term_id === null ? null : (int) $row->term_id,
+            'proposal_id' => $row->proposal_id === null ? null : (int) $row->proposal_id,
             'expected_proposal_sha256' => $row->proposal_sha256,
+            // Macro 49: no relato direto, pagador declarado também faz parte
+            // do hash; preserva a ordem do digest antigo se há proposta.
+            ...($row->proposal_id === null ? [
+                'payer_party_id' => (int) $row->payer_party_id,
+            ] : []),
             'beneficiary_party_id' => (int) $row->beneficiary_party_id,
             'amount_cents' => (int) $row->amount_cents,
             'transferred_on' => (string) $row->transferred_on,
@@ -69,14 +74,28 @@ final class ExternalTransferReportService
         }
     }
 
-    private function item(object $row, array $proposal): array
+    private function item(object $row, ?array $proposal): array
     {
         $this->assertRecordIntegrity($row);
-        $beneficiary = $this->lines($proposal)[(int) $row->beneficiary_party_id] ?? null;
-        if (! $beneficiary
-            || (int) $row->payer_party_id !== (int) $proposal['snapshot']['payer_party_id']
-            || ! hash_equals($row->proposal_sha256, $proposal['snapshot_sha256'])) {
-            abort(409, 'Registro externo com referência documental inconsistente.');
+        if ($proposal === null) {
+            if ($row->proposal_id !== null || $row->term_id !== null
+                || $row->proposal_sha256 !== null
+                || ! $row->payer_name || ! $row->beneficiary_name) {
+                abort(409, 'Relato direto com referência ou participantes inconsistentes.');
+            }
+            $payerName = $row->payer_name;
+            $beneficiaryName = $row->beneficiary_name;
+            $hypothetical = null;
+        } else {
+            $beneficiary = $this->lines($proposal)[(int) $row->beneficiary_party_id] ?? null;
+            if (! $beneficiary
+                || (int) $row->payer_party_id !== (int) $proposal['snapshot']['payer_party_id']
+                || ! hash_equals($row->proposal_sha256, $proposal['snapshot_sha256'])) {
+                abort(409, 'Registro externo com referência documental inconsistente.');
+            }
+            $payerName = $proposal['snapshot']['payer_party_name'];
+            $beneficiaryName = $beneficiary['party_name'] ?? ('Participante #'.$row->beneficiary_party_id);
+            $hypothetical = (int) $beneficiary['proposed_amount_cents'];
         }
 
         return [
@@ -85,10 +104,10 @@ final class ExternalTransferReportService
             'term_id' => (int) $row->term_id,
             'proposal_id' => (int) $row->proposal_id,
             'payer_party_id' => (int) $row->payer_party_id,
-            'payer_party_name' => $proposal['snapshot']['payer_party_name'],
+            'payer_party_name' => $payerName,
             'beneficiary_party_id' => (int) $row->beneficiary_party_id,
-            'beneficiary_party_name' => $beneficiary['party_name'] ?? ('Participante #'.$row->beneficiary_party_id),
-            'proposed_reference_cents' => (int) $beneficiary['proposed_amount_cents'],
+            'beneficiary_party_name' => $beneficiaryName,
+            'proposed_reference_cents' => $hypothetical,
             'amount_cents' => (int) $row->amount_cents,
             'transferred_on' => (string) $row->transferred_on,
             'external_reference' => $row->external_reference,
