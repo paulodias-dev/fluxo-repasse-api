@@ -4,6 +4,7 @@ namespace Tests;
 
 use App\Support\TenantContext;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,7 +20,9 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        if (! $this->createLegacyTestTenant || ! Schema::hasTable('tenants')) {
+        if (! $this->createLegacyTestTenant ||
+            ! in_array(RefreshDatabase::class, class_uses_recursive(static::class), true) ||
+            ! Schema::hasTable('tenants')) {
             return;
         }
 
