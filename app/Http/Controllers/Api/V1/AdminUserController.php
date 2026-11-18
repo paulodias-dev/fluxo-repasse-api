@@ -9,6 +9,7 @@ use App\Http\Requests\Api\V1\UpdateUserRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -78,6 +79,7 @@ final class AdminUserController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
+                'tenant_id' => app(TenantContext::class)->id(),
             ]);
 
             if ($assigningRoles && count($roleIds) > 0) {
