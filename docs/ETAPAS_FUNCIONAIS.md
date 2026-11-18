@@ -174,3 +174,10 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Concluir sem venda continua permitido, mas com token de conferência e lock da API; ciência de pendências somente quando presentes.
 - [x] API, React, testes feature, regressão mobile e OpenAPI 1.23, todos na mesma etapa.
 - [ ] QA real e homologação após código MVP; regras bancárias e alçadas monetárias não aprovadas.
+
+## Macro 48 — Repasses externos já realizados, declarados com comprovante
+- [x] Declaração manual após venda datada de favorecido real da proposta, com arquivo privado obrigatório, dados explícitos, idempotência e auditoria.
+- [x] Leitura/CSV globais com filtros e comparativo de referência hipotética, sem chamar diferença de dívida.
+- [x] Estorno justificado com arquivo e registro original preservados, sem pagamento efetivo ou aprovação.
+- [x] Mesmo Veículo 360 mobile-first, endpoint privado de prova conferida SHA, OpenAPI 1.24 e testes escritos.
+- [ ] Execução real de QA/homologação posterior ao código MVP. Banco/PSP, aprovação financeira, impostos e comissões reais NÃO implementados.
