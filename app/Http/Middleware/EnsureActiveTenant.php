@@ -39,6 +39,35 @@ final class EnsureActiveTenant
             return response()->json(['message' => 'Empresa não vinculada a este usuário.'], 403);
         }
         TenantContext::set($request, $selected);
+
+        // O SubstituteBindings pode ter materializado um model antes do
+        // contexto, dependendo da prioridade dos middlewares do framework.
+        // A validação de IDs impede que esse caminho desvie dos scopes.
+        $route = $request->route();
+        if ($route) {
+            $case = $route->parameter('case');
+            if ((is_string($case) && ctype_digit($case)) || is_int($case)) {
+                if (! DB::table('repasse_cases')->where('id', (int) $case)
+                    ->where('tenant_id', $selected)->exists()) {
+                    abort(404);
+                }
+            }
+            foreach (['party', 'role'] as $parameter) {
+                $bound = $route->parameter($parameter);
+                if ($bound instanceof \Illuminate\Database\Eloquent\Model
+                    && (int) ($bound->tenant_id ?? 0) !== $selected) {
+                    abort(404);
+                }
+            }
+            $boundUser = $route->parameter('user');
+            if ($boundUser instanceof \App\Models\User
+                && ! DB::table('tenant_users')
+                    ->where('tenant_id', $selected)->where('user_id', $boundUser->id)
+                    ->where('is_active', true)->exists()) {
+                abort(404);
+            }
+        }
+
         $response = $next($request);
         $response->headers->set('Cache-Control', 'no-store, private');
 
