@@ -13,7 +13,8 @@ final class DatabaseSeeder extends Seeder
 
         // Instalação limpa de QA/desenvolvimento com duas empresas e dados reais
         // na estrutura da aplicação, mas inteiramente FICTÍCIOS no conteúdo.
-        if (app()->environment(['local', 'testing'])) {
+        if (app()->environment('local') ||
+            (app()->environment('testing') && env('REPASSE_DEMO_SEED') === '1')) {
             $this->call(DemoTenantSeeder::class);
         }
     }

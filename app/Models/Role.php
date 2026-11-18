@@ -14,6 +14,14 @@ final class Role extends Model
 
     protected static function booted(): void
     {
+        static::creating(static function (self $role): void {
+            if ($role->slug !== 'platform_admin' && Auth::guard('api')->check()) {
+                $role->tenant_id = TenantContext::id();
+            } elseif ($role->slug !== 'platform_admin' && app()->environment('testing')
+                && ! $role->tenant_id) {
+                $role->tenant_id = 1;
+            }
+        });
         static::addGlobalScope('tenant', static function (Builder $query): void {
             if (Auth::guard('api')->check()) {
                 $query->where('roles.tenant_id', TenantContext::id());

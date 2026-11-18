@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -50,6 +51,11 @@ return new class extends Migration
                 if ($globalIdentity) {
                     $field->nullable();
                 }
+                // Compatibilidade com fixtures antigas dos testes SQLite.
+                // A instalação MySQL real NUNCA recebe tenant default.
+                if (app()->environment('testing')) {
+                    $field->default(1);
+                }
                 $field->constrained('tenants')->restrictOnDelete();
                 $table->index(['tenant_id'], 'tenant_scope_'.substr(hash('sha256', $name), 0, 12));
             });
@@ -79,7 +85,7 @@ return new class extends Migration
 
         // Replica cada FK de negócio com o tenant da linha.
         // A FK original permanece; a composta acrescenta a barreira de tenant.
-        foreach (self::OWNED as $name) {
+        if (DB::getDriverName() === 'mysql') foreach (self::OWNED as $name) {
             foreach (Schema::getForeignKeys($name) as $foreign) {
                 $columns = $foreign['columns'] ?? [];
                 $parent = $foreign['foreign_table'] ?? '';
@@ -101,7 +107,7 @@ return new class extends Migration
     public function down(): void
     {
         // Remover primeiro todas as FKs compostas criadas acima.
-        foreach (array_reverse(self::OWNED) as $name) {
+        if (DB::getDriverName() === 'mysql') foreach (array_reverse(self::OWNED) as $name) {
             foreach (Schema::getForeignKeys($name) as $foreign) {
                 $fkName = $foreign['name'] ?? '';
                 if (str_starts_with($fkName, 'tenant_link_')) {

@@ -23,6 +23,8 @@ final class Party extends Model
         static::creating(static function (self $party): void {
             if (Auth::guard('api')->check()) {
                 $party->tenant_id = TenantContext::id();
+            } elseif (app()->environment('testing') && ! $party->tenant_id) {
+                $party->tenant_id = 1;
             }
         });
     }

@@ -23,7 +23,8 @@ final class AdminUserSeeder extends Seeder
             }
 
             $role = Role::query()->updateOrCreate(
-                ['slug' => 'platform_admin'], ['name' => 'Administrador técnico']
+                ['slug' => 'platform_admin', 'tenant_id' => null],
+                ['name' => 'Administrador técnico']
             );
 
             $existing = $role->permissions()->pluck('permissions.id')->all();
