@@ -232,6 +232,22 @@ final class DirectExternalTransferReportTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_frozen_participant_names_are_protected_by_their_own_digest(): void
+    {
+        $jwt = $this->token();
+        [$case, $payer, $beneficiary] = $this->vehicle($jwt);
+        $base = "/api/v1/repasse-cases/{$case}/external-transfers";
+        $id = $this->send($jwt, $base, $this->input($payer, $beneficiary))
+            ->assertCreated()->json('data.id');
+        DB::table('repasse_external_transfer_reports')->where('id', $id)
+            ->update(['payer_name' => 'Nome adulterado']);
+        $this->withToken($jwt)->getJson("{$base}/{$id}")->assertConflict();
+        $this->withToken($jwt)->get("{$base}/{$id}/proof")->assertConflict();
+        $this->withToken($jwt)->postJson("{$base}/{$id}/void", [
+            'reason' => 'Tentativa após adulteração',
+        ])->assertConflict();
+    }
+
     public function test_tampering_and_pagination_use_complete_dataset_not_current_page(): void
     {
         $jwt = $this->token();
