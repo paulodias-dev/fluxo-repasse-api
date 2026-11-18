@@ -611,3 +611,12 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [x] Testes feature de filtros, agregação/paginação, edição posterior e CSV escritos; verificação visual estrutural ampliada.
 - [ ] Testes efetivos e homologação pós-código MVP. Regras de pagamento/obrigações continuam sem aprovação, e nenhum recurso executável foi ativado.
 - Métrica editorial do código de MVP preservada em ~84%, sem avanço artificial de motor bancário.
+
+## Macro 47 — Fechamento de venda e conclusão operacional em um passo
+- [x] GET closeout-review agora devolve token SHA-256 do retrato de custos e pendências; nenhuma data/valor inferido.
+- [x] POST sale/complete registra/revisa venda e arquiva veículo sob uma única transação + lock, com ciência obrigatória de pendências.
+- [x] POST complete faz fechamento sem exigir venda, com mesma guarda e sem alterar dinheiro; reabertura permanece possível.
+- [x] React Metronic: opção facultativa de conclusão no modal de venda, conferência sob demanda, cards col-6 e botão Concluir veículo migrado para API protegida.
+- [x] OpenAPI 1.23, documentação e testes feature de concorrência/rollback/pendências; contrato visual ampliado.
+- [ ] Homologação após código MVP: PHPUnit/Pint/MySQL, build/lint, smartphone/desktop. Dinheiro real continua fora sem regras financeiras aprovadas.
+- Progresso ponderado de código mantido ~84% (melhoria operacional nas etapas antes já estimadas completas; não cria motor de repasses).
