@@ -69,8 +69,10 @@ class User extends Authenticatable implements JWTSubject
 
     public function belongsToLegacyPlatformAdmin(): bool
     {
-        return $this->belongsToMany(Role::class, 'role_user')
-            ->where('slug', 'platform_admin')->exists();
+        return DB::table('role_user as ru')
+            ->join('roles as r', 'r.id', '=', 'ru.role_id')
+            ->where('ru.user_id', $this->id)
+            ->where('r.slug', 'platform_admin')->exists();
     }
 
     protected static function booted(): void
