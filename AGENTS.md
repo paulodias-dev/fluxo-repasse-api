@@ -244,3 +244,10 @@ O histórico funcional Gemini não foi recuperado: não inventar fluxos financei
 - Tabelas tenant-scoped, row locks no veículo e obrigação, UUID de criação/pagamento com digest da intenção, limite por beneficiário, eventos append-only e cancelamento após estornar parcelas.
 - SaasDemoSeeder não inventa pagamento realizado; AdminUserSeeder e TenantRoles provisionam novos grants, com revogação por auth_version se alterados.
 - API da Macro 52 antes do APP; testes e build devem ser reportados apenas se executados. Recalcular % do MVP SaaS, não herdar os 86% pré-revisão.
+
+
+## Macro 53 — consolidação sem dupla contagem
+- \`RepasseFinancialOverview\` é leitura por veículo de três grupos: obrigações aprovadas/parcelas ativas; relatos antigos diretos; relatos antigos com proposta. Nunca abater relatos de saldo aprovado nem somar fluxos como «pagamento bancário».
+- A revisão SHA de fechamento inclui saldos pendentes, rascunhos e aviso de possível sobreposição. O arquivamento exige ciência, MAS não liquida ou apaga obrigações e não impede encerramento após ciência.
+- Não alterar compra/venda com distribuição aprovada sem cancelamento/estorno explícitos; não desvincular participantes com distribuição não cancelada.
+- TenantDB obrigatório em consultas de negócio e JOINs, permissões da Macro 52 preservadas, testes só declarados executados com evidência.

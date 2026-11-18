@@ -100,3 +100,12 @@ do bloco SaaS representam conferências de integração/escopo de código ainda 
 os 20% restantes do bloco de repasses representam consolidação entre fluxos e revisão de
 invariantes antes do encerramento de implementação. A cobertura real poderá ser ajustada.
 O índice não representa readiness, liquidação bancária, PSP ou aceite visual.
+
+
+## Macro 53 — consolidação dos contratos financeiros e encerramento
+- [x] Consolidação por veículo de obrigações aprovadas e parcelas não estornadas em saldo devido.
+- [x] Relatos externos diretos/com proposta permanecem separados, sem compensação presumida.
+- [x] Encerramento revê e confirma saldo, rascunhos e possível sobreposição pelo SHA transacional.
+- [x] Compra/venda não muda depois de obrigação aprovada; participante não é desvinculado quando usado em distribuição ativa.
+- [ ] Execução de testes, verificação de contratos completos entre front e API, revisão de modelo de autorização e UX final (não contar testes como homologação).
+- **Estimativa de código, sujeita a auditoria:** cerca de 96% do MVP SaaS. O índice não é cobertura automática nem homologação, e não implica pagamento bancário (fora do escopo aprovado).

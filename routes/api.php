@@ -163,6 +163,8 @@ Route::prefix('v1')->group(function (): void {
         // 'repasse.approve' é separado de 'repasse.manage'; autor pode aprovar se autorizado.
         Route::prefix('/{case}/settlements')->middleware('permission:repasse.manage')
             ->group(function (): void {
+                Route::get('/overview', [ControlledRepasseController::class, 'overview'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.overview');
                 Route::get('/options', [ControlledRepasseController::class, 'options'])
                     ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.options');
                 Route::get('/', [ControlledRepasseController::class, 'index'])

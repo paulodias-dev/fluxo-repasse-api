@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantDB;
+use App\Services\RepasseFinancialOverview;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 final class RepasseCaseController extends Controller
 {
+    public function __construct(private readonly RepasseFinancialOverview $repasseOverview) {}
+
     public function index(Request $request): JsonResponse
     {
         $filters = $request->validate([
@@ -93,6 +96,8 @@ final class RepasseCaseController extends Controller
             ? null : (int) $vehicle->sale_amount_cents;
         $realizedExpenses = (int) $money->realized_expenses;
         $realizedIncome = (int) $money->realized_income;
+        // Fluxos externos são declarativos e não alteram a margem gerencial.
+        $repasses = $this->repasseOverview->forVehicle($case);
         $currentCost = $purchase === null ? null : $purchase + $realizedExpenses;
         $saleResult = $vehicle->sold_on === null || $sale === null || $currentCost === null
             ? null : $sale + $realizedIncome - $currentCost;
@@ -116,6 +121,16 @@ final class RepasseCaseController extends Controller
             'open_tasks_count' => $openTasks,
             'pending_checklist_count' => $pendingChecklist,
             'documents_count' => $documents,
+            // Pendências para ciência, NÃO quitação ou impeditivo absoluto de arquivo.
+            'repasse_draft_count' => $repasses['controlled']['draft_count'],
+            'repasse_approved_count' => $repasses['controlled']['approved_count'],
+            'repasse_approved_cents' => $repasses['controlled']['approved_cents'],
+            'repasse_paid_cents' => $repasses['controlled']['paid_cents'],
+            'repasse_remaining_cents' => $repasses['controlled']['remaining_cents'],
+            'repasse_external_direct_cents' => $repasses['external_reports']['direct_cents'],
+            'repasse_external_proposal_cents' => $repasses['external_reports']['proposal_cents'],
+            'repasse_overlap_needs_review' => $repasses['flags']['possible_overlap'],
+            'repasse_overpaid_inconsistency' => $repasses['flags']['overpaid_inconsistency'],
         ];
     }
 
@@ -142,7 +157,11 @@ final class RepasseCaseController extends Controller
         return (int) $review['open_tasks_count']
             + (int) $review['pending_checklist_count']
             + (int) $review['expense_planned_count']
-            + (int) $review['income_planned_count'] > 0;
+            + (int) $review['income_planned_count']
+            + (int) $review['repasse_draft_count']
+            + ($review['repasse_remaining_cents'] > 0 ? 1 : 0)
+            + ($review['repasse_overlap_needs_review'] ? 1 : 0)
+            + ($review['repasse_overpaid_inconsistency'] ? 1 : 0) > 0;
     }
 
     /**
@@ -239,6 +258,12 @@ final class RepasseCaseController extends Controller
             $this->assertSaleCoherence(
                 $data['sold_on'], $purchasedOn, $data['sale_amount_cents']
             );
+            // Uma obrigação aprovada congela os valores comerciais de origem.
+            $saleChanged = $review['sold_on'] !== $data['sold_on']
+                || $review['sale_amount_cents'] !== (int) $data['sale_amount_cents'];
+            if ($saleChanged) {
+                $this->assertNoApprovedSettlement($case);
+            }
 
             $buyer = trim((string) ($data['buyer_name'] ?? ''));
             TenantDB::table('repasse_cases')->where('id', $case)->update([
@@ -359,6 +384,12 @@ final class RepasseCaseController extends Controller
                     $profileUpdates[$field] = $data[$field];
                 }
             }
+            if (array_intersect(
+                array_keys($profileUpdates),
+                ['purchase_amount_cents', 'purchased_on', 'sale_amount_cents', 'sold_on']
+            ) !== []) {
+                $this->assertNoApprovedSettlement($case);
+            }
             if ($current->status === 'archived' && $status === 'archived' &&
                 ($title !== $current->title || $description !== $current->description || $profileUpdates !== [])) {
                 throw ValidationException::withMessages(['status' => 'Reabra o dossiê para editar.']);
@@ -418,6 +449,18 @@ final class RepasseCaseController extends Controller
             if ($current->status !== 'draft') {
                 throw ValidationException::withMessages(['status' => 'Dossiê arquivado.']);
             }
+            $payerReferenced = TenantDB::table('repasse_settlements')
+                ->where('repasse_case_id', $case)->where('status', '!=', 'cancelled')
+                ->where('payer_party_id', $party)->exists();
+            $beneficiaryReferenced = TenantDB::table('repasse_settlement_lines as l')
+                ->join('repasse_settlements as s', 's.id', '=', 'l.settlement_id')
+                ->where('s.repasse_case_id', $case)->where('s.status', '!=', 'cancelled')
+                ->where('l.beneficiary_party_id', $party)->exists();
+            if ($payerReferenced || $beneficiaryReferenced) {
+                throw ValidationException::withMessages([
+                    'party_id' => 'Participante vinculado a repasse em andamento. Cancele o rascunho ou a obrigação antes de desvincular.',
+                ]);
+            }
             $deleted = TenantDB::table('repasse_case_parties')->where('repasse_case_id', $case)
                 ->where('party_id', $party)->delete();
             if (! $deleted) abort(404);
@@ -468,6 +511,20 @@ final class RepasseCaseController extends Controller
             'purchase_amount_cents' => $case->purchase_amount_cents,
             'sale_amount_cents' => $case->sale_amount_cents,
         ];
+    }
+
+    /**
+     * Modificações de compra/venda depois da aprovação exigem estorno e
+     * cancelamento explícitos. Nunca recalcule obrigações aprovadas em silêncio.
+     */
+    private function assertNoApprovedSettlement(int $case): void
+    {
+        if (TenantDB::table('repasse_settlements')->where('repasse_case_id', $case)
+            ->where('status', 'approved')->exists()) {
+            throw ValidationException::withMessages([
+                'sale_amount_cents' => 'Há distribuição aprovada vinculada a este veículo. Estorne as parcelas e cancele a distribuição antes de alterar compra ou venda.',
+            ]);
+        }
     }
 
     private function assertSaleCoherence(
