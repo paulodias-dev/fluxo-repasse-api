@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\TenantTable;
+
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +15,7 @@ final class AuthEventRecorder
         // Não registrar e-mail, senha, corpo HTTP, token JWT nem endereço IP em claro.
         $ip = $request?->ip();
 
-        DB::table('auth_security_events')->insert([
+        TenantTable::table('auth_security_events')->insert([
             'user_id' => $user?->getKey(),
             'event_type' => $event,
             'actor_user_id' => $actor?->getKey(),

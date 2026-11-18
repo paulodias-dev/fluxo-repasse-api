@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use App\Services\CaseOperations;
 use App\Services\VehicleFinanceWorkspace;
@@ -26,7 +28,7 @@ final class VehicleFinanceCategoryController extends Controller
             'kind' => ['sometimes', Rule::in(['all', 'expense', 'income'])],
             'include_inactive' => ['sometimes', 'boolean'],
         ]);
-        $query = DB::table('repasse_financial_categories')
+        $query = TenantTable::table('repasse_financial_categories')
             ->select('id', 'kind', 'name', 'slug', 'is_active', 'created_at', 'updated_at');
         if (($filters['kind'] ?? 'all') !== 'all') $query->where('kind', $filters['kind']);
         if (! ($filters['include_inactive'] ?? false)) $query->where('is_active', true);
@@ -50,7 +52,7 @@ final class VehicleFinanceCategoryController extends Controller
         try {
             $id = DB::transaction(function () use ($request, $case, $data, $name, $slug): int {
                 $this->operations->editable($case);
-                $id = DB::table('repasse_financial_categories')->insertGetId([
+                $id = TenantTable::table('repasse_financial_categories')->insertGetId([
                     'kind' => $data['kind'], 'name' => $name, 'slug' => $slug,
                     'is_active' => true,
                     'created_by' => $request->user('api')->getAuthIdentifier(),
@@ -81,7 +83,7 @@ final class VehicleFinanceCategoryController extends Controller
         try {
             DB::transaction(function () use ($request, $case, $category, $data): void {
                 $this->operations->editable($case);
-                $old = DB::table('repasse_financial_categories')
+                $old = TenantTable::table('repasse_financial_categories')
                     ->where('id', $category)->lockForUpdate()->firstOrFail();
                 $changes = [];
                 if (array_key_exists('name', $data)) {
@@ -100,7 +102,7 @@ final class VehicleFinanceCategoryController extends Controller
                 }
                 if ($changes === []) return;
                 $changes['updated_at'] = now();
-                DB::table('repasse_financial_categories')->where('id', $category)->update($changes);
+                TenantTable::table('repasse_financial_categories')->where('id', $category)->update($changes);
                 $this->operations->event($case, $request, 'vehicle_fin_category_updated');
             });
         } catch (UniqueConstraintViolationException) {
@@ -113,7 +115,7 @@ final class VehicleFinanceCategoryController extends Controller
 
     private function category(int $id): object
     {
-        return DB::table('repasse_financial_categories')
+        return TenantTable::table('repasse_financial_categories')
             ->where('id', $id)
             ->select('id', 'kind', 'name', 'slug', 'is_active', 'created_at', 'updated_at')
             ->firstOrFail();

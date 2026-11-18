@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +20,7 @@ final class RepasseCaseController extends Controller
             'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
-        $query = DB::table('repasse_cases')->select([
+        $query = TenantTable::table('repasse_cases')->select([
             'id', 'title', 'description', 'status', 'plate', 'brand', 'model',
             'purchased_on', 'purchase_amount_cents', 'sale_amount_cents', 'created_at', 'updated_at',
         ]);
@@ -52,7 +54,7 @@ final class RepasseCaseController extends Controller
      */
     private function closeoutSnapshot(int $case): array
     {
-        $vehicle = DB::table('repasse_cases')->where('id', $case)->first([
+        $vehicle = TenantTable::table('repasse_cases')->where('id', $case)->first([
             'id', 'title', 'status', 'updated_at', 'purchase_amount_cents',
             'sale_amount_cents', 'sold_on',
         ]);
@@ -60,15 +62,15 @@ final class RepasseCaseController extends Controller
             abort(404);
         }
 
-        $openTasks = DB::table('repasse_case_tasks')
+        $openTasks = TenantTable::table('repasse_case_tasks')
             ->where('repasse_case_id', $case)
             ->whereIn('status', ['pending', 'doing'])->count();
-        $pendingChecklist = DB::table('repasse_case_checklist')
+        $pendingChecklist = TenantTable::table('repasse_case_checklist')
             ->where('repasse_case_id', $case)->whereNull('checked_at')->count();
-        $documents = DB::table('repasse_case_evidence')
+        $documents = TenantTable::table('repasse_case_evidence')
             ->where('repasse_case_id', $case)->whereNull('archived_at')->count();
 
-        $money = DB::table('repasse_case_financial_entries')
+        $money = TenantTable::table('repasse_case_financial_entries')
             ->where('repasse_case_id', $case)->whereNull('voided_at')
             ->selectRaw("
                 COALESCE(SUM(CASE WHEN kind = 'expense' AND status = 'realized'
@@ -150,7 +152,7 @@ final class RepasseCaseController extends Controller
      */
     private function verifyCloseout(int $case, string $expectedSha, bool $acknowledge): array
     {
-        $vehicle = DB::table('repasse_cases')->where('id', $case)
+        $vehicle = TenantTable::table('repasse_cases')->where('id', $case)
             ->lockForUpdate()->first();
         if (! $vehicle) {
             abort(404);
@@ -191,7 +193,7 @@ final class RepasseCaseController extends Controller
             $review = $this->verifyCloseout(
                 $case, $data['expected_closeout_sha256'], $data['acknowledge_pending']
             );
-            DB::table('repasse_cases')->where('id', $case)->update([
+            TenantTable::table('repasse_cases')->where('id', $case)->update([
                 'status' => 'archived',
                 'updated_by' => $request->user('api')->id,
                 'updated_at' => now(),
@@ -232,14 +234,14 @@ final class RepasseCaseController extends Controller
             $review = $this->verifyCloseout($case, $data['expected_closeout_sha256'],
                 $data['acknowledge_pending']);
 
-            $purchasedOn = DB::table('repasse_cases')->where('id', $case)
+            $purchasedOn = TenantTable::table('repasse_cases')->where('id', $case)
                 ->value('purchased_on');
             $this->assertSaleCoherence(
                 $data['sold_on'], $purchasedOn, $data['sale_amount_cents']
             );
 
             $buyer = trim((string) ($data['buyer_name'] ?? ''));
-            DB::table('repasse_cases')->where('id', $case)->update([
+            TenantTable::table('repasse_cases')->where('id', $case)->update([
                 'sale_amount_cents' => (int) $data['sale_amount_cents'],
                 'sold_on' => $data['sold_on'],
                 'buyer_name' => $buyer !== '' ? $buyer : null,
@@ -296,7 +298,7 @@ final class RepasseCaseController extends Controller
             $data['sale_amount_cents'] ?? null,
         );
         $id = DB::transaction(function () use ($request, $data, $title): int {
-            $id = DB::table('repasse_cases')->insertGetId([
+            $id = TenantTable::table('repasse_cases')->insertGetId([
                 'title' => $title, 'description' => $data['description'] ?? null,
                 'status' => 'draft', 'created_by' => $request->user('api')->id,
                 'updated_by' => $request->user('api')->id,
@@ -334,7 +336,7 @@ final class RepasseCaseController extends Controller
             throw ValidationException::withMessages(['title' => 'Informe uma alteração.']);
         }
         $changed = DB::transaction(function () use ($request, $case, $data): bool {
-            $current = DB::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
+            $current = TenantTable::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
             if (! $current) abort(404);
             $title = array_key_exists('title', $data) ? trim($data['title']) : $current->title;
             if (mb_strlen($title) < 2) {
@@ -362,7 +364,7 @@ final class RepasseCaseController extends Controller
                 throw ValidationException::withMessages(['status' => 'Reabra o dossiê para editar.']);
             }
             if ($title === $current->title && $description === $current->description && $status === $current->status && $profileUpdates === []) return false;
-            DB::table('repasse_cases')->where('id', $case)->update([
+            TenantTable::table('repasse_cases')->where('id', $case)->update([
                 'title' => $title, 'description' => $description, 'status' => $status,
                 'updated_by' => $request->user('api')->id, 'updated_at' => now(),
             ] + $profileUpdates);
@@ -384,20 +386,20 @@ final class RepasseCaseController extends Controller
             'description' => ['nullable', 'string', 'max:180'],
         ]);
         DB::transaction(function () use ($request, $case, $data): void {
-            $current = DB::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
+            $current = TenantTable::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
             if (! $current) abort(404);
             if ($current->status !== 'draft') {
                 throw ValidationException::withMessages(['status' => 'Dossiê arquivado.']);
             }
-            $party = DB::table('parties')->where('id', $data['party_id'])->first();
+            $party = TenantTable::table('parties')->where('id', $data['party_id'])->first();
             if (! $party || ! $party->is_active) {
                 throw ValidationException::withMessages(['party_id' => 'Cadastro deve estar ativo.']);
             }
-            if (DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+            if (TenantTable::table('repasse_case_parties')->where('repasse_case_id', $case)
                 ->where('party_id', $data['party_id'])->exists()) {
                 throw ValidationException::withMessages(['party_id' => 'Cadastro já associado.']);
             }
-            DB::table('repasse_case_parties')->insert([
+            TenantTable::table('repasse_case_parties')->insert([
                 'repasse_case_id' => $case, 'party_id' => $data['party_id'],
                 'description' => $data['description'] ?? null,
                 'created_at' => now(), 'updated_at' => now(),
@@ -411,12 +413,12 @@ final class RepasseCaseController extends Controller
     public function detach(Request $request, int $case, int $party): JsonResponse
     {
         DB::transaction(function () use ($request, $case, $party): void {
-            $current = DB::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
+            $current = TenantTable::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
             if (! $current) abort(404);
             if ($current->status !== 'draft') {
                 throw ValidationException::withMessages(['status' => 'Dossiê arquivado.']);
             }
-            $deleted = DB::table('repasse_case_parties')->where('repasse_case_id', $case)
+            $deleted = TenantTable::table('repasse_case_parties')->where('repasse_case_id', $case)
                 ->where('party_id', $party)->delete();
             if (! $deleted) abort(404);
             $this->record($case, $request, 'party_detached');
@@ -428,9 +430,9 @@ final class RepasseCaseController extends Controller
     public function events(Request $request, int $case): JsonResponse
     {
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
-        if (! DB::table('repasse_cases')->where('id', $case)->exists()) abort(404);
+        if (! TenantTable::table('repasse_cases')->where('id', $case)->exists()) abort(404);
         return response()->json([
-            'events' => DB::table('repasse_case_events')->where('repasse_case_id', $case)
+            'events' => TenantTable::table('repasse_case_events')->where('repasse_case_id', $case)
                 ->select('id', 'event_type', 'actor_user_id', 'created_at')
                 ->orderByDesc('id')->paginate(15),
         ])->header('Cache-Control', 'no-store');
@@ -438,9 +440,9 @@ final class RepasseCaseController extends Controller
 
     private function details(int $id): array
     {
-        $case = DB::table('repasse_cases')->where('id', $id)->first();
+        $case = TenantTable::table('repasse_cases')->where('id', $id)->first();
         if (! $case) abort(404);
-        $parties = DB::table('repasse_case_parties as cp')
+        $parties = TenantTable::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $id)
             ->select('cp.party_id', 'cp.description', 'p.name', 'p.type', 'p.is_active')
@@ -498,7 +500,7 @@ final class RepasseCaseController extends Controller
 
     private function record(int $case, Request $request, string $event): void
     {
-        DB::table('repasse_case_events')->insert([
+        TenantTable::table('repasse_case_events')->insert([
             'repasse_case_id' => $case, 'actor_user_id' => $request->user('api')->id,
             'event_type' => $event, 'created_at' => now(),
         ]);

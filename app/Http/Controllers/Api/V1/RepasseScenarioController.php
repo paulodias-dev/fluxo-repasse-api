@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantTable;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\SaveScenarioRequest;
 use App\Services\ScenarioPlanner;
@@ -27,7 +29,7 @@ final class RepasseScenarioController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
-        $query = DB::table('repasse_cases')->where('status', 'draft')
+        $query = TenantTable::table('repasse_cases')->where('status', 'draft')
             ->select('id', 'title', 'status')->orderBy('title')->orderBy('id');
         if (trim($filters['search'] ?? '') !== '') {
             $term = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], trim($filters['search']));
@@ -38,9 +40,9 @@ final class RepasseScenarioController extends Controller
 
     public function parties(int $case): JsonResponse
     {
-        DB::table('repasse_cases')->where('id', $case)->firstOrFail();
+        TenantTable::table('repasse_cases')->where('id', $case)->firstOrFail();
         return $this->json([
-            'data' => DB::table('repasse_case_parties as cp')
+            'data' => TenantTable::table('repasse_case_parties as cp')
                 ->join('parties as p', 'p.id', '=', 'cp.party_id')
                 ->where('cp.repasse_case_id', $case)
                 ->select('p.id', 'p.name', 'p.type', 'p.is_active')
