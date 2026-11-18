@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -59,22 +60,22 @@ final class CasePackageService
      */
     public function assemble(int $caseId, array $normalized): array
     {
-        $case = DB::table('repasse_cases')->where('id', $caseId)->firstOrFail();
-        $parties = DB::table('repasse_case_parties as cp')
+        $case = TenantDB::table('repasse_cases')->where('id', $caseId)->firstOrFail();
+        $parties = TenantDB::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')
             ->where('cp.repasse_case_id', $caseId)
             ->select('p.id', 'p.type', 'p.name', 'p.is_active', 'cp.description')
             ->orderBy('p.id')->limit(401)->get();
-        $tasks = DB::table('repasse_case_tasks')
+        $tasks = TenantDB::table('repasse_case_tasks')
             ->where('repasse_case_id', $caseId)
             ->select('id', 'title', 'details', 'status', 'priority', 'due_on', 'assigned_to',
                 'completed_at', 'created_at', 'updated_at')
             ->orderBy('id')->limit(401)->get();
-        $checklist = DB::table('repasse_case_checklist')
+        $checklist = TenantDB::table('repasse_case_checklist')
             ->where('repasse_case_id', $caseId)
             ->select('id', 'label', 'checked_by', 'checked_at', 'created_at', 'updated_at')
             ->orderBy('id')->limit(401)->get();
-        $notes = DB::table('repasse_case_notes')
+        $notes = TenantDB::table('repasse_case_notes')
             ->where('repasse_case_id', $caseId)
             ->select('id', 'body', 'author_id', 'created_at')->orderBy('id')->limit(401)->get();
 
@@ -86,7 +87,7 @@ final class CasePackageService
         $bytes = 0;
         $evidenceIds = $normalized['evidence_ids'];
         if (count($evidenceIds) > 0) {
-            $records = DB::table('repasse_case_evidence')
+            $records = TenantDB::table('repasse_case_evidence')
                 ->where('repasse_case_id', $caseId)
                 ->whereNull('archived_at')
                 ->whereIn('id', $evidenceIds)
@@ -212,14 +213,14 @@ final class CasePackageService
         $digest = $this->requestDigest($normalized, $actor, $expected);
 
         $result = DB::transaction(function () use ($caseId, $normalized, $actor, $requestKey, $digest, $expected): array {
-            $previous = DB::table('repasse_case_packages')
+            $previous = TenantDB::table('repasse_case_packages')
                 ->where('request_key', $requestKey)->lockForUpdate()->first();
             if ($previous) {
                 if (! hash_equals($previous->request_digest, $digest)) abort(409, 'Chave já utilizada com dados diferentes.');
                 return ['id' => (int) $previous->id, 'created' => false];
             }
 
-            $case = DB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
+            $case = TenantDB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
             if ($case->status !== 'draft') $this->fail('case_id', 'O dossiê precisa estar aberto para formalizar um pacote.');
 
             // Refresh ALL sources under the dossier lock, then force preview equality.
@@ -228,7 +229,7 @@ final class CasePackageService
             $hash = hash('sha256', $serialized);
             if (! hash_equals($expected, $hash)) abort(409, 'O conteúdo mudou desde a prévia. Recalcule antes de registrar.');
 
-            $inserted = DB::table('repasse_case_packages')->insertOrIgnore([
+            $inserted = TenantDB::table('repasse_case_packages')->insertOrIgnore([
                 'repasse_case_id' => $caseId, 'request_key' => $requestKey,
                 'request_digest' => $digest, 'title' => $normalized['title'],
                 'note' => $normalized['note'], 'manifest' => $serialized,
@@ -239,10 +240,10 @@ final class CasePackageService
                 'total_evidence_bytes' => $manifest['summary']['total_evidence_bytes'],
                 'created_by' => $actor, 'created_at' => now(), 'updated_at' => now(),
             ]);
-            $row = DB::table('repasse_case_packages')->where('request_key', $requestKey)->firstOrFail();
+            $row = TenantDB::table('repasse_case_packages')->where('request_key', $requestKey)->firstOrFail();
             if (! hash_equals($row->request_digest, $digest)) abort(409, 'Chave já utilizada com dados diferentes.');
             if ($inserted) {
-                DB::table('repasse_case_events')->insert([
+                TenantDB::table('repasse_case_events')->insert([
                     'repasse_case_id' => $caseId, 'actor_user_id' => $actor,
                     'event_type' => 'case_package_created', 'created_at' => now(),
                 ]);
@@ -255,14 +256,14 @@ final class CasePackageService
 
     private function lookup(int $caseId, int $packageId): object
     {
-        return DB::table('repasse_case_packages')
+        return TenantDB::table('repasse_case_packages')
             ->where('repasse_case_id', $caseId)->where('id', $packageId)->firstOrFail();
     }
 
     public function list(int $caseId): mixed
     {
-        DB::table('repasse_cases')->where('id', $caseId)->firstOrFail();
-        return DB::table('repasse_case_packages')
+        TenantDB::table('repasse_cases')->where('id', $caseId)->firstOrFail();
+        return TenantDB::table('repasse_case_packages')
             ->where('repasse_case_id', $caseId)
             ->select('id', 'repasse_case_id as case_id', 'title', 'note', 'manifest_sha256',
                 'evidence_count', 'scenario_count', 'review_count', 'total_evidence_bytes',
@@ -291,7 +292,7 @@ final class CasePackageService
         $files = [];
         $intact = true;
         foreach ($package['manifest']['evidence'] as $file) {
-            $row = DB::table('repasse_case_evidence')
+            $row = TenantDB::table('repasse_case_evidence')
                 ->where('repasse_case_id', $caseId)->where('id', $file['id'])->first();
             // Archived evidence is deliberately inaccessible for download in
             // CaseEvidenceController; packages must NOT bypass that restriction.
@@ -373,7 +374,7 @@ final class CasePackageService
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             if (! $zip->addFromString('manifesto.json', $json)) abort(503, 'Falha ao inserir o manifesto.');
             foreach ($package['manifest']['evidence'] as $entry) {
-                $row = DB::table('repasse_case_evidence')
+                $row = TenantDB::table('repasse_case_evidence')
                     ->where('repasse_case_id', $caseId)->where('id', $entry['id'])->firstOrFail();
                 $this->verifyFile($row);
                 $safeName = preg_replace('/[^a-zA-Z0-9._ -]/', '_', $entry['name']);
