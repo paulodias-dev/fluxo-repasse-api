@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Support\TenantDB;
+
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -16,21 +18,21 @@ final class OperationsCenterController extends Controller
     {
         $today = now()->toDateString();
         $stats = [
-            'cases_total' => DB::table('repasse_cases')->count(),
-            'cases_draft' => DB::table('repasse_cases')->where('status', 'draft')->count(),
-            'cases_archived' => DB::table('repasse_cases')->where('status', 'archived')->count(),
-            'tasks_pending' => DB::table('repasse_case_tasks')->where('status', 'pending')->count(),
-            'tasks_doing' => DB::table('repasse_case_tasks')->where('status', 'doing')->count(),
-            'tasks_done' => DB::table('repasse_case_tasks')->where('status', 'done')->count(),
-            'tasks_overdue' => DB::table('repasse_case_tasks')->whereIn('status', ['pending', 'doing'])
+            'cases_total' => TenantDB::table('repasse_cases')->count(),
+            'cases_draft' => TenantDB::table('repasse_cases')->where('status', 'draft')->count(),
+            'cases_archived' => TenantDB::table('repasse_cases')->where('status', 'archived')->count(),
+            'tasks_pending' => TenantDB::table('repasse_case_tasks')->where('status', 'pending')->count(),
+            'tasks_doing' => TenantDB::table('repasse_case_tasks')->where('status', 'doing')->count(),
+            'tasks_done' => TenantDB::table('repasse_case_tasks')->where('status', 'done')->count(),
+            'tasks_overdue' => TenantDB::table('repasse_case_tasks')->whereIn('status', ['pending', 'doing'])
                 ->whereNotNull('due_on')->whereDate('due_on', '<', $today)->count(),
-            'checklist_total' => DB::table('repasse_case_checklist')->count(),
-            'checklist_done' => DB::table('repasse_case_checklist')->whereNotNull('checked_at')->count(),
-            'evidence_total' => DB::table('repasse_case_evidence')->whereNull('archived_at')->count(),
+            'checklist_total' => TenantDB::table('repasse_case_checklist')->count(),
+            'checklist_done' => TenantDB::table('repasse_case_checklist')->whereNotNull('checked_at')->count(),
+            'evidence_total' => TenantDB::table('repasse_case_evidence')->whereNull('archived_at')->count(),
         ];
-        $recent = DB::table('repasse_cases')->select('id', 'title', 'status', 'updated_at')
+        $recent = TenantDB::table('repasse_cases')->select('id', 'title', 'status', 'updated_at')
             ->orderByDesc('updated_at')->limit(8)->get();
-        $due = DB::table('repasse_case_tasks as t')
+        $due = TenantDB::table('repasse_case_tasks as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->whereIn('t.status', ['pending', 'doing'])->whereNotNull('t.due_on')
             ->select('t.id', 't.repasse_case_id', 'c.title as case_title', 't.title',
@@ -69,7 +71,7 @@ final class OperationsCenterController extends Controller
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
-        $query = DB::table('repasse_case_tasks as t')
+        $query = TenantDB::table('repasse_case_tasks as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->leftJoin('users as u', 'u.id', '=', 't.assigned_to')
             ->select('t.id', 't.title', 't.details', 't.status', 't.priority',
@@ -102,7 +104,7 @@ final class OperationsCenterController extends Controller
             $stream = fopen('php://output', 'wb');
             if ($entity === 'cases') {
                 fputcsv($stream, ['ID', 'Título', 'Status', 'Criado em', 'Atualizado em'], ';');
-                DB::table('repasse_cases')->select('id', 'title', 'status', 'created_at', 'updated_at')
+                TenantDB::table('repasse_cases')->select('id', 'title', 'status', 'created_at', 'updated_at')
                     ->orderBy('id')->chunkById(250, function ($rows) use ($stream): void {
                         foreach ($rows as $row) {
                             fputcsv($stream, [$row->id, $this->safe($row->title),
@@ -111,7 +113,7 @@ final class OperationsCenterController extends Controller
                     });
             } else {
                 fputcsv($stream, ['ID', 'Dossiê', 'Tarefa', 'Status', 'Prioridade', 'Prazo', 'Responsável'], ';');
-                DB::table('repasse_case_tasks as t')
+                TenantDB::table('repasse_case_tasks as t')
                     ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
                     ->leftJoin('users as u', 'u.id', '=', 't.assigned_to')
                     ->select('t.id', 'c.title as case_title', 't.title', 't.status',
