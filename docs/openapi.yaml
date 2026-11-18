@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.26.0
+  version: 1.27.0
   description: |
     Contratos da fundação de identidade e conectividade.
     SaaS MySQL único: todas as entidades operacionais possuem tenant_id obrigatório, derivado do JWT validado. Usuários têm uma empresa ativa; headers e parâmetros tenant_id não alteram o escopo.
@@ -28,6 +28,173 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /repasse-cases/{case}/settlements/options:
+    get:
+      tags: [Financeiro]
+      summary: Participantes ativos e disponibilidade do repasse manual
+      description: Requer JWT, cases.manage e repasse.manage. A base é sempre informada pelo operador.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Opções e venda registrada }
+        '401': { description: Não autenticado }
+        '403': { description: Permissão insuficiente }
+        '404': { description: Veículo fora da empresa }
+  /repasse-cases/{case}/settlements:
+    get:
+      tags: [Financeiro]
+      summary: Listar distribuições e saldos internos do veículo
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { description: Distribuições paginadas e totais por beneficiário }
+    post:
+      tags: [Financeiro]
+      summary: Criar distribuição manual pendente de aprovação
+      description: Exige venda datada, participantes do veículo, base explícita e rateio exato em centavos. Não gera pagamento.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_key, payer_party_id, base_amount_cents, lines]
+              properties:
+                request_key: { type: string, format: uuid }
+                payer_party_id: { type: integer }
+                base_amount_cents: { type: integer, minimum: 1 }
+                memo: { type: string, maxLength: 500 }
+                lines:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [beneficiary_party_id, kind, mode]
+                    properties:
+                      beneficiary_party_id: { type: integer }
+                      kind: { type: string, enum: [repasse, commission, tax, fee] }
+                      mode: { type: string, enum: [fixed, percentage] }
+                      amount_cents: { type: integer, minimum: 1 }
+                      basis_points: { type: integer, minimum: 1, maximum: 10000 }
+      responses:
+        '201': { description: Rascunho criado }
+        '200': { description: Reenvio idempotente }
+        '422': { description: Distribuição, participantes ou campos inválidos }
+        '409': { description: Chave reutilizada com outra intenção }
+  /repasse-cases/{case}/settlements/{settlement}:
+    get:
+      tags: [Financeiro]
+      summary: Detalhe de distribuição, parcelas, estornos e eventos
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Registro completo sem dados bancários }
+        '404': { description: Registro de outra empresa ou veículo }
+  /repasse-cases/{case}/settlements/{settlement}/approve:
+    post:
+      tags: [Financeiro]
+      summary: Aprovar distribuição com permissão repasse.approve
+      description: O criador também pode aprovar quando possuir a permissão.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: boolean, enum: [true] }
+      responses:
+        '200': { description: Aprovado }
+        '403': { description: Sem alçada }
+        '409': { description: Estado incompatível }
+  /repasse-cases/{case}/settlements/{settlement}/cancel:
+    post:
+      tags: [Financeiro]
+      summary: Cancelar distribuição sem parcelas ativas e preservar histórico
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200': { description: Cancelado }
+        '409': { description: Estorne primeiro as parcelas ativas }
+  /repasse-cases/{case}/settlements/{settlement}/payments:
+    post:
+      tags: [Financeiro]
+      summary: Declarar pagamento parcial externo após aprovação
+      description: Não executa transferência bancária. Comprovante opcional privado PDF/imagem até 10 MiB.
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request_key, line_id, amount_cents, paid_on, confirmed_external]
+              properties:
+                request_key: { type: string, format: uuid }
+                line_id: { type: integer }
+                amount_cents: { type: integer, minimum: 1 }
+                paid_on: { type: string, format: date }
+                confirmed_external: { type: boolean, enum: [true] }
+                external_reference: { type: string, maxLength: 120 }
+                proof: { type: string, format: binary }
+      responses:
+        '201': { description: Pagamento externo declarado }
+        '200': { description: Reenvio idempotente }
+        '409': { description: Distribuição não aprovada ou UUID divergente }
+        '422': { description: Parcela excede restante ou dados inválidos }
+  /repasse-cases/{case}/settlements/{settlement}/payments/{payment}/void:
+    post:
+      tags: [Financeiro]
+      summary: Estornar pagamento declarado, sem exclusão do original
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+        - { name: payment, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 5, maxLength: 500 }
+      responses:
+        '200': { description: Estorno registrado no histórico }
+        '409': { description: Pagamento já estornado }
+  /repasse-cases/{case}/settlements/{settlement}/payments/{payment}/proof:
+    get:
+      tags: [Financeiro]
+      summary: Baixar comprovante privado com SHA-256 verificado
+      parameters:
+        - { name: case, in: path, required: true, schema: { type: integer } }
+        - { name: settlement, in: path, required: true, schema: { type: integer } }
+        - { name: payment, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Comprovante autenticado }
+        '404': { description: Não existe ou não pertence à empresa }
+        '409': { description: Falha de integridade ou arquivo ausente }
   /commercial-reviews:
     get:
       tags: [Revisões comerciais]

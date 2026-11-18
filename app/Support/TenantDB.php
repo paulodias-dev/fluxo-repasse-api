@@ -28,6 +28,8 @@ final class TenantDB
         'repasse_commercial_reviews', 'repasse_commercial_review_events',
         'repasse_preparation_records', 'repasse_obligation_proposals',
         'repasse_external_transfer_reports',
+        'repasse_settlements', 'repasse_settlement_lines',
+        'repasse_settlement_payments', 'repasse_settlement_events',
     ];
 
     public static function qualifierFor(string $table): ?string

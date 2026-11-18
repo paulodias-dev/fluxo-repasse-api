@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\V1\FinancialPreparationController;
 use App\Http\Controllers\Api\V1\PreparationRecordController;
 use App\Http\Controllers\Api\V1\ObligationProposalController;
 use App\Http\Controllers\Api\V1\ExternalTransferReportController;
+use App\Http\Controllers\Api\V1\ControlledRepasseController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\PartyController;
@@ -156,6 +157,32 @@ Route::prefix('v1')->group(function (): void {
             [ExternalTransferReportController::class, 'directProof'])
             ->middleware('throttle:repasse-admin-read')
             ->name('api.v1.cases.external.proof');
+
+
+        // Macro 52: obrigações manuais com aprovação, parcelas externas e trilha imutável.
+        // 'repasse.approve' é separado de 'repasse.manage'; autor pode aprovar se autorizado.
+        Route::prefix('/{case}/settlements')->middleware('permission:repasse.manage')
+            ->group(function (): void {
+                Route::get('/options', [ControlledRepasseController::class, 'options'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.options');
+                Route::get('/', [ControlledRepasseController::class, 'index'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.index');
+                Route::post('/', [ControlledRepasseController::class, 'store'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.store');
+                Route::get('/{settlement}', [ControlledRepasseController::class, 'show'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.show');
+                Route::post('/{settlement}/approve', [ControlledRepasseController::class, 'approve'])
+                    ->middleware(['permission:repasse.approve', 'throttle:repasse-admin-write'])
+                    ->name('api.v1.settlements.approve');
+                Route::post('/{settlement}/cancel', [ControlledRepasseController::class, 'cancel'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.cancel');
+                Route::post('/{settlement}/payments', [ControlledRepasseController::class, 'pay'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.pay');
+                Route::post('/{settlement}/payments/{payment}/void', [ControlledRepasseController::class, 'voidPayment'])
+                    ->middleware('throttle:repasse-admin-write')->name('api.v1.settlements.payment.void');
+                Route::get('/{settlement}/payments/{payment}/proof', [ControlledRepasseController::class, 'proof'])
+                    ->middleware('throttle:repasse-admin-read')->name('api.v1.settlements.payment.proof');
+            });
 
         Route::post('/{case}/sale/complete', [RepasseCaseController::class, 'completeSale'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.sale.complete');
