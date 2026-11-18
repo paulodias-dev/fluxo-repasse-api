@@ -215,9 +215,7 @@ final class VehicleAccountabilityWorkflowTest extends TestCase
         [, $jwt] = $this->login(['cases.manage', 'scenarios.manage']);
         $case = $this->vehicle($jwt);
         $this->scenario($jwt, $case);
-        $this->withToken($jwt)->patchJson("/api/v1/repasse-cases/{$case}", [
-            'status' => 'archived',
-        ])->assertOk();
+        $this->archiveVehicleForQa($jwt, "/api/v1/repasse-cases/{$case}");
 
         $url = "/api/v1/repasse-cases/{$case}/documentary/overview";
         $this->withToken($jwt)->getJson($url)
