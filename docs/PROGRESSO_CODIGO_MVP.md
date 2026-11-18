@@ -108,4 +108,19 @@ O índice não representa readiness, liquidação bancária, PSP ou aceite visua
 - [x] Encerramento revê e confirma saldo, rascunhos e possível sobreposição pelo SHA transacional.
 - [x] Compra/venda não muda depois de obrigação aprovada; participante não é desvinculado quando usado em distribuição ativa.
 - [ ] Execução de testes, verificação de contratos completos entre front e API, revisão de modelo de autorização e UX final (não contar testes como homologação).
-- **Estimativa de código, sujeita a auditoria:** cerca de 96% do MVP SaaS. O índice não é cobertura automática nem homologação, e não implica pagamento bancário (fora do escopo aprovado).
+- ### Matriz revisada após Macro 53 — CÓDIGO, sem homologação
+| Componente | Peso | Cobertura editorial | Contribuição |
+|---|---:|---:|---:|
+| Acesso, identidade, cadastros e SaaS tenant | 15% | 90% | 13,5% |
+| Veículos e ficha 360 | 20% | 100% | 20% |
+| Financeiro gerencial | 20% | 100% | 20% |
+| Documentação, cenários e revisões | 10% | 100% | 10% |
+| Repasses manuais autorizados e consolidação | 30% | 90% | 27% |
+| Dashboard e operação | 5% | 100% | 5% |
+| **Total código MVP estimado** | **100%** | — | **95,5% ≈ 96%** |
+
+Comparação de escopo com Macro 52: 92,5% → 95,5% (+3 p.p. editoriais).
+Não decorre do número de arquivos/PRs nem presume testes executados. Os 4,5 p.p.
+restantes estimados são fechamento de invariantes transversais, consistência de alçadas,
+contratos de integração e detalhes UX do código antes do ciclo de homologação.
+Não incluir PSP/banco porque o MVP aprovado registra transferências externas manualmente.
