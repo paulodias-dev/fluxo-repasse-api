@@ -58,7 +58,7 @@ final class RepasseFinancialOverview
         $paid = (int) $payments->paid_cents;
         $direct = (int) $legacy->direct_cents;
         $proposal = (int) $legacy->proposal_cents;
-        $overlap = $paid > 0 && ($direct > 0 || $proposal > 0);
+        $overlap = $approved > 0 && ($direct > 0 || $proposal > 0);
 
         return [
             'vehicle_id' => $case,

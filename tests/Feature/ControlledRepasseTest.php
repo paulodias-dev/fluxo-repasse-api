@@ -171,7 +171,7 @@ final class ControlledRepasseTest extends TestCase
             ->assertJsonPath('data.controlled.paid_cents', 0)
             ->assertJsonPath('data.controlled.remaining_cents', 10000)
             ->assertJsonPath('data.external_reports.direct_cents', 1500)
-            ->assertJsonPath('data.flags.possible_overlap', false);
+            ->assertJsonPath('data.flags.possible_overlap', true);
 
         $this->postJson($url.'/'.$draft['id'].'/payments', [
             'request_key' => (string) Str::uuid(),

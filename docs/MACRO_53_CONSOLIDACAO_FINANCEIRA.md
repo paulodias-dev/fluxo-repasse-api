@@ -4,7 +4,7 @@
 - Não somar repasse externo antigo a parcelas de obrigação aprovada para declarar «total pago».
 - Repasses controlados aprovados: base autorizada menos parcelas informadas não estornadas do MESMO contrato. Rascunhos e cancelados não geram saldo exigível.
 - Declarações antigas diretas e provenientes de proposta são mostradas SEPARADAMENTE, sem baixa, correspondência presumida ou reclassificação.
-- Quando ambos os fluxos têm registros, aviso de **possível sobreposição**, sem afirmar duplicidade. Resultado gerencial de compra/venda continua inalterado.
+- Quando há obrigação aprovada e relato externo ativo, aviso de **possível sobreposição** ANTES da próxima parcela, sem afirmar duplicidade. Resultado gerencial de compra/venda continua inalterado.
 - Encerramento é arquivamento operacional, não quitação: pendências de repasse exigem ciência, sem bloquear a conclusão após confirmação explícita.
 
 ## API, integridade e escopo
