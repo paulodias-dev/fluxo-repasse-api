@@ -95,7 +95,7 @@ final class ControlledRepasseService
                 $paid[$payment->line_id] = ($paid[$payment->line_id] ?? 0) + (int) $payment->amount_cents;
             }
         }
-        $destinations = $lines->map(static function (object $line) use ($paid): array {
+        $destinations = $lines->map(static function (object $line) use ($paid, $row): array {
             $settled = $paid[$line->id] ?? 0;
             return [
                 'id' => (int) $line->id, 'beneficiary_party_id' => (int) $line->beneficiary_party_id,
@@ -104,7 +104,7 @@ final class ControlledRepasseService
                 'basis_points' => $line->basis_points === null ? null : (int) $line->basis_points,
                 'amount_cents' => (int) $line->amount_cents,
                 'paid_cents' => $settled,
-                'remaining_cents' => (int) $line->amount_cents - $settled,
+                'remaining_cents' => $row->status === 'cancelled' ? 0 : (int) $line->amount_cents - $settled,
             ];
         })->all();
         $paidTotal = array_sum($paid);
@@ -114,7 +114,7 @@ final class ControlledRepasseService
             'payer_name' => $row->payer_name, 'base_amount_cents' => (int) $row->base_amount_cents,
             'memo' => $row->memo, 'status' => $row->status,
             'paid_cents' => $paidTotal,
-            'remaining_cents' => (int) $row->base_amount_cents - $paidTotal,
+            'remaining_cents' => $row->status === 'cancelled' ? 0 : (int) $row->base_amount_cents - $paidTotal,
             'created_by' => (int) $row->created_by, 'created_at' => $row->created_at,
             'approved_by' => $row->approved_by, 'approved_at' => $row->approved_at,
             'cancel_reason' => $row->cancel_reason, 'cancelled_at' => $row->cancelled_at,
@@ -129,6 +129,8 @@ final class ControlledRepasseService
             ])->all() : [],
             'events' => $includeHistory ? TenantDB::table('repasse_settlement_events')
                 ->where('settlement_id', $row->id)->orderByDesc('id')->limit(100)->get()->all() : [],
+            'events_total' => $includeHistory ? TenantDB::table('repasse_settlement_events')
+                ->where('settlement_id', $row->id)->count() : 0,
             'payment_executed_by_platform' => false,
         ];
     }
@@ -287,7 +289,9 @@ final class ControlledRepasseService
                     'request_key' => $data['request_key'], 'intent_sha256' => $digest,
                     'amount_cents' => $intent['amount_cents'],
                     'paid_on' => $intent['paid_on'], 'external_reference' => $intent['external_reference'],
-                    'proof_name' => $proof ? mb_substr(basename($proof->getClientOriginalName()), 0, 180) : null,
+                    'proof_name' => $proof ? mb_substr(
+                        preg_replace('/[^\pL\pN._ -]/u', '_', basename($proof->getClientOriginalName())) ?: 'comprovante', 0, 180
+                    ) : null,
                     'proof_path' => $path, 'proof_mime' => $proof?->getMimeType(),
                     'proof_size_bytes' => $proof?->getSize(), 'proof_sha256' => $proofSha,
                     'reported_by' => $actor, 'reported_at' => now(),
