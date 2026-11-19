@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Fluxo Repasse API
-  version: 1.29.0
+  version: 1.30.0
   description: |
     Contratos da fundação de identidade e conectividade.
     SaaS MySQL único: todas as entidades operacionais possuem tenant_id obrigatório, derivado do JWT validado. Usuários têm uma empresa ativa; headers e parâmetros tenant_id não alteram o escopo.
@@ -4015,6 +4015,64 @@ paths:
         '404': { description: Veículo ou relatório fora do escopo }
         '409': { description: Documento ou valores com digest divergente, ou UUID usada para outro conteúdo }
         '422': { $ref: '#/components/responses/ValidationError' }
+
+  /vehicle-lookup/plate:
+    get:
+      tags: [Veículos]
+      summary: Pré-preenchimento por placa via provedor credenciado configurável
+      description: |
+        JWT, session.current, cases.manage e quota por usuário/empresa.
+        Apenas dados automotivos estritamente necessários são retornados.
+        Ausência de PLACAEFIPE_API_KEY devolve status unavailable e permite cadastro manual.
+        O provedor é terceiro, não a FIPE oficial; sem dados de proprietário.
+      parameters:
+        - { name: plate, in: query, required: true, schema: { type: string, maxLength: 10 } }
+      responses:
+        '200': { description: 'data.status: matched, ambiguous, not_found ou unavailable; quote opcional por correspondência exata' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de uso excedido }
+  /vehicle-lookup/catalog/{resource}:
+    get:
+      tags: [Veículos]
+      summary: Lista tipo/marca/modelo/ano/versão do catálogo FIPE terceirizado
+      description: |
+        Recursos permitidos: brands, models, years, versions. Todos requerem type
+        cars/motorcycles/trucks; models e years requerem brand; versions requer
+        brand, year e family. IDs retornados são do fornecedor, não do tenant.
+      parameters:
+        - { name: resource, in: path, required: true, schema: { type: string, enum: [brands, models, years, versions] } }
+        - { name: type, in: query, required: true, schema: { type: string, enum: [cars, motorcycles, trucks] } }
+        - { name: brand, in: query, schema: { type: string } }
+        - { name: year, in: query, schema: { type: string } }
+        - { name: family, in: query, schema: { type: string } }
+      responses:
+        '200': { description: data.status e lista data.items ou fallback }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de uso excedido }
+  /vehicle-lookup/quote:
+    get:
+      tags: [Veículos]
+      summary: Cotação FIPE por versão e ano/combustível exatos
+      description: |
+        Retorna token opaco de curta duração, código FIPE, competência mensal e preço em centavos.
+        Não preenche preço de compra/venda e não cria despesa/receita. Precisa
+        de type, brand, model, year IDs do catálogo. JWT e permission:cases.manage.
+      parameters:
+        - { name: type, in: query, required: true, schema: { type: string, enum: [cars, motorcycles, trucks] } }
+        - { name: brand, in: query, required: true, schema: { type: string } }
+        - { name: model, in: query, required: true, schema: { type: string } }
+        - { name: year, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: data.quote com token, fipe_code, fipe_price_cents e fipe_reference_month, ou unavailable }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { description: Limite de uso excedido }
+
 
 components:
   headers:
