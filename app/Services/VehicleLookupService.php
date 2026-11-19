@@ -38,7 +38,25 @@ final class VehicleLookupService
                 if (! $r->successful() || ! is_array($r->json()) || ($r->json('error') === true)) {
                     throw new \RuntimeException('Plate provider unavailable');
                 }
-                return ['status' => 'matched', 'response' => $r->json()];
+                $raw = $r->json();
+                // Minimize ANTES de cachear: nunca guardar CPF, proprietário,
+                // município, restrições, saldos ou payload completo do fornecedor.
+                $safe = array_intersect_key($raw, array_flip([
+                    'marca', 'modelo', 'versao', 'ano_modelo',
+                ]));
+                $fipe = is_array($raw['fipe'] ?? null) ? $raw['fipe'] : [];
+                $safe['fipe'] = [
+                    'codigo' => $fipe['codigo'] ?? null,
+                    'valor' => $fipe['valor'] ?? null,
+                    'referencia' => $fipe['referencia'] ?? null,
+                    'versoes' => array_values(array_map(
+                        fn (array $v): array => array_intersect_key($v,
+                            array_flip(['versao', 'modelo'])),
+                        array_filter(is_array($fipe['versoes'] ?? null)
+                            ? $fipe['versoes'] : [], 'is_array')
+                    )),
+                ];
+                return ['status' => 'matched', 'response' => $safe];
             });
             if ($data['status'] === 'not_found') {
                 return ['status' => 'not_found', 'plate' => $plate, 'vehicle' => null, 'quote' => null, 'alternatives' => []];
