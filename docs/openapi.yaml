@@ -2077,6 +2077,9 @@ paths:
       security:
         - BearerAuth: []
       description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
       responses:
         '200':
           description: Resultado autenticado da operação
@@ -2094,6 +2097,15 @@ paths:
       security:
         - BearerAuth: []
       description: Requer permissão cases.manage. Registros arquivados são somente leitura.
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string, enum: [all, pending, doing, done, cancelled] } }
+        - { name: priority, in: query, required: false, schema: { type: string, enum: [all, low, normal, high] } }
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [all, mine] } }
+        - { name: overdue, in: query, required: false, schema: { type: boolean } }
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1 } }
       responses:
         '200':
           description: Resultado autenticado da operação
@@ -2103,6 +2115,25 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /operations/tasks/{task}:
+    get:
+      operationId: operationsTask
+      summary: Detalhe de um compromisso operacional
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Permite abrir a tarefa com seu veículo e prazo.
+      parameters:
+        - { name: task, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Compromisso autenticado
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Compromisso inexistente }
   /operations/assignees:
     get:
       operationId: operationsAssignees

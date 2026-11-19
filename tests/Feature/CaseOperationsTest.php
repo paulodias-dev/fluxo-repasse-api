@@ -30,6 +30,7 @@ final class CaseOperationsTest extends TestCase
             $role->permissions()->syncWithoutDetaching([$permission->id]);
             $user->roles()->syncWithoutDetaching([$role->id]);
         }
+
         return $this->postJson('/api/v1/auth/login', [
             'email' => $user->email, 'password' => 'Strong-Passphrase-123!',
         ])->assertOk()->json('access_token');
@@ -46,6 +47,7 @@ final class CaseOperationsTest extends TestCase
     {
         $this->getJson('/api/v1/operations/dashboard')->assertUnauthorized();
         $this->getJson('/api/v1/operations/tasks')->assertUnauthorized();
+        $this->getJson('/api/v1/operations/tasks/1')->assertUnauthorized();
         $this->getJson('/api/v1/operations/export?entity=tasks')->assertUnauthorized();
         $this->postJson('/api/v1/repasse-cases/1/tasks', ['title' => 'Sem acesso'])->assertUnauthorized();
         $this->postJson('/api/v1/repasse-cases/1/notes', ['body' => 'Sem acesso'])->assertUnauthorized();
@@ -85,7 +87,27 @@ final class CaseOperationsTest extends TestCase
             ->assertJsonPath('stats.checklist_done', 1);
         $this->withToken($token)->getJson('/api/v1/operations/tasks?status=done')
             ->assertOk()->assertJsonCount(1, 'data');
+        $this->withToken($token)->getJson('/api/v1/operations/tasks/'.$task)
+            ->assertOk()->assertJsonPath('data.title', 'Conferir documentos');
         $this->assertDatabaseHas('repasse_case_events', ['repasse_case_id' => $case, 'event_type' => 'note_added']);
+    }
+
+    public function test_dashboard_period_filters_open_commitments(): void
+    {
+        $token = $this->token();
+        $case = $this->createCase($token);
+        $this->withToken($token)->postJson("/api/v1/repasse-cases/{$case}/tasks", [
+            'title' => 'Compromisso do mês', 'due_on' => '2026-12-10',
+        ])->assertCreated();
+
+        $this->withToken($token)->getJson('/api/v1/operations/dashboard?from=2026-12-01&to=2026-12-31')
+            ->assertOk()->assertJsonPath('stats.tasks_open', 1)
+            ->assertJsonPath('stats.commitments_scheduled', 1)
+            ->assertJsonPath('upcoming_tasks.0.title', 'Compromisso do mês');
+        $this->withToken($token)->getJson('/api/v1/operations/dashboard?from=2026-11-01&to=2026-11-30')
+            ->assertOk()->assertJsonPath('stats.tasks_open', 0)
+            ->assertJsonPath('stats.commitments_scheduled', 0)
+            ->assertJsonCount(0, 'upcoming_tasks');
     }
 
     public function test_archived_case_blocks_every_write_but_allows_consultation(): void

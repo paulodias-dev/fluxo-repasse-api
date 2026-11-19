@@ -1,38 +1,38 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
-use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\RegistrationController;
-use App\Http\Controllers\Api\V1\TenantInvitationController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
-use App\Http\Controllers\Api\V1\VehicleFinanceController;
-use App\Http\Controllers\Api\V1\VehicleAccountabilityController;
-use App\Http\Controllers\Api\V1\VehicleFinanceCategoryController;
-use App\Http\Controllers\Api\V1\VehicleFinanceDocumentController;
-use App\Http\Controllers\Api\V1\OperationsCenterController;
-use App\Http\Controllers\Api\V1\VehiclePortfolioController;
-use App\Http\Controllers\Api\V1\HealthController;
-use App\Http\Controllers\Api\V1\ReadinessController;
-use App\Http\Controllers\Api\V1\RepasseCaseController;
-use App\Http\Controllers\Api\V1\VehicleLookupController;
-use App\Http\Controllers\Api\V1\RepasseScenarioController;
-use App\Http\Controllers\Api\V1\ScenarioReviewController;
-use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
-use App\Http\Controllers\Api\V1\CommercialTermsController;
-use App\Http\Controllers\Api\V1\FinancialPreparationController;
-use App\Http\Controllers\Api\V1\PreparationRecordController;
-use App\Http\Controllers\Api\V1\ObligationProposalController;
-use App\Http\Controllers\Api\V1\ExternalTransferReportController;
-use App\Http\Controllers\Api\V1\ControlledRepasseController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
+use App\Http\Controllers\Api\V1\CommercialTermsController;
+use App\Http\Controllers\Api\V1\ControlledRepasseController;
+use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
+use App\Http\Controllers\Api\V1\ExternalTransferReportController;
+use App\Http\Controllers\Api\V1\FinancialPreparationController;
+use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\ObligationProposalController;
+use App\Http\Controllers\Api\V1\OperationsCenterController;
 use App\Http\Controllers\Api\V1\PartyController;
 use App\Http\Controllers\Api\V1\PartyEventController;
 use App\Http\Controllers\Api\V1\PartyLinkController;
+use App\Http\Controllers\Api\V1\PreparationRecordController;
+use App\Http\Controllers\Api\V1\ReadinessController;
+use App\Http\Controllers\Api\V1\RegistrationController;
+use App\Http\Controllers\Api\V1\RepasseCaseController;
+use App\Http\Controllers\Api\V1\RepasseScenarioController;
+use App\Http\Controllers\Api\V1\ScenarioReviewController;
+use App\Http\Controllers\Api\V1\TenantInvitationController;
+use App\Http\Controllers\Api\V1\VehicleAccountabilityController;
+use App\Http\Controllers\Api\V1\VehicleFinanceCategoryController;
+use App\Http\Controllers\Api\V1\VehicleFinanceController;
+use App\Http\Controllers\Api\V1\VehicleFinanceDocumentController;
+use App\Http\Controllers\Api\V1\VehicleLookupController;
+use App\Http\Controllers\Api\V1\VehiclePortfolioController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -184,7 +184,6 @@ Route::prefix('v1')->group(function (): void {
             [ExternalTransferReportController::class, 'directProof'])
             ->middleware('throttle:repasse-admin-read')
             ->name('api.v1.cases.external.proof');
-
 
         // Macro 52: obrigações manuais com aprovação, parcelas externas e trilha imutável.
         // 'repasse.approve' é separado de 'repasse.manage'; autor pode aprovar se autorizado.
@@ -398,10 +397,11 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.operations.assignees');
         Route::get('/tasks', [OperationsCenterController::class, 'tasks'])
             ->name('api.v1.operations.tasks');
+        Route::get('/tasks/{task}', [OperationsCenterController::class, 'task'])
+            ->name('api.v1.operations.task');
         Route::get('/export', [OperationsCenterController::class, 'export'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.export');
     });
-
 
     // Cenários financeiros exclusivamente de simulação: sem pagamentos, aprovação ou ledger.
     Route::prefix('finance')->middleware([
@@ -491,7 +491,6 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.finance.reviews.integrity');
         Route::get('/reviews/{review}/export', [ScenarioReviewController::class, 'export'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.finance.reviews.export');
-
 
     });
 
