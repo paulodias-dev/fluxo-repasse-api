@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\V1\VehicleFinanceController;
 use App\Http\Controllers\Api\V1\VehicleFinanceDocumentController;
 use App\Http\Controllers\Api\V1\VehicleLookupController;
 use App\Http\Controllers\Api\V1\VehiclePortfolioController;
+use App\Http\Controllers\Api\V1\VehiclePartnershipController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -222,6 +223,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.attach');
         Route::delete('/{case}/parties/{party}', [RepasseCaseController::class, 'detach'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.parties.detach');
+        Route::get('/{case}/partnerships', [VehiclePartnershipController::class, 'index'])
+            ->name('api.v1.cases.partnerships.index');
+        Route::post('/{case}/partnerships', [VehiclePartnershipController::class, 'store'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.partnerships.store');
+        Route::delete('/{case}/partnerships/{partnership}', [VehiclePartnershipController::class, 'destroy'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.partnerships.destroy');
         Route::get('/{case}/events', [RepasseCaseController::class, 'events'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.events');
         // Escrituração operacional, sem pagamentos ou liquidações.

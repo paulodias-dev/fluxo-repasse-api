@@ -2449,6 +2449,84 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/partnerships:
+    get:
+      operationId: casePartnerships
+      summary: Listar sócios e investidores do veículo
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Retorna valores de parceria e rateio proporcional gerencial.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Participações e projeções proporcionais
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: casePartnershipCreate
+      summary: Registrar valor de parceria para pessoa ou empresa
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. Registra controle gerencial; não efetua pagamento.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [party_id, amount_cents]
+              properties:
+                party_id: { type: integer, minimum: 1 }
+                amount_cents: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Parceria registrada
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /repasse-cases/{case}/partnerships/{partnership}:
+    delete:
+      operationId: casePartnershipRemove
+      summary: Remover parceria do veículo
+      tags: [Central operacional]
+      security:
+        - BearerAuth: []
+      description: Requer permissão cases.manage. O cadastro da pessoa ou empresa é preservado.
+      parameters:
+        - name: case
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: partnership
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Parceria removida
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: Parceria não encontrada }
   /repasse-cases/{case}/evidence/{evidence}/download:
     get:
       operationId: caseEvidenceDownload
