@@ -2,13 +2,11 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Support\TenantDB;
-
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VehiclePortfolioIndexRequest;
+use App\Support\TenantDB;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Read-only cross-vehicle cockpit. No payment, transfer or ledger writes.
@@ -25,12 +23,12 @@ final class VehiclePortfolioController extends Controller
         // Mesma margem gerencial da ficha 360, em DECIMAL assinado e SEM
         // estimativas/valores previstos. Uma venda sem compra tem resultado NULL.
         // A expressão é usada ANTES da paginação nos filtros e na ordenação.
-        $saleKnown = "c.sold_on IS NOT NULL AND c.purchase_amount_cents IS NOT NULL
-            AND c.sale_amount_cents IS NOT NULL";
-        $saleMargin = "(CAST(c.sale_amount_cents AS DECIMAL(25, 0))
+        $saleKnown = 'c.sold_on IS NOT NULL AND c.purchase_amount_cents IS NOT NULL
+            AND c.sale_amount_cents IS NOT NULL';
+        $saleMargin = '(CAST(c.sale_amount_cents AS DECIMAL(25, 0))
             + COALESCE(f.realized_income, 0)
             - CAST(c.purchase_amount_cents AS DECIMAL(25, 0))
-            - COALESCE(f.realized_expenses, 0))";
+            - COALESCE(f.realized_expenses, 0))';
 
         // Fleet totals intentionally describe the whole authorized portfolio,
         // not just a filtered page; the list uses the requested filters.
@@ -99,7 +97,7 @@ final class VehiclePortfolioController extends Controller
         ")->first();
 
         $query = $this->joined($today)->select([
-            'c.id', 'c.title', 'c.status', 'c.plate', 'c.brand', 'c.model',
+            'c.id', 'c.title', 'c.status', 'c.vehicle_type', 'c.plate', 'c.brand', 'c.model',
             'c.model_year', 'c.purchase_location', 'c.seller_name', 'c.buyer_name',
             'c.purchased_on', 'c.delivered_on', 'c.sold_on',
             'c.purchase_amount_cents', 'c.sale_amount_cents', 'c.updated_at',
@@ -269,6 +267,7 @@ final class VehiclePortfolioController extends Controller
                     $row->{$field} = (int) $row->{$field};
                 }
             }
+
             return $row;
         });
         $summary = [];
