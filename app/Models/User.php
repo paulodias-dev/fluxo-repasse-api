@@ -32,6 +32,7 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'phone',
         'company_name',
+        'preferences',
         'avatar_path',
         'password',
         'tenant_id',
@@ -66,6 +67,7 @@ class User extends Authenticatable implements JWTSubject
             'password' => 'hashed',
             'is_active' => 'boolean',
             'auth_version' => 'integer',
+            'preferences' => 'array',
             'terms_accepted_at' => 'datetime',
         ];
     }

@@ -65,7 +65,9 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware(['bearer.only', 'auth:api', 'session.current'])->group(function (): void {
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
-            Route::post('/profile', [AuthController::class, 'updateProfile'])
+            Route::patch('/preferences', [AuthController::class, 'updatePreferences'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.auth.preferences.update');
+        Route::post('/profile', [AuthController::class, 'updateProfile'])
                 ->middleware('throttle:repasse-admin-write')->name('api.v1.auth.profile.update');
             Route::get('/access', [AuthController::class, 'access'])
                 ->middleware('throttle:repasse-admin-read')->name('api.v1.auth.access');

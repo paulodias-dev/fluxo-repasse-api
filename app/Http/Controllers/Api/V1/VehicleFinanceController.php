@@ -48,7 +48,7 @@ final class VehicleFinanceController extends Controller
             'category' => ['required_without:category_id', 'sometimes', 'string', 'min:2', 'max:80'],
             'description' => ['required', 'string', 'min:2', 'max:255'],
             'amount_cents' => ['required', 'integer', 'min:1', 'max:999999999999'],
-            'effective_on' => ['nullable', 'date_format:Y-m-d'],
+            'effective_on' => ['required', 'date_format:Y-m-d'],
         ];
         if ($replacement) {
             $rules['reason'] = ['required', 'string', 'min:5', 'max:500'];
