@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Support\TenantDB;
 use App\Services\RepasseFinancialOverview;
+use App\Services\VehicleLookupService;
+use App\Support\TenantContext;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
@@ -14,7 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 final class RepasseCaseController extends Controller
 {
-    public function __construct(private readonly RepasseFinancialOverview $repasseOverview) {}
+    public function __construct(private readonly RepasseFinancialOverview $repasseOverview,
+        private readonly VehicleLookupService $vehicleLookup) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -306,49 +309,133 @@ final class RepasseCaseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->rejectUnknown($request, ['title', 'description', 'plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
+        $this->rejectUnknown($request, ['title', 'description', 'plate', 'chassis', 'brand',
+            'model', 'model_year', 'vehicle_type', 'vehicle_version', 'purchase_location',
+            'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on',
+            'purchase_amount_cents', 'sale_amount_cents', 'request_key', 'fipe_quote_token']);
         $data = $request->validate([
             'title' => ['required', 'string', 'min:2', 'max:180'],
-            'description' => ['nullable', 'string', 'max:3000'],
-            'plate' => ['sometimes', 'nullable', 'string','max:10'],
-            'chassis' => ['sometimes', 'nullable', 'string','max:30'],
-            'brand' => ['sometimes', 'nullable', 'string','max:100'],
-            'model' => ['sometimes', 'nullable', 'string','max:120'],
-            'model_year' => ['sometimes', 'nullable', 'integer','min:1900','max:2100'],
-            'purchase_location' => ['sometimes', 'nullable', 'string','max:180'],
-            'seller_name' => ['sometimes', 'nullable', 'string','max:180'],
-            'buyer_name' => ['sometimes', 'nullable', 'string','max:180'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:3000'],
+            'plate' => ['sometimes', 'nullable', 'string', 'max:10'],
+            'chassis' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'brand' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'model' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'model_year' => ['sometimes', 'nullable', 'integer', 'min:1900', 'max:2100'],
+            'vehicle_type' => ['sometimes', 'nullable', Rule::in(['cars', 'motorcycles', 'trucks'])],
+            'vehicle_version' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'purchase_location' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'seller_name' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'buyer_name' => ['sometimes', 'nullable', 'string', 'max:180'],
             'purchased_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'delivered_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
             'sold_on' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
-            'purchase_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
-            'sale_amount_cents' => ['sometimes', 'nullable', 'integer','min:0','max:999999999999'],
+            'purchase_amount_cents' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:999999999999'],
+            'sale_amount_cents' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:999999999999'],
+            'request_key' => ['sometimes', 'uuid'],
+            'fipe_quote_token' => ['sometimes', 'string', 'size:48', 'regex:/^[A-Za-z0-9]+$/'],
         ]);
-        $title = trim($data['title']);
-        if (mb_strlen($title) < 2) {
-            throw ValidationException::withMessages(['title' => 'Título inválido.']);
+        $data['title'] = trim($data['title']);
+        if (mb_strlen($data['title']) < 2) {
+            throw ValidationException::withMessages(['title' => 'Identificação inválida.']);
         }
-        $this->assertSaleCoherence(
-            $data['sold_on'] ?? null, $data['purchased_on'] ?? null,
-            $data['sale_amount_cents'] ?? null,
-        );
-        $id = DB::transaction(function () use ($request, $data, $title): int {
+        $data['plate'] = $this->validatedPlate($data['plate'] ?? null);
+        $this->assertSaleCoherence($data['sold_on'] ?? null,
+            $data['purchased_on'] ?? null, $data['sale_amount_cents'] ?? null);
+
+        $requestKey = $data['request_key'] ?? null;
+        $quoteToken = $data['fipe_quote_token'] ?? null;
+        unset($data['request_key'], $data['fipe_quote_token']);
+        ksort($data);
+        $payloadHash = hash('sha256', json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+            .'|'.(string) $quoteToken);
+
+        $created = DB::transaction(function () use ($request, $data, $requestKey,
+            $payloadHash, $quoteToken): array {
+            $tenant = TenantContext::requireId();
+            // Serializa criações/edições de placa por empresa; evita race de duplicidade.
+            DB::table('tenants')->where('id', $tenant)->lockForUpdate()->first();
+            if ($requestKey !== null) {
+                $existing = TenantDB::table('vehicle_create_requests')
+                    ->where('request_key', $requestKey)->first();
+                if ($existing) {
+                    if (! hash_equals($existing->payload_sha256, $payloadHash)) {
+                        abort(409, 'Esta tentativa de cadastro já foi usada com outros dados.');
+                    }
+                    return ['id' => (int) $existing->repasse_case_id, 'new' => false];
+                }
+            }
+            if ($data['plate'] !== null) $this->assertNoDuplicateActivePlate($data['plate']);
+            $fipe = [];
+            if ($quoteToken !== null) {
+                $quote = $this->vehicleLookup->claimQuote($quoteToken,
+                    (int) $request->user('api')->id, $data);
+                if (! $quote) {
+                    throw ValidationException::withMessages([
+                        'fipe_quote_token' => 'Referência FIPE expirada ou incompatível. Consulte novamente ou salve sem FIPE.',
+                    ]);
+                }
+                $fipe = [
+                    'fipe_code' => $quote['fipe_code'],
+                    'fipe_reference_month' => $quote['fipe_reference_month'],
+                    'fipe_price_cents' => $quote['fipe_price_cents'],
+                    'fipe_source' => $quote['fipe_source'],
+                    'fipe_queried_at' => now(),
+                ];
+            }
             $id = TenantDB::table('repasse_cases')->insertGetId([
-                'title' => $title, 'description' => $data['description'] ?? null,
-                'status' => 'draft', 'created_by' => $request->user('api')->id,
+                'title' => $data['title'],
+                'description' => $data['description'] ?? null,
+                'status' => 'draft',
+                'created_by' => $request->user('api')->id,
                 'updated_by' => $request->user('api')->id,
                 'created_at' => now(), 'updated_at' => now(),
-            ] + array_intersect_key($data, array_flip(['plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'])));
+            ] + array_intersect_key($data, array_flip([
+                'plate', 'chassis', 'brand', 'model', 'model_year',
+                'vehicle_type', 'vehicle_version', 'purchase_location', 'seller_name',
+                'buyer_name', 'purchased_on', 'delivered_on', 'sold_on',
+                'purchase_amount_cents', 'sale_amount_cents',
+            ])) + $fipe);
+            if ($requestKey !== null) TenantDB::table('vehicle_create_requests')->insert([
+                'request_key' => $requestKey, 'payload_sha256' => $payloadHash,
+                'repasse_case_id' => $id, 'created_by' => $request->user('api')->id,
+                'created_at' => now(),
+            ]);
             $this->record($id, $request, 'case_created');
-            return $id;
-        });
-        return response()->json(['data' => $this->details($id)], 201)
-            ->header('Cache-Control', 'no-store');
+            return ['id' => $id, 'new' => true];
+        }, 3);
+
+        return response()->json(['data' => $this->details($created['id']),
+            'created' => $created['new']], $created['new'] ? 201 : 200)
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    private function validatedPlate(?string $plate): ?string
+    {
+        if ($plate === null || trim($plate) === '') return null;
+        $normalized = VehicleLookupService::normalizePlate($plate);
+        if ($normalized === null) {
+            throw ValidationException::withMessages([
+                'plate' => 'Placa inválida. Informe AAA1234 ou AAA1A23, ou deixe sem placa.',
+            ]);
+        }
+        return $normalized;
+    }
+
+    private function assertNoDuplicateActivePlate(string $plate, ?int $exceptId = null): void
+    {
+        $query = TenantDB::table('repasse_cases')
+            ->where('plate', $plate)->where('status', 'draft');
+        if ($exceptId !== null) $query->where('id', '!=', $exceptId);
+        if ($query->exists()) {
+            throw ValidationException::withMessages([
+                'plate' => 'Já existe um veículo ativo com esta placa na sua empresa.',
+            ]);
+        }
     }
 
     public function update(Request $request, int $case): JsonResponse
     {
-        $this->rejectUnknown($request, ['title', 'description', 'status', 'plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
+        $this->rejectUnknown($request, ['title', 'description', 'status', 'plate', 'chassis', 'brand', 'model', 'model_year', 'vehicle_type', 'vehicle_version', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents']);
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'min:2', 'max:180'],
             'description' => ['sometimes', 'nullable', 'string', 'max:3000'],
@@ -358,6 +445,8 @@ final class RepasseCaseController extends Controller
             'brand' => ['sometimes', 'nullable', 'string','max:100'],
             'model' => ['sometimes', 'nullable', 'string','max:120'],
             'model_year' => ['sometimes', 'nullable', 'integer','min:1900','max:2100'],
+            'vehicle_type' => ['sometimes', 'nullable', Rule::in(['cars', 'motorcycles', 'trucks'])],
+            'vehicle_version' => ['sometimes', 'nullable', 'string', 'max:180'],
             'purchase_location' => ['sometimes', 'nullable', 'string','max:180'],
             'seller_name' => ['sometimes', 'nullable', 'string','max:180'],
             'buyer_name' => ['sometimes', 'nullable', 'string','max:180'],
@@ -370,13 +459,20 @@ final class RepasseCaseController extends Controller
         if ($data === []) {
             throw ValidationException::withMessages(['title' => 'Informe uma alteração.']);
         }
+        if (array_key_exists('plate', $data)) {
+            $data['plate'] = $this->validatedPlate($data['plate']);
+        }
         $changed = DB::transaction(function () use ($request, $case, $data): bool {
+            DB::table('tenants')->where('id', TenantContext::requireId())->lockForUpdate()->first();
             $current = TenantDB::table('repasse_cases')->where('id', $case)->lockForUpdate()->first();
             if (! $current) abort(404);
             $title = array_key_exists('title', $data) ? trim($data['title']) : $current->title;
             if (mb_strlen($title) < 2) {
                 throw ValidationException::withMessages(['title' => 'Título inválido.']);
             }
+            $newPlate = array_key_exists('plate', $data) ? $data['plate'] : $current->plate;
+            $newStatus = $data['status'] ?? $current->status;
+            if ($newPlate && $newStatus === 'draft') $this->assertNoDuplicateActivePlate($newPlate, $case);
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
             if ($status === 'archived' && $current->status !== 'archived') {
@@ -393,7 +489,7 @@ final class RepasseCaseController extends Controller
                 );
             }
             $profileUpdates = [];
-            foreach (['plate', 'chassis', 'brand', 'model', 'model_year', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'] as $field) {
+            foreach (['plate', 'chassis', 'brand', 'model', 'model_year', 'vehicle_type', 'vehicle_version', 'purchase_location', 'seller_name', 'buyer_name', 'purchased_on', 'delivered_on', 'sold_on', 'purchase_amount_cents', 'sale_amount_cents'] as $field) {
                 if (array_key_exists($field, $data) &&
                     (string) ($data[$field] ?? '') !== (string) ($current->{$field} ?? '')) {
                     $profileUpdates[$field] = $data[$field];
@@ -404,6 +500,14 @@ final class RepasseCaseController extends Controller
                 ['purchase_amount_cents', 'purchased_on', 'sale_amount_cents', 'sold_on']
             ) !== []) {
                 $this->assertNoApprovedSettlement($case);
+            }
+            // Identificação alterada? Não manter referência FIPE da versão anterior.
+            if (array_intersect(array_keys($profileUpdates),
+                ['plate', 'brand', 'model', 'model_year', 'vehicle_type', 'vehicle_version']) !== []) {
+                $profileUpdates += [
+                    'fipe_code' => null, 'fipe_reference_month' => null,
+                    'fipe_price_cents' => null, 'fipe_source' => null, 'fipe_queried_at' => null,
+                ];
             }
             if ($current->status === 'archived' && $status === 'archived' &&
                 ($title !== $current->title || $description !== $current->description || $profileUpdates !== [])) {
@@ -517,6 +621,13 @@ final class RepasseCaseController extends Controller
             'brand' => $case->brand,
             'model' => $case->model,
             'model_year' => $case->model_year,
+            'vehicle_type' => $case->vehicle_type,
+            'vehicle_version' => $case->vehicle_version,
+            'fipe_code' => $case->fipe_code,
+            'fipe_reference_month' => $case->fipe_reference_month,
+            'fipe_price_cents' => $case->fipe_price_cents,
+            'fipe_source' => $case->fipe_source,
+            'fipe_queried_at' => $case->fipe_queried_at,
             'purchase_location' => $case->purchase_location,
             'seller_name' => $case->seller_name,
             'buyer_name' => $case->buyer_name,

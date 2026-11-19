@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\VehiclePortfolioController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ReadinessController;
 use App\Http\Controllers\Api\V1\RepasseCaseController;
+use App\Http\Controllers\Api\V1\VehicleLookupController;
 use App\Http\Controllers\Api\V1\RepasseScenarioController;
 use App\Http\Controllers\Api\V1\ScenarioReviewController;
 use App\Http\Controllers\Api\V1\DistributionWorkbenchController;
@@ -130,6 +131,18 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.snapshot');
         Route::get('/{review}/integrity', [CommercialReviewController::class, 'integrity'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.commercial.reviews.integrity');
+    });
+
+    // Macro 56: catálogo e placa separados, autenticação e orçamento por usuário.
+    Route::prefix('vehicle-lookup')->middleware([
+        'bearer.only', 'auth:api', 'session.current', 'permission:cases.manage',
+    ])->group(function (): void {
+        Route::get('/plate', [VehicleLookupController::class, 'plate'])
+            ->middleware('throttle:vehicle-plate')->name('api.v1.vehicle.lookup.plate');
+        Route::get('/catalog/{resource}', [VehicleLookupController::class, 'catalog'])
+            ->middleware('throttle:vehicle-catalog')->name('api.v1.vehicle.lookup.catalog');
+        Route::get('/quote', [VehicleLookupController::class, 'quote'])
+            ->middleware('throttle:vehicle-catalog')->name('api.v1.vehicle.lookup.quote');
     });
 
     Route::prefix('repasse-cases')->middleware([

@@ -722,3 +722,16 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
 - [ ] **Entrega futura una:** implementar backend e frontend no mesmo ciclo, com PRs não draft, revisão, evidências e aceite. **Não modificar código nesta entrega de planejamento.**
 
 **Restrições de prontidão:** documento revisado não equivale a integração disponível, fornecedor contratado, cotação garantida, teste executado ou ausência absoluta de falhas. O início de implementação depende das decisões pendentes registradas na especificação.
+
+
+## Macro 56 — Código implementado em PR API + APP, homologação pendente
+- [x] Consulta de placa mediante PLACAEFIPE_API_KEY, com fallback sem token ou falha.
+- [x] Catálogo terceirizado tipo/marca/modelo/ano/versão, agrupamento de modelo para UX e cotação exata.
+- [x] Snapshot da referência FIPE com origem e mês, separado do preço de compra/venda.
+- [x] Criação idempotente UUID por tenant, bloqueio de duplicata ativa intraempresa e normalização da placa.
+- [x] Interface Metronic bottom sheet mobile, wizard e revisão editável, sem novo cadastro paralelo.
+- [x] Validação de campos, autorização JWT/tenant e throttles; testes feature escritos e OpenAPI atualizado.
+- [ ] Evidenciar execução de PHPUnit/Pint/MySQL, npm build/lint e teste real em dispositivos (ainda não executados).
+- [ ] Configurar chave autorizada de consulta por placa, avaliar termos comerciais/licença e quota do catálogo para SaaS.
+- [ ] Aprovar regra excepcional de placa ausente ao concluir venda; restrição de conclusão não ativada nesta macro.
+**Não modificar percentual editorial histórico do MVP anterior nem declarar homologação.**

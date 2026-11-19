@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Tokens somente no Laravel. Nenhuma URL remota é aceita do navegador.
+    'vehicle_plate' => [
+        'token' => env('PLACAEFIPE_API_KEY', ''),
+    ],
+    'vehicle_fipe' => [
+        'token' => env('PARALLELUM_FIPE_TOKEN', ''),
+    ],
 ];
