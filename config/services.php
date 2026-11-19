@@ -42,4 +42,11 @@ return [
     'vehicle_fipe' => [
         'token' => env('PARALLELUM_FIPE_TOKEN', ''),
     ],
+    'vehicle_catalog' => [
+        'provider' => env('VEHICLE_CATALOG_PROVIDER', 'parallelum'),
+        'apifipe' => [
+            'base_url' => env('APIFIPE_API_BASE_URL', 'https://api.apifipe.com.br'),
+            'token' => env('APIFIPE_API_TOKEN', ''),
+        ],
+    ],
 ];

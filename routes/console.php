@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Tenant;
 use App\Support\TenantRoles;
 use App\Services\AuthEventRecorder;
+use App\Services\VehicleCatalogSyncService;
 use App\Support\OperationalAccessCatalog;
 use App\Support\OperationalAcceptance;
 use Database\Seeders\AdminUserSeeder;
@@ -17,6 +18,37 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+
+Artisan::command('repasse:vehicle-catalog:sync {--type=all : cars, motorcycles, trucks ou all} {--brand= : Código externo da marca, opcional} {--with-prices : Também consultar e armazenar preços FIPE}', function (): int {
+    $type = strtolower(trim((string) $this->option('type')));
+    $allowed = ['cars', 'motorcycles', 'trucks'];
+    $types = $type === 'all' ? $allowed : [$type];
+    if (! in_array($type, array_merge(['all'], $allowed), true)) {
+        $this->error('Informe --type=cars, motorcycles, trucks ou all.');
+        return Command::FAILURE;
+    }
+
+    $brand = trim((string) ($this->option('brand') ?? '')) ?: null;
+    $withPrices = (bool) $this->option('with-prices');
+    if ($withPrices) {
+        $this->warn('A carga de preços faz uma consulta por combinação modelo/ano e pode consumir muitas requisições.');
+    }
+
+    $failed = false;
+    foreach ($types as $vehicleType) {
+        $this->info('Sincronizando '.$vehicleType.($brand ? ' / marca '.$brand : '').'…');
+        try {
+            $stats = app(VehicleCatalogSyncService::class)->sync($vehicleType, $brand, $withPrices);
+            $this->line(sprintf('  marcas: %d | modelos: %d | anos: %d | preços: %d',
+                $stats['brands'], $stats['models'], $stats['years'], $stats['prices']));
+        } catch (Throwable $exception) {
+            $failed = true;
+            $this->error('Falha em '.$vehicleType.': '.$exception->getMessage());
+        }
+    }
+
+    return $failed ? Command::FAILURE : Command::SUCCESS;
+})->purpose('Sincronizar o catálogo global de veículos para o MySQL sem dados de tenant');
 
 Artisan::command('repasse:tenant:create {slug : Identificador único da empresa} {name : Razão/nome da empresa} {email : E-mail inicial do administrador}', function (): int {
     $slug = Str::lower(trim((string) $this->argument('slug')));

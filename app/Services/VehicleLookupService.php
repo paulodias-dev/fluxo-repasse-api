@@ -13,6 +13,8 @@ final class VehicleLookupService
     private const FIPE_URL = 'https://fipe.parallelum.com.br/api/v2';
     private const PLATE_URL = 'https://api.placaefipe.com.br/v1/placas';
 
+    public function __construct(private readonly VehicleCatalogStore $catalogStore) {}
+
     public static function normalizePlate(?string $value): ?string
     {
         if ($value === null || trim($value) === '') {
@@ -105,6 +107,18 @@ final class VehicleLookupService
     public function catalog(string $type, string $resource, ?string $brand = null,
         ?string $year = null, ?string $family = null): array
     {
+        $local = $this->catalogStore->catalog($type, $resource, $brand, $year, $family);
+        if ($local !== null) return $local;
+
+        if ($this->catalogStore->provider() === 'apifipe') {
+            try {
+                return app(VehicleCatalogSyncService::class)->catalog($type, $resource, $brand, $year, $family);
+            } catch (\Throwable) {
+                return ['status' => 'unavailable', 'items' => [],
+                    'message' => 'Catálogo FIPE indisponível. Utilize o preenchimento manual.'];
+            }
+        }
+
         if ($resource === 'years' && $brand && $family) {
             return $this->catalogYearsForFamily($type, $brand, $family);
         }
@@ -121,6 +135,7 @@ final class VehicleLookupService
             $items = Cache::remember('vehicle-fipe:v2:'.$path, now()->addHours(12),
                 fn () => $this->get($path));
             $items = array_slice($items, 0, 3000);
+            $this->catalogStore->importRemoteList($type, $resource, $brand, $year, $items);
             if ($resource === 'models') {
                 $names = [];
                 foreach ($items as $item) {
@@ -156,24 +171,40 @@ final class VehicleLookupService
         try {
             $models = Cache::remember('vehicle-fipe:v2:'.$modelsPath, now()->addHours(12),
                 fn () => $this->get($modelsPath));
+            $this->catalogStore->importModels($type, $brand, $models);
             $modelCodes = [];
+            $modelNames = [];
             foreach ($models as $model) {
                 if (! is_array($model) || $this->family((string) ($model['name'] ?? '')) !== $family) {
                     continue;
                 }
                 $code = (string) ($model['code'] ?? '');
-                if ($code !== '') $modelCodes[$code] = true;
+                if ($code !== '') {
+                    $modelCodes[$code] = true;
+                    $modelNames[$code] = (string) ($model['name'] ?? $code);
+                }
             }
 
             if ($modelCodes === []) {
                 return ['status' => 'ok', 'items' => []];
             }
 
-            $items = Cache::remember(
-                'vehicle-fipe:v2:family-years:'.hash('sha256', $type.'|'.$brand.'|'.$family),
+            $yearsByModel = Cache::remember(
+                'vehicle-fipe:v3:family-years-by-model:'.hash('sha256', $type.'|'.$brand.'|'.$family),
                 now()->addHours(12),
-                fn () => $this->fetchFamilyYears($type, $brand, array_keys($modelCodes))
+                fn () => $this->fetchFamilyYearsByModel($type, $brand, array_keys($modelCodes))
             );
+            $items = [];
+            foreach ($yearsByModel as $modelCode => $years) {
+                $this->catalogStore->importModelYears($type, $brand, (string) $modelCode,
+                    $years, $modelNames[(string) $modelCode] ?? (string) $modelCode);
+                foreach ($years as $item) {
+                    if (! is_array($item)) continue;
+                    $label = $this->safeText($item['name'] ?? null, 180);
+                    $id = (string) ($item['code'] ?? '');
+                    if ($id !== '' && $label) $items[$id] = ['id' => $id, 'label' => $label];
+                }
+            }
             usort($items, fn ($a, $b) => strnatcasecmp($a['label'], $b['label']));
             return ['status' => 'ok', 'items' => $items];
         } catch (\Throwable) {
@@ -182,8 +213,8 @@ final class VehicleLookupService
         }
     }
 
-    /** @return array<int, array{id: string, label: string}> */
-    private function fetchFamilyYears(string $type, string $brand, array $modelCodes): array
+    /** @return array<string, array<int, array{code: string, name: string}>> */
+    private function fetchFamilyYearsByModel(string $type, string $brand, array $modelCodes): array
     {
         $token = (string) config('services.vehicle_fipe.token');
         $responses = Http::pool(function (Pool $pool) use ($type, $brand, $modelCodes, $token) {
@@ -197,21 +228,43 @@ final class VehicleLookupService
             return $requests;
         });
 
-        $items = [];
-        foreach ($responses as $response) {
+        $result = [];
+        foreach (array_values($responses) as $index => $response) {
+            $modelCode = (string) ($modelCodes[$index] ?? '');
+            if ($modelCode === '') continue;
+            $years = [];
             if (! $response->successful() || ! is_array($response->json())) continue;
             foreach ($response->json() as $item) {
                 if (! is_array($item)) continue;
                 $label = $this->safeText($item['name'] ?? null, 180);
                 $id = (string) ($item['code'] ?? '');
-                if ($id !== '' && $label) $items[$id] = ['id' => $id, 'label' => $label];
+                if ($id !== '' && $label) $years[] = ['code' => $id, 'name' => $label];
             }
+            $result[$modelCode] = $years;
         }
-        return array_values($items);
+        return $result;
     }
 
     public function quote(string $type, string $brand, string $model, string $year, int $userId): array
     {
+        $local = $this->catalogStore->findQuote($type, $brand, $model, $year);
+        if ($local !== null) {
+            return ['status' => 'matched', 'quote' => $this->issueQuote($userId, $local)];
+        }
+
+        if ($this->catalogStore->provider() === 'apifipe') {
+            try {
+                $remote = app(VehicleCatalogSyncService::class)->quote($type, $brand, $model, $year);
+                if (! $remote || ! $remote['brand'] || ! $remote['model'] || ! $remote['model_year']) {
+                    return ['status' => 'unavailable'];
+                }
+                $this->catalogStore->importPrice($type, $brand, $model, $year, $remote);
+                return ['status' => 'matched', 'quote' => $this->issueQuote($userId, $remote)];
+            } catch (\Throwable) {
+                return ['status' => 'unavailable', 'message' => 'Referência FIPE indisponível; cadastro manual permitido.'];
+            }
+        }
+
         try {
             $raw = $this->get("/$type/brands/$brand/models/$model/years/$year", false);
             if (! is_array($raw) || ! is_string($raw['price'] ?? null)
@@ -237,6 +290,7 @@ final class VehicleLookupService
             if (! $quote['brand'] || ! $quote['model'] || ! $quote['model_year']) {
                 return ['status' => 'unavailable'];
             }
+            $this->catalogStore->importPrice($type, $brand, $model, $year, $quote);
             return ['status' => 'matched', 'quote' => $quote];
         } catch (\Throwable) {
             return ['status' => 'unavailable', 'message' => 'Referência FIPE indisponível; cadastro manual permitido.'];

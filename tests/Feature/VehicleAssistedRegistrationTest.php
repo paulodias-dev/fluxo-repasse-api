@@ -83,6 +83,7 @@ final class VehicleAssistedRegistrationTest extends TestCase
                 '/api/v2/cars/brands/59/models/100/years' => [['code' => '2023-5', 'name' => '2023 Flex']],
                 '/api/v2/cars/brands/59/models/101/years' => [['code' => '2023-5', 'name' => '2023 Flex']],
                 '/api/v2/cars/brands/59/years/2023-5/models' => [
+                    ['code' => '100', 'name' => 'POLO 1.0 MPI'],
                     ['code' => '101', 'name' => 'POLO HIGHLINE 1.0']],
                 '/api/v2/cars/brands/59/models/101/years/2023-5' => [
                     'brand' => 'VW - VolksWagen', 'model' => 'POLO HIGHLINE 1.0',
@@ -100,7 +101,7 @@ final class VehicleAssistedRegistrationTest extends TestCase
             ->assertOk()->assertJsonCount(1, 'data.items')
             ->assertJsonPath('data.items.0.label', '2023 Flex');
         $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/versions?type=cars&brand=59&year=2023-5&family=POLO')
-            ->assertOk()->assertJsonCount(1, 'data.items');
+            ->assertOk()->assertJsonCount(2, 'data.items');
         $q = $this->withToken($token)->getJson(
             '/api/v1/vehicle-lookup/quote?type=cars&brand=59&model=101&year=2023-5'
         )->assertOk()->assertJsonPath('data.quote.fipe_price_cents', 9832147)->json('data.quote');
@@ -116,6 +117,41 @@ final class VehicleAssistedRegistrationTest extends TestCase
         $this->withToken($token)->postJson('/api/v1/repasse-cases',
             array_merge($payload, ['title' => 'Outro título']))->assertStatus(409);
         $this->assertSame(1, DB::table('repasse_cases')->where('tenant_id', $tenant->id)->count());
+    }
+
+    public function test_provedor_apifipe_normaliza_catalogo_e_grava_preco_localmente(): void
+    {
+        [$tenant, $token] = $this->actor('apifipe-56');
+        config()->set('services.vehicle_catalog.provider', 'apifipe');
+        config()->set('services.vehicle_catalog.apifipe.token', 'token-apifipe');
+        Http::fake(function (Request $request) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            return Http::response(match ($path) {
+                '/carros' => [['codMarca' => 59, 'nomeMarca' => 'VW - VolksWagen']],
+                '/carros/59' => [['codModelo' => 101, 'nomeModelo' => 'POLO HIGHLINE 1.0']],
+                '/carros/59/101' => [['codAno' => '2023-5', 'nomeAno' => '2023 Flex']],
+                '/carros/59/101/2023-5' => [
+                    'codFipe' => '005123-4', 'valorVeiculo' => 'R$ 98.321,47',
+                    'refMes' => 'novembro de 2026', 'anoModelo' => 2023,
+                    'nomeMarca' => 'VW - VolksWagen', 'nomeModelo' => 'POLO HIGHLINE 1.0',
+                ],
+                default => ['mensagem' => 'não encontrado'],
+            });
+        });
+
+        $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/brands?type=cars')
+            ->assertOk()->assertJsonPath('data.items.0.id', '59');
+        $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/models?type=cars&brand=59')
+            ->assertOk()->assertJsonPath('data.items.0.label', 'POLO');
+        $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/years?type=cars&brand=59&family=POLO')
+            ->assertOk()->assertJsonPath('data.items.0.label', '2023 Flex');
+        $quote = $this->withToken($token)->getJson(
+            '/api/v1/vehicle-lookup/quote?type=cars&brand=59&model=101&year=2023-5'
+        )->assertOk()->assertJsonPath('data.quote.fipe_price_cents', 9832147)->json('data.quote');
+        $this->assertDatabaseHas('vehicle_catalog_prices', [
+            'provider' => 'apifipe', 'fipe_code' => '005123-4', 'price_cents' => 9832147,
+        ]);
+        $this->assertSame('apifipe', $quote['fipe_source']);
     }
 
     public function test_placa_duplicada_somente_no_tenant_e_origem_fipe_nao_pode_ser_forjada(): void
