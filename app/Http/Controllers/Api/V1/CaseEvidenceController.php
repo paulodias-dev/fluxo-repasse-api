@@ -31,16 +31,21 @@ final class CaseEvidenceController extends Controller
             $query->whereNull('archived_at');
         }
         $documents = $query->select(['id', 'original_name', 'mime', 'size_bytes', 'sha256',
-            'uploaded_by', 'archived_at', 'created_at'])->orderByDesc('id')->paginate(30);
+            'uploaded_by', 'document_type', 'document_label', 'archived_at', 'created_at'])->orderByDesc('id')->paginate(30);
 
         return response()->json($documents)->header('Cache-Control', 'no-store');
     }
 
     public function upload(Request $request, int $case): JsonResponse
     {
-        $this->operations->restrict($request, ['file']);
+        $this->operations->restrict($request, ['file', 'document_type', 'document_label']);
         $data = $request->validate([
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp'],
+            'document_type' => ['required', \Illuminate\Validation\Rule::in([
+                'foto_veiculo', 'crlv', 'crv_dut', 'ipva', 'laudo_cautelar',
+                'laudo_tecnico', 'laudo_concessionaria', 'nota_fiscal', 'contrato', 'outros',
+            ])],
+            'document_label' => ['required_if:document_type,outros', 'nullable', 'string', 'min:2', 'max:120'],
         ]);
         $file = $data['file'];
         $name = str_replace('\\', '/', $file->getClientOriginalName());
@@ -82,7 +87,7 @@ final class CaseEvidenceController extends Controller
         // O disco local Laravel é privado: nunca oferecer URL pública do arquivo.
         $id = null;
         try {
-            DB::transaction(function () use ($case, $request, $contents, $path, $original, $mime, $sha, &$id): void {
+            DB::transaction(function () use ($case, $request, $data, $contents, $path, $original, $mime, $sha, &$id): void {
                 $this->operations->editable($case);
                 if (! Storage::disk('local')->put($path, $contents)) {
                     throw ValidationException::withMessages(['file' => 'Não foi possível guardar o documento.']);
@@ -92,6 +97,8 @@ final class CaseEvidenceController extends Controller
                     'storage_path' => $path, 'mime' => $mime,
                     'size_bytes' => strlen($contents), 'sha256' => $sha,
                     'uploaded_by' => $request->user('api')->getAuthIdentifier(),
+                    'document_type' => $data['document_type'],
+                    'document_label' => $data['document_type'] === 'outros' ? trim($data['document_label']) : null,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
                 $this->operations->event($case, $request, 'evidence_uploaded');
@@ -148,6 +155,6 @@ final class CaseEvidenceController extends Controller
     {
         return TenantDB::table('repasse_case_evidence')->where('repasse_case_id', $case)
             ->where('id', $id)->select(['id', 'original_name', 'mime', 'size_bytes',
-                'sha256', 'uploaded_by', 'archived_at', 'created_at'])->firstOrFail();
+                'sha256', 'uploaded_by', 'document_type', 'document_label', 'archived_at', 'created_at'])->firstOrFail();
     }
 }

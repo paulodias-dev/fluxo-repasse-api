@@ -281,6 +281,7 @@ final class VehicleFinanceWorkspaceTest extends TestCase
         $entryB = $this->entry($token, $first);
         $foreignEntry = $this->entry($token, $second);
         $upload = $this->withToken($token)->post("/api/v1/repasse-cases/$first/evidence", [
+            'document_type' => 'nota_fiscal',
             'file' => UploadedFile::fake()->create('nota.pdf', 24, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertCreated();
         $evidence = $upload->json('data.id');

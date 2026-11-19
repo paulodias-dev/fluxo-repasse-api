@@ -122,12 +122,14 @@ final class VehiclePortfolioTest extends TestCase
             ['income', 'planned', 10000, 'Outra receita'],
         ] as [$kind, $status, $amount, $category]) {
             $this->withToken($token)->postJson("$base/finance/entries", [
+                'effective_on' => '2026-11-16',
                 'kind' => $kind, 'status' => $status, 'category' => $category,
                 'description' => 'Lançamento gerencial', 'amount_cents' => $amount,
             ])->assertCreated();
         }
 
         $voided = $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
             'description' => 'Estornado', 'amount_cents' => 900000,
         ])->assertCreated()->json('data.id');
@@ -237,6 +239,7 @@ final class VehiclePortfolioTest extends TestCase
             'sale_amount_cents' => 4000000,
         ]);
         $this->withToken($token)->postJson("/api/v1/repasse-cases/$id/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned',
             'category' => 'Manutenção', 'description' => 'Revisão prevista',
             'amount_cents' => 500000,
@@ -270,6 +273,7 @@ final class VehiclePortfolioTest extends TestCase
         $archived = $this->vehicle($token, ['title' => 'Veículo arquivado', ...$complete]);
 
         $this->withToken($token)->postJson("/api/v1/repasse-cases/{$planned}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'Manutenção',
             'description' => 'Revisão ainda prevista', 'amount_cents' => 30000,
         ])->assertCreated();

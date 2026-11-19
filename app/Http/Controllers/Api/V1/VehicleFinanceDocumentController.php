@@ -112,6 +112,7 @@ final class VehicleFinanceDocumentController extends Controller
                         'storage_path' => $path, 'mime' => $mime,
                         'size_bytes' => $file->getSize(), 'sha256' => $sha,
                         'uploaded_by' => $request->user('api')->getAuthIdentifier(),
+                        'document_type' => 'comprovante_financeiro',
                         'created_at' => now(), 'updated_at' => now(),
                     ]);
                 } else {

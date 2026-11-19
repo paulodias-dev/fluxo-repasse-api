@@ -251,12 +251,28 @@ final class VehiclePortfolioController extends Controller
                 $query->orderByDesc('c.updated_at')->orderByDesc('c.id');
         }
 
+        // The client downloads the selected image with its JWT; no public file URL.
+        $query->selectSub(
+            TenantDB::table('repasse_case_evidence as photo')
+                ->select('photo.id')
+                ->whereColumn('photo.repasse_case_id', 'c.id')
+                ->whereNull('photo.archived_at')
+                ->where('photo.mime', 'like', 'image/%')
+                ->where(function ($inner): void {
+                    $inner->where('photo.document_type', 'foto_veiculo')->orWhereNull('photo.document_type');
+                })
+                ->orderByDesc('photo.document_type')
+                ->orderBy('photo.id')
+                ->limit(1),
+            'image_document_id'
+        );
+
         $page = $query->paginate(15);
         // SUM() over BIGINT becomes DECIMAL on MySQL: normalize the public
         // contract to integer cents, including NEGATIVE projected results.
         $page->through(static function (object $row): object {
             foreach ([
-                'id', 'model_year', 'purchase_amount_cents', 'sale_amount_cents',
+                'id', 'model_year', 'image_document_id', 'purchase_amount_cents', 'sale_amount_cents',
                 'open_tasks', 'overdue_tasks', 'pending_checklist', 'documents_count',
                 'expense_realized_cents', 'expense_planned_cents',
                 'income_realized_cents', 'income_planned_cents',

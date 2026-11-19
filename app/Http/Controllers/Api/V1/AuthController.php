@@ -79,6 +79,27 @@ final class AuthController extends Controller
         ])->header('Cache-Control', 'no-store');
     }
 
+    /** Per-user UI preferences; the user ID comes exclusively from the JWT session. */
+    public function updatePreferences(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $changes = $request->validate([
+            'theme_mode' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(['light', 'dark', 'system'])],
+            'sidebar_collapsed' => ['sometimes', 'required', 'boolean'],
+            'vehicle_view' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(['list', 'grid'])],
+        ]);
+
+        $preferences = DB::transaction(function () use ($request, $changes): array {
+            $user = User::query()->whereKey($request->user('api')->getKey())->lockForUpdate()->firstOrFail();
+            $preferences = array_replace($this->defaultPreferences(), $user->preferences ?? [], $changes);
+            $user->preferences = $preferences;
+            $user->save();
+
+            return $preferences;
+        });
+
+        return response()->json(['data' => $preferences])->header('Cache-Control', 'no-store, private');
+    }
+
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user('api');
@@ -168,6 +189,11 @@ final class AuthController extends Controller
     }
 
     /** @return array<string, mixed> */
+    private function defaultPreferences(): array
+    {
+        return ['theme_mode' => 'system', 'sidebar_collapsed' => false, 'vehicle_view' => 'list'];
+    }
+
     private function profileData(User $user): array
     {
         return [
@@ -175,6 +201,7 @@ final class AuthController extends Controller
             'email' => $user->email,
             'phone' => $user->phone,
             'company_name' => $user->company_name,
+            'preferences' => array_replace($this->defaultPreferences(), $user->preferences ?? []),
             'avatar_url' => $user->avatar_path !== null
                 ? $this->avatarUrl($user->avatar_path)
                 : null,

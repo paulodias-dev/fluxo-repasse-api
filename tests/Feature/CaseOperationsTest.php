@@ -144,6 +144,8 @@ final class CaseOperationsTest extends TestCase
         $case = $this->createCase($token);
         $base = "/api/v1/repasse-cases/{$case}/evidence";
         $result = $this->withToken($token)->post($base, [
+            'document_type' => 'outros',
+            'document_label' => 'Documento de exemplo',
             'file' => UploadedFile::fake()->create('evidencia.pdf', 24, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertCreated()
             ->assertJsonMissingPath('data.storage_path');

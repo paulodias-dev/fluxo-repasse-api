@@ -52,14 +52,17 @@ final class Vehicle360Test extends TestCase
 
         $base = "$url/$id";
         $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'manutencao',
             'description' => 'Troca de pneus', 'amount_cents' => 130000,
         ])->assertCreated();
         $planned = $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'transporte',
             'description' => 'Entrega futura', 'amount_cents' => 70000,
         ])->assertCreated()->json('data.id');
         $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'income', 'status' => 'realized', 'category' => 'extra',
             'description' => 'Receita acessória', 'amount_cents' => 20000,
         ])->assertCreated();
@@ -142,15 +145,18 @@ final class Vehicle360Test extends TestCase
 
         $base = "/api/v1/repasse-cases/$id";
         $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'frete',
             'description' => 'Valor incorreto', 'amount_cents' => -5,
         ])->assertUnprocessable();
         $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'frete',
             'description' => 'Transferência indevida', 'amount_cents' => 100,
             'pix_key' => 'proibido',
         ])->assertUnprocessable()->assertJsonValidationErrors(['pix_key']);
         $entry = $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'frete',
             'description' => 'Transporte agendado', 'amount_cents' => 100,
         ])->assertCreated()->json('data.id');
@@ -160,6 +166,7 @@ final class Vehicle360Test extends TestCase
         $this->archiveVehicleForQa($token, $base);
         $this->withToken($token)->patchJson($base, ['plate' => 'AAA1B22'])->assertUnprocessable();
         $this->withToken($token)->postJson("$base/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'frete',
             'description' => 'Bloqueado', 'amount_cents' => 100,
         ])->assertUnprocessable();
