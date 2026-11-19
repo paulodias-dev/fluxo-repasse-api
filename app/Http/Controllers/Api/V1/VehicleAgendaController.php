@@ -41,7 +41,7 @@ final class VehicleAgendaController extends Controller
         if (isset($filters['vehicle_id'])) $query->where('t.repasse_case_id', $filters['vehicle_id']);
         if (isset($filters['kind'])) $query->where('t.kind', $filters['kind']);
         return response()->json(['data' => $query->orderBy('t.due_on')
-            ->orderBy('t.start_time')->orderBy('t.id')->limit(500)->get()])
+            ->orderBy('t.start_time')->orderBy('t.id')->get()])
             ->header('Cache-Control', 'no-store, private');
     }
 
@@ -95,7 +95,7 @@ final class VehicleAgendaController extends Controller
         $case = (int) $data['repasse_case_id'];
         $id = DB::transaction(function () use ($case, $request, $data): int {
             $this->operations->editable($case);
-            return tap(TenantDB::table('repasse_case_tasks')->insertGetId([
+            $id = TenantDB::table('repasse_case_tasks')->insertGetId([
                 'repasse_case_id' => $case, 'title' => $data['title'],
                 'details' => $data['details'] ?? null,
                 'kind' => $data['kind'], 'status' => $data['status'] ?? 'pending',
@@ -106,7 +106,9 @@ final class VehicleAgendaController extends Controller
                 'assigned_to' => $data['assigned_to'] ?? null,
                 'created_by' => $request->user('api')->getAuthIdentifier(),
                 'created_at' => now(), 'updated_at' => now(),
-            ]), fn () => $this->operations->event($case, $request, 'task_created'));
+            ]);
+            $this->operations->event($case, $request, 'task_created');
+            return $id;
         });
         return response()->json(['data' => $this->one($id)], 201)
             ->header('Cache-Control', 'no-store, private');
