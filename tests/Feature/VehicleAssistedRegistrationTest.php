@@ -80,7 +80,8 @@ final class VehicleAssistedRegistrationTest extends TestCase
                 '/api/v2/cars/brands/59/models' => [
                     ['code' => '100', 'name' => 'POLO 1.0 MPI'],
                     ['code' => '101', 'name' => 'POLO HIGHLINE 1.0']],
-                '/api/v2/cars/brands/59/years' => [['code' => '2023-5', 'name' => '2023 Flex']],
+                '/api/v2/cars/brands/59/models/100/years' => [['code' => '2023-5', 'name' => '2023 Flex']],
+                '/api/v2/cars/brands/59/models/101/years' => [['code' => '2023-5', 'name' => '2023 Flex']],
                 '/api/v2/cars/brands/59/years/2023-5/models' => [
                     ['code' => '101', 'name' => 'POLO HIGHLINE 1.0']],
                 '/api/v2/cars/brands/59/models/101/years/2023-5' => [
@@ -95,6 +96,9 @@ final class VehicleAssistedRegistrationTest extends TestCase
             ->assertOk()->assertJsonPath('data.items.0.label', 'VW - VolksWagen');
         $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/models?type=cars&brand=59')
             ->assertOk()->assertJsonCount(1, 'data.items');
+        $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/years?type=cars&brand=59&family=POLO')
+            ->assertOk()->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.label', '2023 Flex');
         $this->withToken($token)->getJson('/api/v1/vehicle-lookup/catalog/versions?type=cars&brand=59&year=2023-5&family=POLO')
             ->assertOk()->assertJsonCount(1, 'data.items');
         $q = $this->withToken($token)->getJson(

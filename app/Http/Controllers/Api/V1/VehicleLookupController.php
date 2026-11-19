@@ -27,7 +27,7 @@ final class VehicleLookupController extends Controller
             'type' => ['required', Rule::in(['cars', 'motorcycles', 'trucks'])],
             'brand' => [$resource !== 'brands' ? 'required' : 'sometimes', 'regex:/^[0-9]{1,8}$/'],
             'year' => [$resource === 'versions' ? 'required' : 'sometimes', 'regex:/^(?:19|20|21)[0-9]{2}-[1-6]$|^32000-[1-6]$/'],
-            'family' => [$resource === 'versions' ? 'required' : 'sometimes', 'string', 'max:60'],
+            'family' => [in_array($resource, ['years', 'versions'], true) ? 'required' : 'sometimes', 'string', 'max:60'],
         ];
         $data = $request->validate($rules);
         return $this->reply($this->service->catalog($data['type'], $resource,

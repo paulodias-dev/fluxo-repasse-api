@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\TenantContext;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -104,6 +105,10 @@ final class VehicleLookupService
     public function catalog(string $type, string $resource, ?string $brand = null,
         ?string $year = null, ?string $family = null): array
     {
+        if ($resource === 'years' && $brand && $family) {
+            return $this->catalogYearsForFamily($type, $brand, $family);
+        }
+
         $path = match ($resource) {
             'brands' => "/$type/brands",
             'models' => "/$type/brands/$brand/models",
@@ -141,6 +146,68 @@ final class VehicleLookupService
             return ['status' => 'unavailable', 'items' => [],
                 'message' => 'Catálogo indisponível. Utilize o preenchimento manual.'];
         }
+    }
+
+    private function catalogYearsForFamily(string $type, string $brand, string $family): array
+    {
+        $family = $this->family($family);
+        $modelsPath = "/$type/brands/$brand/models";
+
+        try {
+            $models = Cache::remember('vehicle-fipe:v2:'.$modelsPath, now()->addHours(12),
+                fn () => $this->get($modelsPath));
+            $modelCodes = [];
+            foreach ($models as $model) {
+                if (! is_array($model) || $this->family((string) ($model['name'] ?? '')) !== $family) {
+                    continue;
+                }
+                $code = (string) ($model['code'] ?? '');
+                if ($code !== '') $modelCodes[$code] = true;
+            }
+
+            if ($modelCodes === []) {
+                return ['status' => 'ok', 'items' => []];
+            }
+
+            $items = Cache::remember(
+                'vehicle-fipe:v2:family-years:'.hash('sha256', $type.'|'.$brand.'|'.$family),
+                now()->addHours(12),
+                fn () => $this->fetchFamilyYears($type, $brand, array_keys($modelCodes))
+            );
+            usort($items, fn ($a, $b) => strnatcasecmp($a['label'], $b['label']));
+            return ['status' => 'ok', 'items' => $items];
+        } catch (\Throwable) {
+            return ['status' => 'unavailable', 'items' => [],
+                'message' => 'Catálogo indisponível. Utilize o preenchimento manual.'];
+        }
+    }
+
+    /** @return array<int, array{id: string, label: string}> */
+    private function fetchFamilyYears(string $type, string $brand, array $modelCodes): array
+    {
+        $token = (string) config('services.vehicle_fipe.token');
+        $responses = Http::pool(function (Pool $pool) use ($type, $brand, $modelCodes, $token) {
+            $requests = [];
+            foreach ($modelCodes as $modelCode) {
+                $request = $pool->as((string) $modelCode)
+                    ->acceptJson()->connectTimeout(2)->timeout(6)->withoutRedirecting();
+                if ($token !== '') $request = $request->withHeaders(['X-Subscription-Token' => $token]);
+                $requests[] = $request->get(self::FIPE_URL."/$type/brands/$brand/models/$modelCode/years");
+            }
+            return $requests;
+        });
+
+        $items = [];
+        foreach ($responses as $response) {
+            if (! $response->successful() || ! is_array($response->json())) continue;
+            foreach ($response->json() as $item) {
+                if (! is_array($item)) continue;
+                $label = $this->safeText($item['name'] ?? null, 180);
+                $id = (string) ($item['code'] ?? '');
+                if ($id !== '' && $label) $items[$id] = ['id' => $id, 'label' => $label];
+            }
+        }
+        return array_values($items);
     }
 
     public function quote(string $type, string $brand, string $model, string $year, int $userId): array
