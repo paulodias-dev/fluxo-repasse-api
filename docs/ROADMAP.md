@@ -691,3 +691,34 @@ Nenhuma mutação financeira nova ou integração bancária. Medição global de
   (após merge dos PRs API/APP; não é homologação, cobertura nem prontidão).
 - [ ] Validar e corrigir eventuais falhas efetivas de PHPUnit/Pint/MySQL real e
   React build/lint/QA mobile. Não registrar execução inexistente.
+
+---
+
+## Macroentrega 56 — Cadastro de veículos assistido por placa e catálogo FIPE (PLANEJADA, não implementada)
+
+**Origem:** decisão de produto de 19/11/2026. **Escopo exclusivamente de cadastro de veículos**; o Financeiro será discutido à parte. Não integrar Marketplace/rede social nesta fase. O MVP empresarial codificado na Macro 54 e a UX/onboarding da Macro 55 não devem ser reclassificados nem modificados por esta documentação. **Estado atual: zero implementação e zero QA da nova macro.**
+
+**Especificação canônica, com narrativa de uso + checklist técnico + cenários de testes e aceite:** [`docs/MACRO_56_CADASTRO_ASSISTIDO_PLACA_FIPE_ESPECIFICACAO.md`](MACRO_56_CADASTRO_ASSISTIDO_PLACA_FIPE_ESPECIFICACAO.md).
+
+### Narrativa aprovada de operação
+1. O operador toca **Adicionar veículo**. Mobile: seletor em bottom sheet compacto; desktop: modal Metronic. Duas ações: **Consultar pela placa** ou **Escolher meu veículo**.
+2. **Placa:** digitar/consultar explicitamente; ao encontrar, o backend devolve somente os atributos automotivos permitidos e o app mostra revisão editável. Versão ambígua exige escolha; FIPE só aparece quando correspondência correta e competência mensal forem conhecidas. Falha, indisponibilidade ou custo/limite do fornecedor liberam imediatamente cadastro guiado/manual.
+3. **Guiado:** escolher tipo → marca → modelo → ano-modelo → versão por listas dependentes, busca e voltar sem perda do rascunho; campo manual sempre disponível se catálogo não cobrir o modelo.
+4. Ambos levam à **mesma confirmação do cadastro**, reutilizando `POST /api/v1/repasse-cases`, campos existentes e botões **Salvar veículo** / **Salvar + despesa**. Nunca criar despesa sem uma segunda confirmação.
+5. **Placa é opcional no cadastro inicial**; sinalizar pendência na frota/ficha. Antes de concluir venda, requerer placa quando aplicável, com política de exceção justificada **a aprovar antes de alterar comportamento de produção**.
+6. **Preço FIPE é somente referência do mês**, separado de compra/venda/margem/receita; jamais preencher preço de compra ou criar lançamento financeiro por cotação. O usuário confere e pode corrigir os dados sugeridos.
+
+### Checklist técnico — bloquear conclusão se algum item essencial falhar
+- [ ] **Produto/compliance:** selecionar fornecedores de consulta de placa, catálogo e cotação FIPE; validar cobertura, licenças para SaaS, custos, limites, SLA, privacidade/LGPD e termos de uso. A **FIPE declara que não fornece API oficial**: https://www.fipe.org.br/pt-br/indices/veiculos/.
+- [ ] **Modelo:** compatibilizar campos atuais `title`, `plate`, `brand`, `model`, `model_year`, `purchase_amount_cents`; somente criar campos extras/aditivos com justificativa; não inventar dados nos veículos legados.
+- [ ] **API:** criar adapters independentes dos fornecedores, validação de placa e versão, catálogo filtrado, cotação por código+competência, respostas normalizadas e tratamento `matched/ambiguous/not_found/unavailable`.
+- [ ] **Segurança:** JWT/sessão vigente/`cases.manage`, `tenant_id` derivado do token, TenantDB, nenhuma consulta cruzada, nenhum dado pessoal desnecessário, sem segredo frontend, rate limit e proteção SSRF.
+- [ ] **Confiabilidade:** timeout/circuit breaker, cache conforme licença, orçamento/alerta de chamadas, fallback manual garantido, respostas assíncronas antigas descartadas, idempotência de criação server-side e regra transacional de duplicidade intra-tenant.
+- [ ] **PWA React:** seletor inicial de duas opções, wizard com passos, loading/erro claros, escolha de versão quando ambígua, FIPE com mês/ano, revisão editável, placa pendente, botões atuais e onboarding sem transações automáticas.
+- [ ] **Não regressão:** Metronic Demo 1, col-6 e ações proporcionais no mobile, tabela desktop, quatro abas do Veículo 360, valores nulos vs zero e separação de repasses/receitas/compra/venda.
+- [ ] **Contratos:** FormRequest, OpenAPI, migrations aditivas/rollback, política de cache privado no PWA e auditoria mínima, sem dados sensíveis em logs.
+- [ ] **Testes de backend/frontend:** executar a matriz `CV-01..40`, `SEC-01..18`, `UX-01..07`, `PERF-01..06`, `OPS-01..06` da especificação, além de regressões dos fluxos existentes.
+- [ ] **QA real:** PHPUnit SQLite/MySQL, Pint, npm lint/build/scripts, autenticação em dois tenants, Android/iPhone/Safari/Chrome, 320/375/390/768/1024/1440px, claro/escuro, rede lenta, fornecedor caído e orçamento esgotado.
+- [ ] **Entrega futura una:** implementar backend e frontend no mesmo ciclo, com PRs não draft, revisão, evidências e aceite. **Não modificar código nesta entrega de planejamento.**
+
+**Restrições de prontidão:** documento revisado não equivale a integração disponível, fornecedor contratado, cotação garantida, teste executado ou ausência absoluta de falhas. O início de implementação depende das decisões pendentes registradas na especificação.
