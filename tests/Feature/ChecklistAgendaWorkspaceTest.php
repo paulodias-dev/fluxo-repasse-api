@@ -25,13 +25,15 @@ final class ChecklistAgendaWorkspaceTest extends TestCase
 
     private function token(?int $tenant = null, bool $permission = true): string
     {
+        request()->attributes->remove('verified_tenant_id');
         $user = User::factory()->create([
             'password' => 'Strong-Passphrase-123!',
             ...($tenant ? ['tenant_id' => $tenant] : []),
         ]);
         if ($permission) {
             $role = Role::query()->firstOrCreate(
-                ['slug' => 'qa_checklist_operator'], ['name' => 'Operador de QA']
+                ['tenant_id' => $user->tenant_id, 'slug' => 'qa_checklist_operator'],
+                ['name' => 'Operador de QA']
             );
             $grant = Permission::query()->firstOrCreate(['key' => 'cases.manage']);
             $role->permissions()->syncWithoutDetaching([$grant->id]);

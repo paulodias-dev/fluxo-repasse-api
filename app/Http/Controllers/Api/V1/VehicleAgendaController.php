@@ -48,7 +48,8 @@ final class VehicleAgendaController extends Controller
     private function validateInput(Request $request, bool $partial = false): array
     {
         $allowed = ['repasse_case_id', 'title', 'details', 'kind', 'due_on',
-            'start_time', 'end_time', 'assigned_to', 'priority', 'remind_minutes', 'status'];
+            'start_time', 'end_time', 'assigned_to', 'priority', 'remind_minutes'];
+        if ($partial) $allowed[] = 'status';
         $this->operations->restrict($request, $allowed);
         $required = $partial ? 'sometimes' : 'required';
         $data = $request->validate([
