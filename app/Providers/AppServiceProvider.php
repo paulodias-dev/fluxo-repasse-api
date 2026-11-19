@@ -17,6 +17,21 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        RateLimiter::for('vehicle-plate', function (Request $request): array {
+            $user = $request->user('api');
+            return [
+                Limit::perMinute(6)->by('vehicle-plate-user:'.$user?->tenant_id.':'.$user?->id),
+                Limit::perHour(30)->by('vehicle-plate-tenant:'.$user?->tenant_id),
+            ];
+        });
+        RateLimiter::for('vehicle-catalog', function (Request $request): array {
+            $user = $request->user('api');
+            return [
+                Limit::perMinute(40)->by('vehicle-catalog-user:'.$user?->tenant_id.':'.$user?->id),
+                Limit::perMinute(120)->by('vehicle-catalog-tenant:'.$user?->tenant_id),
+            ];
+        });
+
         RateLimiter::for('repasse-refresh', function (Request $request): Limit {
             $id = $request->user('api')?->getAuthIdentifier() ?? 'anonymous';
 

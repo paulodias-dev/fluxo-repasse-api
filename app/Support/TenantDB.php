@@ -30,6 +30,7 @@ final class TenantDB
         'repasse_external_transfer_reports',
         'repasse_settlements', 'repasse_settlement_lines',
         'repasse_settlement_payments', 'repasse_settlement_events',
+        'vehicle_create_requests',
     ];
 
     public static function qualifierFor(string $table): ?string
