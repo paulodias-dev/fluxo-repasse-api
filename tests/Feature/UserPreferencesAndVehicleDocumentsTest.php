@@ -43,7 +43,7 @@ final class UserPreferencesAndVehicleDocumentsTest extends TestCase
         [$first, $firstToken] = $this->token();
         [$second, $secondToken] = $this->token();
 
-        $this->getJson('/api/v1/auth/preferences')->assertUnauthorized();
+        $this->getJson('/api/v1/auth/me')->assertUnauthorized();
         $this->patchJson('/api/v1/auth/preferences', ['theme_mode' => 'dark'])->assertUnauthorized();
 
         $this->withToken($firstToken)->getJson('/api/v1/auth/me')->assertOk()
