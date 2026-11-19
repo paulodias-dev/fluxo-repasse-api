@@ -81,22 +81,27 @@ final class VehicleCloseoutReviewTest extends TestCase
         }
 
         $expense = $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
             'description' => 'Custos realizados', 'amount_cents' => 200000,
         ])->assertCreated()->json('data.id');
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'Transporte',
             'description' => 'Custo ainda previsto', 'amount_cents' => 30000,
         ])->assertCreated();
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'income', 'status' => 'planned', 'category' => 'Serviço extra',
             'description' => 'Receita ainda prevista', 'amount_cents' => 20000,
         ])->assertCreated();
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'income', 'status' => 'realized', 'category' => 'Serviço extra',
             'description' => 'Receita realizada', 'amount_cents' => 10000,
         ])->assertCreated();
         $voided = $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
             'description' => 'Lançamento estornado', 'amount_cents' => 400000,
         ])->assertCreated()->json('data.id');

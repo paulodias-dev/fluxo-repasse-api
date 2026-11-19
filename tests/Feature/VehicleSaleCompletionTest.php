@@ -61,14 +61,17 @@ final class VehicleSaleCompletionTest extends TestCase
         $id = $this->vehicle($token);
         $base = "/api/v1/repasse-cases/{$id}";
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
             'description' => 'Revisão técnica', 'amount_cents' => 200000,
         ])->assertCreated();
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'income', 'status' => 'realized', 'category' => 'Extras',
             'description' => 'Receita extra', 'amount_cents' => 50000,
         ])->assertCreated();
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'planned', 'category' => 'Transporte',
             'description' => 'Despesa ainda prevista', 'amount_cents' => 30000,
         ])->assertCreated();
@@ -133,6 +136,7 @@ final class VehicleSaleCompletionTest extends TestCase
         $base = "/api/v1/repasse-cases/{$id}";
         $old = $this->review($token, $id);
         $this->withToken($token)->postJson("{$base}/finance/entries", [
+            'effective_on' => '2026-11-16',
             'kind' => 'expense', 'status' => 'realized', 'category' => 'Revisão',
             'description' => 'Despesa posterior', 'amount_cents' => 1000,
         ])->assertCreated();
