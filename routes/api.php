@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CaseEvidenceController;
 use App\Http\Controllers\Api\V1\CasePackageController;
 use App\Http\Controllers\Api\V1\CaseWorkController;
+use App\Http\Controllers\Api\V1\ChecklistWorkspaceController;
+use App\Http\Controllers\Api\V1\VehicleAgendaController;
 use App\Http\Controllers\Api\V1\CommercialPortfolioController;
 use App\Http\Controllers\Api\V1\CommercialReviewController;
 use App\Http\Controllers\Api\V1\CommercialTermsController;
@@ -270,6 +272,13 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.store');
         Route::patch('/{case}/tasks/{task}', [CaseWorkController::class, 'updateTask'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.tasks.update');
+        // Checklists guiados e agrupados (mantém /checklist legado).
+        Route::get('/{case}/checklists', [ChecklistWorkspaceController::class, 'index']);
+        Route::post('/{case}/checklists', [ChecklistWorkspaceController::class, 'store'])->middleware('throttle:repasse-admin-write');
+        Route::get('/{case}/checklists/{set}', [ChecklistWorkspaceController::class, 'show']);
+        Route::put('/{case}/checklists/{set}', [ChecklistWorkspaceController::class, 'update'])->middleware('throttle:repasse-admin-write');
+        Route::patch('/{case}/checklists/{set}/items/{item}', [ChecklistWorkspaceController::class, 'updateItem'])
+            ->middleware('throttle:repasse-admin-write');
         Route::get('/{case}/checklist', [CaseWorkController::class, 'checklist'])->name('api.v1.cases.checklist');
         Route::post('/{case}/checklist', [CaseWorkController::class, 'addChecklist'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.checklist.store');
@@ -398,6 +407,13 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('operations')->middleware([
         'bearer.only', 'auth:api', 'session.current', 'permission:cases.manage',
     ])->group(function (): void {
+        // Agenda integrada a tarefas existentes, sempre dentro do tenant validado.
+        Route::get('/calendar', [VehicleAgendaController::class, 'index']);
+        Route::post('/calendar', [VehicleAgendaController::class, 'store'])->middleware('throttle:repasse-admin-write');
+        Route::get('/calendar/{task}', [VehicleAgendaController::class, 'show']);
+        Route::patch('/calendar/{task}', [VehicleAgendaController::class, 'update'])->middleware('throttle:repasse-admin-write');
+        Route::get('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attachments']);
+        Route::post('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attach'])->middleware('throttle:repasse-admin-write');
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
             ->name('api.v1.operations.dashboard');
         Route::get('/vehicles', [VehiclePortfolioController::class, 'index'])
