@@ -29,26 +29,52 @@ final class VehiclePartnershipController extends Controller
 
         $total = (int) $rows->sum(fn ($row): int => (int) $row->amount_cents);
         $sale = $vehicle->sale_amount_cents === null ? null : (int) $vehicle->sale_amount_cents;
-        $data = $rows->map(function ($row) use ($total, $sale): array {
+        $realizedExpenses = (int) TenantDB::table('repasse_case_financial_entries')
+            ->where('repasse_case_id', $case)
+            ->where('kind', 'expense')
+            ->where('status', 'realized')
+            ->whereNull('voided_at')
+            ->sum('amount_cents');
+        $purchase = $vehicle->purchase_amount_cents === null ? null : (int) $vehicle->purchase_amount_cents;
+        $capitalBase = $purchase === null ? $total : $purchase + $realizedExpenses;
+        $operatorAmount = $total > 0 ? max(0, $capitalBase - $total) : 0;
+        $rateBase = $total + $operatorAmount;
+        $data = $rows->map(function ($row) use ($rateBase, $sale): array {
             $amount = (int) $row->amount_cents;
-            $shareBasisPoints = $total > 0 ? intdiv($amount * 10000, $total) : 0;
+            $shareBasisPoints = $rateBase > 0 ? intdiv($amount * 10000, $rateBase) : 0;
 
             return [
                 'id' => (int) $row->id,
                 'party_id' => (int) $row->party_id,
+                'is_operator' => false,
                 'name' => $row->name,
                 'type' => $row->type,
                 'amount_cents' => $amount,
                 'share_basis_points' => $shareBasisPoints,
-                'projected_share_cents' => $sale === null || $total === 0
-                    ? null : intdiv($sale * $amount, $total),
+                'projected_share_cents' => $sale === null || $rateBase === 0
+                    ? null : intdiv($sale * $amount, $rateBase),
                 'created_at' => $row->created_at,
             ];
         })->values();
+        if ($operatorAmount > 0) {
+            $data->push([
+                'id' => 0,
+                'party_id' => null,
+                'is_operator' => true,
+                'name' => 'Operador / empresa',
+                'type' => 'operator',
+                'amount_cents' => $operatorAmount,
+                'share_basis_points' => intdiv($operatorAmount * 10000, $rateBase),
+                'projected_share_cents' => $sale === null ? null : intdiv($sale * $operatorAmount, $rateBase),
+                'created_at' => null,
+            ]);
+        }
 
         return response()->json([
             'data' => [
-                'total_investment_cents' => $total,
+                'total_investment_cents' => $rateBase,
+                'external_investment_cents' => $total,
+                'operator_investment_cents' => $operatorAmount,
                 'sale_amount_cents' => $sale,
                 'entries' => $data,
             ],

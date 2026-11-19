@@ -15,6 +15,7 @@ final class TenantDB
     public const TABLES = [
         'users', 'auth_security_events', 'parties', 'party_events', 'party_links',
         'repasse_cases', 'repasse_case_parties', 'repasse_case_events',
+        'repasse_case_partnerships',
         'repasse_case_tasks', 'repasse_case_checklist', 'repasse_case_notes',
         'repasse_case_evidence', 'repasse_scenarios',
         'repasse_scenario_allocations', 'repasse_scenario_versions',
