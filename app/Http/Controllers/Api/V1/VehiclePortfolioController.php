@@ -261,6 +261,7 @@ final class VehiclePortfolioController extends Controller
                 ->where(function ($inner): void {
                     $inner->where('photo.document_type', 'foto_veiculo')->orWhereNull('photo.document_type');
                 })
+                ->orderByDesc('photo.is_cover')
                 ->orderByDesc('photo.document_type')
                 ->orderBy('photo.id')
                 ->limit(1),

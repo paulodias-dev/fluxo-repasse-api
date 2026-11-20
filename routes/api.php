@@ -292,6 +292,10 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.store');
         Route::get('/{case}/evidence/{evidence}/download', [CaseEvidenceController::class, 'download'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.cases.evidence.download');
+        Route::patch('/{case}/evidence/{evidence}', [CaseEvidenceController::class, 'update'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.update');
+        Route::post('/{case}/evidence/{evidence}/replace', [CaseEvidenceController::class, 'replace'])
+            ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.replace');
         Route::patch('/{case}/evidence/{evidence}/archive', [CaseEvidenceController::class, 'archive'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.cases.evidence.archive');
 

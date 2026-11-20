@@ -130,5 +130,32 @@ final class UserPreferencesAndVehicleDocumentsTest extends TestCase
         $this->withToken($token)->getJson('/api/v1/operations/vehicles')->assertOk()
             ->assertJsonPath('data.0.image_document_id', $photoId);
         $this->withToken($token)->get("$base/evidence/$photoId/download")->assertOk();
+
+        $secondPhotoId = $this->withToken($token)->post("$base/evidence", [
+            'document_type' => 'foto_veiculo',
+            'file' => UploadedFile::fake()->image('lateral.jpg'),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('data.is_cover', false)->json('data.id');
+
+        $this->withToken($token)->patchJson("$base/evidence/$secondPhotoId", [
+            'document_label' => 'Lateral direita', 'is_cover' => true,
+        ])->assertOk()->assertJsonPath('data.document_label', 'Lateral direita')
+            ->assertJsonPath('data.is_cover', true);
+
+        $this->withToken($token)->getJson('/api/v1/operations/vehicles')->assertOk()
+            ->assertJsonPath('data.0.image_document_id', $secondPhotoId);
+
+        $replacementId = $this->withToken($token)->post("$base/evidence/$secondPhotoId/replace", [
+            'file' => UploadedFile::fake()->image('lateral-atualizada.jpg'),
+        ], ['Accept' => 'application/json'])->assertCreated()
+            ->assertJsonPath('data.is_cover', true)->json('data.id');
+
+        $allEvidence = $this->withToken($token)->getJson("$base/evidence?include_archived=1")->assertOk()->json('data');
+        $replaced = collect($allEvidence)->firstWhere('id', $secondPhotoId);
+        $this->assertNotNull($replaced);
+        $this->assertNotNull($replaced['archived_at']);
+        $this->assertSame($replacementId, $allEvidence[0]['id']);
+        $this->withToken($token)->patch("$base/evidence/$replacementId/archive", [], ['Accept' => 'application/json'])
+            ->assertOk()->assertJsonPath('data.id', $replacementId);
     }
 }
