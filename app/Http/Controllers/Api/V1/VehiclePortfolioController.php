@@ -133,8 +133,49 @@ final class VehiclePortfolioController extends Controller
                 END AS sale_result_cents
         ');
 
-        if (($filters['status'] ?? 'all') !== 'all') {
-            $query->where('c.status', $filters['status']);
+        switch ($filters['status'] ?? 'all') {
+            case 'draft':
+                $query->where('c.status', 'draft');
+                break;
+            case 'sold':
+                $query->whereNotNull('c.sold_on');
+                break;
+            case 'archived':
+                $query->where('c.status', 'archived');
+                break;
+        }
+
+        // A period is a useful fleet snapshot when it includes a vehicle
+        // created, purchased, sold, delivered or financially moved in the
+        // selected interval. This also makes dashboard links meaningful for
+        // purchase, sale and cost widgets without inventing a single date for
+        // the vehicle's whole lifecycle.
+        $from = $filters['from'] ?? null;
+        $to = $filters['to'] ?? null;
+        if ($from || $to) {
+            $query->where(static function (Builder $q) use ($from, $to): void {
+                $dateRange = static function (Builder $dateQuery, string $column) use ($from, $to): void {
+                    if ($from) $dateQuery->whereDate($column, '>=', $from);
+                    if ($to) $dateQuery->whereDate($column, '<=', $to);
+                };
+
+                $q->where(static function (Builder $dateQuery) use ($dateRange): void {
+                    $dateRange($dateQuery, 'c.created_at');
+                })->orWhere(static function (Builder $dateQuery) use ($dateRange): void {
+                    $dateRange($dateQuery, 'c.purchased_on');
+                })->orWhere(static function (Builder $dateQuery) use ($dateRange): void {
+                    $dateRange($dateQuery, 'c.delivered_on');
+                })->orWhere(static function (Builder $dateQuery) use ($dateRange): void {
+                    $dateRange($dateQuery, 'c.sold_on');
+                })->orWhereExists(static function ($entryQuery) use ($from, $to): void {
+                    $entryQuery->selectRaw('1')
+                        ->from('repasse_case_financial_entries as period_entry')
+                        ->whereColumn('period_entry.repasse_case_id', 'c.id')
+                        ->whereNull('period_entry.voided_at');
+                    if ($from) $entryQuery->whereDate('period_entry.effective_on', '>=', $from);
+                    if ($to) $entryQuery->whereDate('period_entry.effective_on', '<=', $to);
+                });
+            });
         }
         if (trim($filters['search'] ?? '') !== '') {
             $term = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], trim($filters['search']));

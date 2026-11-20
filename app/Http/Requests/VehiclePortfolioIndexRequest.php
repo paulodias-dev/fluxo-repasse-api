@@ -20,7 +20,7 @@ final class VehiclePortfolioIndexRequest extends FormRequest
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'status' => ['sometimes', Rule::in(['all', 'draft', 'archived'])],
+            'status' => ['sometimes', Rule::in(['all', 'draft', 'sold', 'archived'])],
             'attention' => ['sometimes', Rule::in([
                 'all', 'overdue', 'open_tasks', 'missing_documents',
                 'incomplete_profile', 'planned_expenses',
@@ -33,6 +33,8 @@ final class VehiclePortfolioIndexRequest extends FormRequest
                 'updated', 'oldest', 'purchase_desc', 'overdue', 'priority',
                 'sale_result_desc', 'sale_result_asc',
             ])],
+            'from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'to' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ];
     }
