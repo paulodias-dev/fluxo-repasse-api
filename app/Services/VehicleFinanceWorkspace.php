@@ -177,9 +177,26 @@ final class VehicleFinanceWorkspace
             'total_cents' => (int) $r->total_cents,
         ]);
 
+        // Série completa para gráficos: a tabela detalhada é paginada, mas a
+        // distribuição de custos precisa considerar todas as categorias do
+        // período, sem depender da página atualmente aberta.
+        $costsByCategory = (clone $base)
+            ->where('kind', 'expense')
+            ->select('category')
+            ->selectRaw('COUNT(*) AS entries_count, SUM(amount_cents) AS total_cents')
+            ->groupBy('category')
+            ->orderByDesc('total_cents')
+            ->get()
+            ->map(static fn ($r): array => [
+                'category' => $r->category,
+                'entries_count' => (int) $r->entries_count,
+                'total_cents' => (int) $r->total_cents,
+            ])->values()->all();
+
         return [
             'summary' => $totals,
             'by_category' => $categories,
+            'costs_by_category' => $costsByCategory,
             'by_month' => $months,
             'scope' => [
                 'case_id' => $case,
