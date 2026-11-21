@@ -17,7 +17,16 @@ final class CollaborationAccess
     public function actor(Request $request): object
     {
         $user = $request->user('api');
-        abort_unless($user && $user->is_active && (int) $user->tenant_id === TenantContext::requireId(), 403);
+        abort_unless($user && $user->is_active &&
+            (int) $user->tenant_id === TenantContext::requireId(), 403);
+        // Streams SSE duram vários segundos. Revalidar o estado persistido
+        // da sessão evita que uma conta desativada ou token revogado continue
+        // recebendo dados apenas porque o model foi carregado na conexão.
+        $live = DB::table('users')->where('id', $user->id)
+            ->first(['is_active', 'auth_version', 'tenant_id']);
+        abort_unless($live && $live->is_active &&
+            (int) $live->tenant_id === (int) $user->tenant_id &&
+            (int) $live->auth_version === (int) $user->auth_version, 403);
 
         return $user;
     }
