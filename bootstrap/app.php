@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\RequestCorrelationId;
 use App\Http\Middleware\RequireBearerToken;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -55,6 +56,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (JWTException $exception, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => 'Token inválido ou expirado.'], 401);
+            }
+
+            return null;
+        });
+
+        // Never expose SQL, database hosts or schema details through the API,
+        // even if a production environment accidentally enables APP_DEBUG.
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if ($request->is('api/*')) {
+                report($exception);
+
+                return response()->json([
+                    'code' => 'database_error',
+                    'message' => 'Não foi possível concluir esta operação agora. Tente novamente em instantes.',
+                ], 500);
             }
 
             return null;
