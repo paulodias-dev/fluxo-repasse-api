@@ -121,6 +121,12 @@ final class CollaborationAccess
 
     public function financialPayer(int $vehicleId, int $ownerTenantId, int $payerId): void
     {
+        $payer = DB::table('users')->where('id', $payerId)->where('is_active', true)
+            ->first(['id']);
+        if (! $payer) {
+            throw ValidationException::withMessages(['paid_by_user_id' =>
+                'Selecione um pagador ativo que participa deste veículo.']);
+        }
         $owner = DB::table('repasse_cases')->where('id', $vehicleId)
             ->where('tenant_id', $ownerTenantId)->value('created_by');
         $activePartner = DB::table('vehicle_access_grants')->where('vehicle_id', $vehicleId)
