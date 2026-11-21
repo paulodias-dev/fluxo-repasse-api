@@ -165,6 +165,10 @@ final class ConversationsController extends Controller
         }
         try {
             $id = DB::transaction(function () use ($request, $actor, $conversation, $body, $data, $meta, $fileSha) {
+                // Serializa tentativas concorrentes do mesmo chat antes de verificar
+                // a chave idempotente: só uma mensagem será gravada.
+                DB::table('collab_conversations')->where('id', $conversation)
+                    ->lockForUpdate()->firstOrFail();
                 $this->access->activeMember($request, $conversation);
                 $again = DB::table('collab_messages')->where('conversation_id', $conversation)
                     ->where('sender_id', $actor->id)->where('request_key', $data['request_key'])->first();
