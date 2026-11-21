@@ -83,6 +83,9 @@ final class SharedVehicleController extends Controller
         ]);
         if ($data === []) throw ValidationException::withMessages(['vehicle' => 'Informe os campos a alterar.']);
         DB::transaction(function () use ($grant, $request, $data) {
+            // A mesma linha é bloqueada pela revogação: nenhuma gravação é concluída
+            // depois que o proprietário encerra a permissão.
+            DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
             $this->access->grant($request, (int) $grant->id, true);
             $vehicle = DB::table('repasse_cases')->where('id', $grant->vehicle_id)
                 ->where('tenant_id', $grant->owner_tenant_id)->lockForUpdate()->firstOrFail();
@@ -114,14 +117,20 @@ final class SharedVehicleController extends Controller
         if ($data['status'] === 'planned' && ! empty($data['paid_by_user_id'])) {
             throw ValidationException::withMessages(['paid_by_user_id' => 'Despesa/receita prevista não possui pagador realizado.']);
         }
-        if (! empty($data['paid_by_user_id'])) $this->access->financialPayer(
-            (int) $grant->vehicle_id, (int) $grant->owner_tenant_id, (int) $data['paid_by_user_id']
-        );
         $id = DB::transaction(function () use ($request, $grant, $actor, $data) {
+            // A mesma linha é bloqueada pela revogação: nenhuma gravação é concluída
+            // depois que o proprietário encerra a permissão.
+            DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
             $this->access->grant($request, (int) $grant->id, true);
             $case = DB::table('repasse_cases')->where('id', $grant->vehicle_id)
                 ->where('tenant_id', $grant->owner_tenant_id)->lockForUpdate()->firstOrFail();
             abort_unless($case->status === 'draft', 422);
+            if (! empty($data['paid_by_user_id'])) {
+                $this->access->financialPayer(
+                    (int) $grant->vehicle_id, (int) $grant->owner_tenant_id,
+                    (int) $data['paid_by_user_id']
+                );
+            }
             $previous = DB::table('repasse_case_financial_entries')
                 ->where('tenant_id', $grant->owner_tenant_id)->where('repasse_case_id', $grant->vehicle_id)
                 ->where('collaboration_request_key', $data['request_key'])->first();
@@ -206,7 +215,10 @@ final class SharedVehicleController extends Controller
         abort_unless($path, 503);
         try {
             $id = DB::transaction(function () use ($request, $grant, $data, $file, $path) {
-                $this->access->grant($request, (int) $grant->id, true);
+                // A mesma linha é bloqueada pela revogação: nenhuma gravação é concluída
+            // depois que o proprietário encerra a permissão.
+            DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
+            $this->access->grant($request, (int) $grant->id, true);
                 $case = DB::table('repasse_cases')->where('id', $grant->vehicle_id)
                     ->where('tenant_id', $grant->owner_tenant_id)->lockForUpdate()->firstOrFail();
                 abort_unless($case->status === 'draft', 422);
