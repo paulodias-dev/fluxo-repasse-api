@@ -222,6 +222,9 @@ final class CrossTenantCollaborationTest extends TestCase
             ->assertOk()->assertJsonPath('data.historical_purchase_amount_cents', 2000000);
         $this->withToken($jwtOwner)->getJson("/api/v1/collaboration-transfers/$history->id/history")
             ->assertNotFound();
+        $this->withToken($jwtOwner)->patchJson("/api/v1/repasse-cases/$source", [
+            'status' => 'draft',
+        ])->assertUnprocessable()->assertJsonValidationErrors('status');
         $this->assertDatabaseCount('vehicle_ownership_transfers', 1);
     }
 }

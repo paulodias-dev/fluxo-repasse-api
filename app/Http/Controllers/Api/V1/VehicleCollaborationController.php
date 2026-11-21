@@ -250,6 +250,14 @@ final class VehicleCollaborationController extends Controller
             throw ValidationException::withMessages(['include_history' =>
                 'Transferência sem histórico entre usuários da mesma empresa exige isolamento individual ainda indisponível.']);
         }
+        $unsettled = DB::table('repasse_settlements')
+            ->where('tenant_id', $invite->owner_tenant_id)
+            ->where('repasse_case_id', $vehicle->id)
+            ->where('status', '!=', 'cancelled')->exists();
+        if ($unsettled) {
+            throw ValidationException::withMessages(['vehicle' =>
+                'Existe repasse financeiro não cancelado. Resolva o repasse antes de transferir a titularidade.']);
+        }
         $previous = DB::table('vehicle_ownership_transfers')
             ->where('source_vehicle_id', $vehicle->id)->exists();
         if ($previous) throw ValidationException::withMessages(['vehicle' => 'Veículo já transferido.']);

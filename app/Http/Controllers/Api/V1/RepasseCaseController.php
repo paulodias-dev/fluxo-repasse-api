@@ -472,6 +472,12 @@ final class RepasseCaseController extends Controller
             }
             $newPlate = array_key_exists('plate', $data) ? $data['plate'] : $current->plate;
             $newStatus = $data['status'] ?? $current->status;
+            if ($current->status === 'archived' && $newStatus === 'draft' &&
+                DB::table('vehicle_ownership_transfers')
+                    ->where('source_vehicle_id', $case)->exists()) {
+                throw ValidationException::withMessages(['status' =>
+                    'Veículo transferido: a ficha original é arquivo permanente e não pode ser reaberta.']);
+            }
             if ($newPlate && $newStatus === 'draft') $this->assertNoDuplicateActivePlate($newPlate, $case);
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
