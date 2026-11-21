@@ -227,4 +227,54 @@ final class CrossTenantCollaborationTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('status');
         $this->assertDatabaseCount('vehicle_ownership_transfers', 1);
     }
+    public function test_chat_idempotency_key_rejects_a_different_message(): void
+    {
+        [$owner, $jwtOwner] = $this->account();
+        [$partner, $jwtPartner] = $this->account();
+        $this->withToken($jwtOwner)->postJson('/api/v1/connections', [
+            'user_id' => $partner->id,
+        ])->assertCreated();
+        $connection = $this->withToken($jwtPartner)->getJson('/api/v1/connections')
+            ->assertOk()->json('data.0.id');
+        $this->withToken($jwtPartner)->postJson(
+            "/api/v1/connections/$connection/respond", ['accept' => true]
+        )->assertOk();
+        $chat = $this->withToken($jwtOwner)->postJson('/api/v1/connections/chats/direct', [
+            'connection_id' => $connection,
+        ])->assertOk()->json('data.id');
+        $key = (string) Str::uuid();
+
+        $this->withToken($jwtOwner)->postJson("/api/v1/connections/chats/$chat/messages", [
+            'body' => 'Primeira mensagem', 'request_key' => $key,
+        ])->assertCreated();
+        $this->withToken($jwtOwner)->postJson("/api/v1/connections/chats/$chat/messages", [
+            'body' => 'Mensagem diferente', 'request_key' => $key,
+        ])->assertConflict();
+        $this->assertDatabaseCount('collab_messages', 1);
+        $this->withToken($jwtOwner)->postJson("/api/v1/connections/chats/$chat/messages", [
+            'body' => 'Primeira mensagem', 'request_key' => $key,
+        ])->assertOk()->assertJsonPath('data.created', false);
+    }
+
+    public function test_inactive_partner_cannot_be_attributed_as_actual_payer(): void
+    {
+        [$owner, $jwtOwner] = $this->account();
+        [$partner, $jwtPartner] = $this->account();
+        $vehicle = $this->vehicle($jwtOwner);
+        $request = $this->invite($jwtOwner, $vehicle, $partner->email, false, true);
+        $grant = $this->withToken($jwtPartner)->postJson(
+            "/api/v1/connections/invitations/$request/respond", ['accept' => true]
+        )->assertOk()->json('data.grant_id');
+        DB::table('users')->where('id', $owner->id)->update(['is_active' => false]);
+
+        $this->withToken($jwtPartner)->postJson("/api/v1/shared-vehicles/$grant/finance", [
+            'kind' => 'expense', 'status' => 'realized', 'category' => 'Lanternagem',
+            'description' => 'Serviço no carro', 'amount_cents' => 25000,
+            'effective_on' => '2026-11-20', 'paid_by_user_id' => $owner->id,
+            'request_key' => (string) Str::uuid(),
+        ])->assertUnprocessable()->assertJsonValidationErrors('paid_by_user_id');
+
+        $this->assertDatabaseCount('repasse_case_financial_entries', 0);
+    }
+
 }
