@@ -279,4 +279,27 @@ final class CrossTenantCollaborationTest extends TestCase
         $this->assertDatabaseCount('repasse_case_financial_entries', 0);
     }
 
+    public function test_same_tenant_restricted_invite_is_revalidated_after_role_changes(): void
+    {
+        [$owner, $jwtOwner] = $this->account();
+        [$partner, $jwtPartner] = $this->account((int) $owner->tenant_id, false);
+        $vehicle = $this->vehicle($jwtOwner);
+        $invitation = $this->invite($jwtOwner, $vehicle, $partner->email, false, false);
+
+        $role = Role::query()->firstOrCreate([
+            'tenant_id' => $owner->tenant_id, 'slug' => 'late_vehicle_operator',
+        ], ['name' => 'Operador concedido depois do convite']);
+        $grant = Permission::query()->firstOrCreate(['key' => 'cases.manage']);
+        $role->permissions()->syncWithoutDetaching([$grant->id]);
+        $partner->roles()->syncWithoutDetaching([$role->id]);
+
+        $this->withToken($jwtPartner)->postJson(
+            "/api/v1/connections/invitations/$invitation/respond", ['accept' => true]
+        )->assertUnprocessable()->assertJsonValidationErrors('invitation');
+        $this->assertDatabaseCount('vehicle_access_grants', 0);
+        $this->assertDatabaseHas('vehicle_collaboration_requests', [
+            'id' => $invitation, 'status' => 'pending',
+        ]);
+    }
+
 }
