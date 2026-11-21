@@ -243,6 +243,55 @@ final class AuthApiTest extends TestCase
             ->assertJsonPath('data.email_verified_at', fn ($value): bool => is_string($value));
     }
 
+    public function test_first_google_login_returns_onboarding_state_without_creating_account(): void
+    {
+        $socialUser = new SocialiteUser;
+        $socialUser->setRaw([
+            'id' => 'google-first-access-123',
+            'verified_email' => true,
+        ]);
+        $socialUser->map([
+            'id' => 'google-first-access-123',
+            'name' => 'Primeiro Acesso',
+            'email' => 'primeiro@fluxo.test',
+        ]);
+
+        $provider = Mockery::mock(Provider::class);
+        $provider->shouldReceive('stateless')->andReturnSelf();
+        $provider->shouldReceive('userFromToken')
+            ->with('google-first-access-token-123456')
+            ->andReturn($socialUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $this->postJson('/api/v1/auth/social', [
+            'provider' => 'google',
+            'access_token' => 'google-first-access-token-123456',
+            'intent' => 'login',
+        ])->assertStatus(409)
+            ->assertJsonPath('code', 'social_onboarding_required');
+
+        $this->assertDatabaseMissing('users', ['email' => 'primeiro@fluxo.test']);
+
+        $response = $this->postJson('/api/v1/auth/social', [
+            'provider' => 'google',
+            'access_token' => 'google-first-access-token-123456',
+            'intent' => 'register',
+            'terms_accepted' => true,
+        ])->assertOk();
+
+        $user = User::query()->where('email', 'primeiro@fluxo.test')->firstOrFail();
+        $this->assertDatabaseHas('tenants', [
+            'id' => $user->tenant_id,
+            'name' => 'Primeiro Acesso',
+        ]);
+
+        $this->withToken($response->json('access_token'))
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Primeiro Acesso')
+            ->assertJsonPath('data.company_name', 'Primeiro Acesso');
+    }
+
     public function test_refresh_rotates_and_invalidates_old_token(): void
     {
         $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);

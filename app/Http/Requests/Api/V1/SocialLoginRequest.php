@@ -35,8 +35,11 @@ final class SocialLoginRequest extends FormRequest
             'provider' => ['required', 'string', 'in:google'],
             'access_token' => ['required', 'string', 'min:20', 'max:4096'],
             'intent' => ['required', 'string', 'in:login,register'],
-            'company_name' => ['required_if:intent,register', 'nullable', 'string', 'min:2', 'max:180'],
-            'terms_accepted' => ['required_if:intent,register', 'accepted'],
+            // For Google onboarding the environment name is derived from the
+            // verified profile in the backend. Keep this optional so the
+            // first-access flow never needs to open a registration form.
+            'company_name' => ['sometimes', 'nullable', 'string', 'min:2', 'max:180'],
+            'terms_accepted' => ['exclude_unless:intent,register', 'required', 'accepted'],
         ];
     }
 }

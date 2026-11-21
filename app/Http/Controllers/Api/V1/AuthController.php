@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\SocialOnboardingRequiredException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
@@ -69,7 +70,15 @@ final class AuthController extends Controller
 
     public function socialLogin(SocialLoginRequest $request): JsonResponse
     {
-        $user = $this->socialAuth->authenticate($request->validated(), $request);
+        try {
+            $user = $this->socialAuth->authenticate($request->validated(), $request);
+        } catch (SocialOnboardingRequiredException) {
+            return response()->json([
+                'code' => 'social_onboarding_required',
+                'message' => 'Este é seu primeiro acesso. Aceite os termos para criar seu ambiente e continuar.',
+            ], 409)->header('Cache-Control', 'no-store');
+        }
+
         $token = Auth::guard('api')->login($user);
 
         return $this->tokenResponse($token);

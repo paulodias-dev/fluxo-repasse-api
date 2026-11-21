@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\SocialOnboardingRequiredException;
 use App\Models\SocialAccount;
 use App\Models\Tenant;
 use App\Models\User;
@@ -57,16 +58,20 @@ final class SocialAuthService
         }
 
         if (! $user && $data['intent'] !== 'register') {
-            throw ValidationException::withMessages([
-                'provider' => ['Nenhuma conta foi encontrada para este Google. Crie seu ambiente para continuar.'],
-            ]);
+            throw new SocialOnboardingRequiredException();
         }
 
-        $user = DB::transaction(function () use ($data, $email, $providerId, $socialUser, $user, $request): User {
+        $environmentName = $this->socialEnvironmentName(
+            $socialUser,
+            $email,
+            $data['company_name'] ?? null,
+        );
+
+        $user = DB::transaction(function () use ($data, $email, $providerId, $socialUser, $user, $request, $environmentName): User {
             if (! $user) {
                 $tenant = Tenant::query()->create([
-                    'name' => $data['company_name'],
-                    'slug' => $this->uniqueTenantSlug($data['company_name']),
+                    'name' => $environmentName,
+                    'slug' => $this->uniqueTenantSlug($environmentName),
                     'is_active' => true,
                 ]);
 
@@ -75,7 +80,7 @@ final class SocialAuthService
                     'tenant_id' => $tenant->id,
                     'name' => $this->socialName($socialUser, $email),
                     'email' => $email,
-                    'company_name' => $data['company_name'],
+                    'company_name' => $environmentName,
                     'password' => Str::random(64),
                     'is_active' => true,
                     'email_verified_at' => now(),
@@ -149,6 +154,16 @@ final class SocialAuthService
     {
         $name = trim((string) ($socialUser->getName() ?: $socialUser->getNickname() ?: ''));
         return $name !== '' ? Str::limit($name, 255, '') : Str::before($email, '@');
+    }
+
+    private function socialEnvironmentName(SocialUser $socialUser, string $email, ?string $provided): string
+    {
+        $provided = trim((string) $provided);
+        if ($provided !== '') {
+            return Str::limit($provided, 180, '');
+        }
+
+        return Str::limit($this->socialName($socialUser, $email), 180, '');
     }
 
     private function safeAvatarUrl(?string $url): ?string
