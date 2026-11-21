@@ -197,12 +197,16 @@ paths:
   /collaboration-transfers/{transfer}/history:
     get:
       tags: [Colaboração]
-      summary: Arquivo histórico imutável após transferência com histórico explícito
+      summary: Arquivo histórico imutável, paginado, após transferência autorizada
+      description: Retorna até 50 lançamentos e 50 documentos por resposta. Avance independentemente pelas chaves entries_cursor e documents_cursor enquanto entries_more/documents_more forem true.
       parameters:
         - {name: transfer, in: path, required: true, schema: {type: integer}}
+        - {name: before_entry, in: query, schema: {type: integer, minimum: 1}}
+        - {name: before_document, in: query, schema: {type: integer, minimum: 1}}
       responses:
-        '200': {description: Lançamentos/documentos anteriores sem contaminar o novo financeiro}
+        '200': {description: Lançamentos/documentos autorizados, cursores e flags de continuidade}
         '404': {description: Histórico não autorizado}
+        '422': {description: Cursor inválido}
   /repasse-cases/{case}/checklists:
     get:
       tags: [Veículos]
