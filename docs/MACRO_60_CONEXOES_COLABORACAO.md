@@ -48,3 +48,13 @@ Notificações em primeiro plano são consultadas a cada 30 segundos e podem dis
 ## Backlog futuro explícito
 
 Painel financeiro de cada sócio no Veículo 360: aportes, desembolsos, participação, saldos/acertos e valores a pagar/receber. Não implementar nesta macro.
+
+
+## Revisão final de robustez do núcleo
+
+- Pedidos de amizade exigem e-mail exato também no POST; IDs sequenciais de usuários não são aceitos como entrada.
+- Mensagens com a mesma chave idempotente só são reconhecidas se texto e hash do arquivo forem idênticos; conflitos respondem HTTP 409. A inserção serializa pela conversa para evitar duplicações concorrentes.
+- Gravações colaborativas bloqueiam a permissão em banco dentro da mesma transação, impedindo que uma revogação ultrapasse uma gravação em curso; pagador é revalidado dentro da transação e precisa estar ativo.
+- Em convites que exigem acesso restrito, a permissão da conta no mesmo tenant é revalidada **no aceite**, pois o papel do destinatário pode mudar após o envio.
+- Transferência com histórico passa a fornecer cursores independentes `before_entry` e `before_document`, 50 itens por página, sinalizadores de continuação e histórico completo sob demanda, sem alterar valores do veículo atual.
+- Foram adicionados cenários PHPUnit correspondentes. **Não se afirma execução nem sucesso de PHPUnit/Pint/MySQL nesta sessão.**
