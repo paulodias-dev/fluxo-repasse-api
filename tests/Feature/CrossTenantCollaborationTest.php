@@ -80,6 +80,8 @@ final class CrossTenantCollaborationTest extends TestCase
             ->assertOk()->assertJsonPath('data.id', $b->id);
         $this->assertSame($b->id, $found->json('data.id'));
         $this->withToken($jwtA)->postJson('/api/v1/connections', ['user_id' => $b->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+        $this->withToken($jwtA)->postJson('/api/v1/connections', ['email' => $b->email])
             ->assertCreated();
         $this->withToken($jwtB)->getJson('/api/v1/connections')
             ->assertJsonPath('data.0.incoming', true);
@@ -232,7 +234,7 @@ final class CrossTenantCollaborationTest extends TestCase
         [$owner, $jwtOwner] = $this->account();
         [$partner, $jwtPartner] = $this->account();
         $this->withToken($jwtOwner)->postJson('/api/v1/connections', [
-            'user_id' => $partner->id,
+            'email' => $partner->email,
         ])->assertCreated();
         $connection = $this->withToken($jwtPartner)->getJson('/api/v1/connections')
             ->assertOk()->json('data.0.id');
