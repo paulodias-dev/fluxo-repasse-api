@@ -117,6 +117,15 @@ final class ConversationsController extends Controller
         return response()->json(['data' => $rows])->header('Cache-Control', 'no-store, private');
     }
 
+    /** Do not acknowledge a reused idempotency key for a different message or attachment. */
+    private function assertSameAttempt(object $existing, string $body, ?string $fileSha): void
+    {
+        if (($existing->body ?? null) !== ($body === '' ? null : $body) ||
+            ($existing->file_sha256 ?? null) !== $fileSha) {
+            abort(409, 'Identificador de tentativa reutilizado com outra mensagem ou arquivo.');
+        }
+    }
+
     public function send(Request $request, int $conversation): JsonResponse
     {
         $actor = $this->access->actor($request);
@@ -127,12 +136,18 @@ final class ConversationsController extends Controller
             'request_key' => ['required', 'uuid'],
         ]);
         $body = trim($data['body'] ?? '');
+        $fileSha = $request->hasFile('file')
+            ? hash_file('sha256', $request->file('file')->getRealPath()) : null;
         if ($body === '' && ! $request->hasFile('file')) {
             throw ValidationException::withMessages(['body' => 'Digite uma mensagem ou selecione um arquivo.']);
         }
         $existing = DB::table('collab_messages')->where('conversation_id', $conversation)
             ->where('sender_id', $actor->id)->where('request_key', $data['request_key'])->first();
-        if ($existing) return response()->json(['data' => ['id' => $existing->id, 'created' => false]]);
+        if ($existing) {
+            $this->assertSameAttempt($existing, $body, $fileSha);
+            return response()->json(['data' => ['id' => $existing->id, 'created' => false]])
+                ->header('Cache-Control', 'no-store, private');
+        }
 
         $path = null;
         $meta = [];
@@ -149,11 +164,14 @@ final class ConversationsController extends Controller
             ];
         }
         try {
-            $id = DB::transaction(function () use ($request, $actor, $conversation, $body, $data, $meta) {
+            $id = DB::transaction(function () use ($request, $actor, $conversation, $body, $data, $meta, $fileSha) {
                 $this->access->activeMember($request, $conversation);
                 $again = DB::table('collab_messages')->where('conversation_id', $conversation)
                     ->where('sender_id', $actor->id)->where('request_key', $data['request_key'])->first();
-                if ($again) return ['id' => (int) $again->id, 'created' => false];
+                if ($again) {
+                    $this->assertSameAttempt($again, $body, $fileSha);
+                    return ['id' => (int) $again->id, 'created' => false];
+                }
                 $id = DB::table('collab_messages')->insertGetId([
                     'conversation_id' => $conversation, 'sender_id' => $actor->id,
                     'body' => $body !== '' ? $body : null, 'request_key' => $data['request_key'],
