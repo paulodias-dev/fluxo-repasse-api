@@ -34,6 +34,164 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /connections/search:
+    get:
+      tags: [Colaboração]
+      summary: Buscar pessoa por e-mail exato
+      parameters:
+        - {name: email, in: query, required: true, schema: {type: string, format: email}}
+      responses:
+        '200': {description: Pessoa existente ou null, sem diretório público}
+        '401': {description: Não autenticado}
+  /connections:
+    get:
+      tags: [Colaboração]
+      summary: Listar amizades, pendências e favoritos do usuário
+      responses:
+        '200': {description: Relações autorizadas}
+    post:
+      tags: [Colaboração]
+      summary: Enviar pedido de conexão entre usuários
+      responses:
+        '201': {description: Pedido enviado}
+  /connections/{connection}/respond:
+    post:
+      tags: [Colaboração]
+      summary: Aceitar ou recusar amizade recebida
+      parameters:
+        - {name: connection, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Resposta registrada}
+  /connections/{connection}/favorite:
+    patch:
+      tags: [Colaboração]
+      summary: Alterar favorito individual
+      parameters:
+        - {name: connection, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Preferência atualizada}
+  /connections/invitations:
+    get:
+      tags: [Colaboração]
+      summary: Convites de veículos, compartilhamentos aceitos e históricos autorizados
+      responses:
+        '200': {description: Dados do usuário atual}
+  /connections/invitations/{invitation}/respond:
+    post:
+      tags: [Colaboração]
+      summary: Aceitar ou recusar convite de veículo, com confirmação de e-mail
+      parameters:
+        - {name: invitation, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Aceite/recusa efetuado; pode criar grant ou veículo transferido}
+        '422': {description: Convite expirado, aceite inválido, destinatário inadequado ou duplicidade}
+  /connections/invitations/token:
+    post:
+      tags: [Colaboração]
+      summary: Aceitar convite externo por token enviado ao e-mail
+      responses:
+        '200': {description: Convite aceito após login na conta destinatária}
+  /connections/chats:
+    get:
+      tags: [Colaboração]
+      summary: Listar conversas e mensagens não lidas
+      responses:
+        '200': {description: Conversas das quais o usuário participa}
+  /connections/chats/{conversation}/messages:
+    get:
+      tags: [Colaboração]
+      summary: Mensagens autorizadas por cursor, sem exibir anteriores ao ingresso
+      parameters:
+        - {name: conversation, in: path, required: true, schema: {type: integer}}
+        - {name: after, in: query, schema: {type: integer, minimum: 0}}
+        - {name: before, in: query, schema: {type: integer, minimum: 1}}
+      responses:
+        '200': {description: Até 50 mensagens visíveis}
+        '404': {description: Não participante ou acesso revogado}
+    post:
+      tags: [Colaboração]
+      summary: Enviar texto e arquivo privado com chave idempotente UUID
+      parameters:
+        - {name: conversation, in: path, required: true, schema: {type: integer}}
+      responses:
+        '201': {description: Mensagem registrada}
+        '200': {description: Retry idempotente}
+  /connections/chats/{conversation}/stream:
+    get:
+      tags: [Colaboração]
+      summary: SSE autenticado com JWT, autorização a cada iteração e duração limitada
+      parameters:
+        - {name: conversation, in: path, required: true, schema: {type: integer}}
+        - {name: after, in: query, schema: {type: integer, minimum: 0}}
+      responses:
+        '200': {description: text/event-stream; eventos message, revoked e heartbeat}
+  /vehicles/{vehicle}/collaboration:
+    get:
+      tags: [Colaboração]
+      summary: Listar convidados e grants do veículo do tenant atual
+      parameters:
+        - {name: vehicle, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Acessos e convites}
+  /vehicles/{vehicle}/collaboration/invite:
+    post:
+      tags: [Colaboração]
+      summary: Convidar para compartilhar ou transferir um veículo
+      description: Inclui escolhas OBRIGATÓRIAS e confirmação expressa de histórico e privilégios.
+      parameters:
+        - {name: vehicle, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, kind, include_history, allow_write, confirm_history, confirm_permissions]
+              properties:
+                email: {type: string, format: email}
+                kind: {type: string, enum: [share, transfer]}
+                include_history: {type: boolean}
+                allow_write: {type: boolean}
+                confirm_history: {type: boolean, enum: [true]}
+                confirm_permissions: {type: boolean, enum: [true]}
+      responses:
+        '201': {description: Convite registrado e tentativa de envio}
+        '422': {description: Restrição de tenant, histórico ou permissão}
+  /shared-vehicles/{grantId}:
+    get:
+      tags: [Colaboração]
+      summary: Veículo 360 de terceiro com ACL individual
+      parameters:
+        - {name: grantId, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Perfil e lançamentos permitidos sem cruzar dados}
+        '404': {description: Sem acesso ou revogado}
+    patch:
+      tags: [Colaboração]
+      summary: Editar campos permitidos de veículo, somente com allow_write
+      parameters:
+        - {name: grantId, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Perfil atualizado}
+        '403': {description: Apenas visualização}
+  /shared-vehicles/{grantId}/finance:
+    post:
+      tags: [Colaboração]
+      summary: Novo lançamento auditável com autor e pagador declarados
+      parameters:
+        - {name: grantId, in: path, required: true, schema: {type: integer}}
+      responses:
+        '201': {description: Lançamento realizado de forma idempotente}
+        '403': {description: Escrita não autorizada}
+  /collaboration-transfers/{transfer}/history:
+    get:
+      tags: [Colaboração]
+      summary: Arquivo histórico imutável após transferência com histórico explícito
+      parameters:
+        - {name: transfer, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {description: Lançamentos/documentos anteriores sem contaminar o novo financeiro}
+        '404': {description: Histórico não autorizado}
   /repasse-cases/{case}/checklists:
     get:
       tags: [Veículos]
