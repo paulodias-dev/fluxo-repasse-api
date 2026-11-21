@@ -51,9 +51,20 @@ paths:
         '200': {description: Relações autorizadas}
     post:
       tags: [Colaboração]
-      summary: Enviar pedido de conexão entre usuários
+      summary: Enviar pedido de conexão por e-mail exato, sem enumeração de IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: {type: string, format: email, maxLength: 255}
       responses:
         '201': {description: Pedido enviado}
+        '404': {description: Destinatário não encontrado}
+        '422': {description: E-mail inválido ou conexão indisponível}
   /connections/{connection}/respond:
     post:
       tags: [Colaboração]
