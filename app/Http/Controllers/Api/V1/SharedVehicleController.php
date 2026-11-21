@@ -157,7 +157,7 @@ final class SharedVehicleController extends Controller
             $this->event($grant, $request, 'collaborator_finance_created');
             return [$id, true];
         }, 3);
-        return response()->json(['data' => ['id' => $id[0], 'created' => $id[1]] ,
+        return response()->json(['data' => ['id' => $id[0], 'created' => $id[1]]],
             $id[1] ? 201 : 200])->header('Cache-Control', 'no-store, private');
     }
 
