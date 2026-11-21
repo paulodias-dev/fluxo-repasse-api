@@ -62,11 +62,16 @@ final class ConnectionsController extends Controller
     public function requestConnection(Request $request): JsonResponse
     {
         $actor = $this->access->actor($request);
-        $data = $request->validate(['user_id' => ['required', 'integer', 'min:1']]);
-        $id = (int) $data['user_id'];
-        if ($id === (int) $actor->id) throw ValidationException::withMessages(['user_id' => 'Escolha outra pessoa.']);
-        $recipient = DB::table('users')->where('id', $id)->where('is_active', true)->first(['id', 'name']);
+        // Não aceitar IDs sequenciais: o convite exige conhecimento do e-mail exato.
+        $data = $request->validate(['email' => ['required', 'email:rfc', 'max:255']]);
+        $email = mb_strtolower(trim($data['email']));
+        if ($email === mb_strtolower($actor->email)) {
+            throw ValidationException::withMessages(['email' => 'Escolha outra pessoa.']);
+        }
+        $recipient = DB::table('users')->whereRaw('LOWER(email) = ?', [$email])
+            ->where('is_active', true)->first(['id', 'name']);
         abort_unless($recipient, 404);
+        $id = (int) $recipient->id;
         $low = min($id, (int) $actor->id);
         $high = max($id, (int) $actor->id);
         DB::transaction(function () use ($request, $actor, $recipient, $low, $high) {
@@ -74,10 +79,10 @@ final class ConnectionsController extends Controller
                 ->where('user_low_id', $low)->where('user_high_id', $high)->lockForUpdate()->first();
             if ($found && $found->status === 'accepted') return;
             if ($found && $found->status === 'blocked') {
-                throw ValidationException::withMessages(['user_id' => 'Esta conexão está bloqueada.']);
+                throw ValidationException::withMessages(['email' => 'Esta conexão está bloqueada.']);
             }
             if ($found && $found->status === 'pending' && (int) $found->requested_by !== (int) $actor->id) {
-                throw ValidationException::withMessages(['user_id' => 'Aceite a solicitação recebida.']);
+                throw ValidationException::withMessages(['email' => 'Aceite a solicitação recebida.']);
             }
             if ($found && $found->status === 'pending') return;
             if ($found) {
