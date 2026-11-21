@@ -302,4 +302,48 @@ final class CrossTenantCollaborationTest extends TestCase
         ]);
     }
 
+    public function test_transfer_history_uses_cursors_instead_of_silently_truncating(): void
+    {
+        [$owner, $jwtOwner] = $this->account();
+        [$partner, $jwtPartner] = $this->account();
+        $vehicle = $this->vehicle($jwtOwner);
+        for ($i = 1; $i <= 51; $i++) {
+            DB::table('repasse_case_financial_entries')->insert([
+                'tenant_id' => $owner->tenant_id, 'repasse_case_id' => $vehicle,
+                'kind' => 'expense', 'status' => 'realized', 'category' => 'Oficina',
+                'description' => "Despesa histórica $i", 'amount_cents' => $i * 100,
+                'effective_on' => '2026-11-01', 'created_by' => $owner->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            DB::table('repasse_case_evidence')->insert([
+                'tenant_id' => $owner->tenant_id, 'repasse_case_id' => $vehicle,
+                'original_name' => "documento-$i.pdf",
+                'storage_path' => "test/collab/history-$vehicle-$i.pdf",
+                'mime' => 'application/pdf', 'size_bytes' => 100,
+                'sha256' => str_repeat('a', 64),
+                'document_type' => 'outros', 'document_label' => 'Histórico',
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+        $request = $this->invite($jwtOwner, $vehicle, $partner->email, true, true, 'transfer');
+        $this->withToken($jwtPartner)->postJson(
+            "/api/v1/connections/invitations/$request/respond", ['accept' => true]
+        )->assertOk();
+        $transfer = DB::table('vehicle_ownership_transfers')
+            ->where('source_vehicle_id', $vehicle)->value('id');
+        $url = "/api/v1/collaboration-transfers/$transfer/history";
+
+        $first = $this->withToken($jwtPartner)->getJson($url)->assertOk()
+            ->assertJsonCount(50, 'data.entries')->assertJsonCount(50, 'data.documents')
+            ->assertJsonPath('data.entries_more', true)
+            ->assertJsonPath('data.documents_more', true);
+        $second = $this->withToken($jwtPartner)->getJson($url
+            .'?before_entry='.$first->json('data.entries_cursor')
+            .'&before_document='.$first->json('data.documents_cursor'))->assertOk()
+            ->assertJsonCount(1, 'data.entries')->assertJsonCount(1, 'data.documents')
+            ->assertJsonPath('data.entries_more', false)
+            ->assertJsonPath('data.documents_more', false);
+        $this->assertNotSame($first->json('data.entries.49.id'), $second->json('data.entries.0.id'));
+    }
+
 }
