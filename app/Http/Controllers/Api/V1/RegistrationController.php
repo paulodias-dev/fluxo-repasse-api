@@ -20,9 +20,23 @@ final class RegistrationController extends Controller
     {
         $result = $this->registrations->register($request->validated(), $request);
 
+        if ($result['verification_token'] === null) {
+            $accessToken = Auth::guard('api')->login($result['user']);
+
+            return response()->json([
+                'message' => 'Cadastro criado. Você já pode acessar o Fluxo Repasse.',
+                'email' => $result['user']->email,
+                'requires_email_verification' => false,
+                'access_token' => $accessToken,
+                'token_type' => 'Bearer',
+                'expires_in' => Auth::guard('api')->factory()->getTTL() * 60,
+            ], 201)->header('Cache-Control', 'no-store');
+        }
+
         return response()->json([
             'message' => 'Cadastro criado. Confira seu e-mail para ativar o ambiente.',
             'email' => $result['user']->email,
+            'requires_email_verification' => true,
         ], 201)->header('Cache-Control', 'no-store');
     }
 

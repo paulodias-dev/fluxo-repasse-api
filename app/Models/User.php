@@ -8,6 +8,7 @@ use App\Models\Concerns\BelongsToTenant;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
@@ -34,6 +35,7 @@ class User extends Authenticatable implements JWTSubject
         'company_name',
         'preferences',
         'avatar_path',
+        'avatar_external_url',
         'password',
         'tenant_id',
         'email_verified_at',
@@ -89,6 +91,11 @@ class User extends Authenticatable implements JWTSubject
                         ->where('roles.slug', 'platform_admin');
                 });
         });
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 
     public function hasPermission(string $permission): bool

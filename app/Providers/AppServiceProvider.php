@@ -67,6 +67,18 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        RateLimiter::for('repasse-social', function (Request $request): array {
+            $ip = $request->ip() ?? 'unknown';
+            $provider = is_string($request->input('provider'))
+                ? Str::lower(trim($request->input('provider')))
+                : '__invalid__';
+
+            return [
+                Limit::perMinute(30)->by('social-ip:'.$ip),
+                Limit::perMinute(10)->by('social-provider:'.$provider.'|'.$ip),
+            ];
+        });
+
         RateLimiter::for('repasse-registration', function (Request $request): array {
             $ip = $request->ip() ?? 'unknown';
             $email = $request->input('email');

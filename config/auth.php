@@ -20,6 +20,10 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    // Public self-registration can be switched to the e-mail verification
+    // flow without changing the API contract or the frontend deployment.
+    'require_email_verification' => (bool) env('AUTH_REQUIRE_EMAIL_VERIFICATION', false),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

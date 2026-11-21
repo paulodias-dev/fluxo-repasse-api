@@ -3,12 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\EmailVerificationToken;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Notifications\VerifyRegistrationEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Socialite\Contracts\Provider;
+use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\User as SocialiteUser;
+use Mockery;
 use Tests\TestCase;
 
 final class AuthApiTest extends TestCase
@@ -108,6 +113,7 @@ final class AuthApiTest extends TestCase
     public function test_public_registration_creates_isolated_tenant_and_owner(): void
     {
         Notification::fake();
+        config()->set('auth.require_email_verification', true);
 
         $response = $this->postJson('/api/v1/auth/register', [
             'name' => 'Proprietário da Revenda',
@@ -131,8 +137,36 @@ final class AuthApiTest extends TestCase
         $this->assertSame(201, $response->status());
     }
 
+    public function test_public_registration_can_issue_a_session_without_email_confirmation(): void
+    {
+        Notification::fake();
+        config()->set('auth.require_email_verification', false);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Proprietário da Revenda',
+            'company_name' => 'Revenda Rápida',
+            'email' => 'owner@rapida.test',
+            'password' => 'Senha-Forte-123!',
+            'password_confirmation' => 'Senha-Forte-123!',
+            'terms_accepted' => true,
+        ])->assertCreated()
+            ->assertJsonPath('requires_email_verification', false)
+            ->assertJsonStructure(['access_token', 'token_type', 'expires_in']);
+
+        $user = User::query()->where('email', 'owner@rapida.test')->firstOrFail();
+        $this->assertTrue($user->is_active);
+        $this->assertNotNull($user->email_verified_at);
+        Notification::assertNothingSent();
+
+        $this->withToken($response->json('access_token'))
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', 'owner@rapida.test');
+    }
+
     public function test_public_registration_requires_confirmation_before_login(): void
     {
+        config()->set('auth.require_email_verification', true);
         $user = User::factory()->unverified()->create([
             'is_active' => false,
             'password' => 'Strong-Passphrase-123!',
@@ -159,6 +193,54 @@ final class AuthApiTest extends TestCase
             'email' => $user->email,
             'password' => 'Strong-Passphrase-123!',
         ])->assertOk();
+    }
+
+    public function test_google_registration_creates_verified_account_and_session(): void
+    {
+        $socialUser = new SocialiteUser;
+        $socialUser->setRaw([
+            'id' => 'google-fluxo-123',
+            'verified_email' => true,
+            'token' => 'provider-raw-token',
+            'refresh_token' => 'provider-raw-refresh',
+        ]);
+        $socialUser->map([
+            'id' => 'google-fluxo-123',
+            'name' => 'Google Fluxo',
+            'email' => 'google@fluxo.test',
+            'avatar' => 'https://example.com/google-avatar.jpg',
+        ]);
+
+        $provider = Mockery::mock(Provider::class);
+        $provider->shouldReceive('stateless')->andReturnSelf();
+        $provider->shouldReceive('userFromToken')
+            ->with('google-access-token-123456')
+            ->andReturn($socialUser);
+        Socialite::shouldReceive('driver')->with('google')->andReturn($provider);
+
+        $response = $this->postJson('/api/v1/auth/social', [
+            'provider' => 'google',
+            'access_token' => 'google-access-token-123456',
+            'intent' => 'register',
+            'company_name' => 'Revenda Google',
+            'terms_accepted' => true,
+        ])->assertOk()->assertJsonStructure(['access_token', 'token_type', 'expires_in']);
+
+        $user = User::query()->where('email', 'google@fluxo.test')->firstOrFail();
+        $account = SocialAccount::query()->where('provider_id', 'google-fluxo-123')->firstOrFail();
+
+        $this->assertTrue($user->is_active);
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertSame($user->id, $account->user_id);
+        $this->assertArrayNotHasKey('token', $account->data ?? []);
+        $this->assertArrayNotHasKey('refresh_token', $account->data ?? []);
+        $this->assertDatabaseHas('tenants', ['id' => $user->tenant_id, 'name' => 'Revenda Google']);
+
+        $this->withToken($response->json('access_token'))
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', 'google@fluxo.test')
+            ->assertJsonPath('data.email_verified_at', fn ($value): bool => is_string($value));
     }
 
     public function test_refresh_rotates_and_invalidates_old_token(): void

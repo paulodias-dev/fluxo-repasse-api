@@ -19,10 +19,12 @@ final class PublicRegistrationService
 {
     public function __construct(private readonly AuthEventRecorder $events) {}
 
-    /** @return array{user: User, token: string} */
+    /** @return array{user: User, verification_token: string|null} */
     public function register(array $data, ?Request $request = null): array
     {
-        [$user, $token] = DB::transaction(function () use ($data, $request): array {
+        $requiresVerification = (bool) config('auth.require_email_verification');
+
+        [$user, $verificationToken] = DB::transaction(function () use ($data, $request, $requiresVerification): array {
             $tenant = Tenant::query()->create([
                 'name' => $data['company_name'],
                 'slug' => $this->uniqueTenantSlug($data['company_name']),
@@ -36,21 +38,27 @@ final class PublicRegistrationService
                 'email' => $data['email'],
                 'company_name' => $data['company_name'],
                 'password' => $data['password'],
-                'is_active' => false,
+                'is_active' => ! $requiresVerification,
+                'email_verified_at' => $requiresVerification ? null : now(),
                 'terms_accepted_at' => now(),
                 'terms_version' => config('app.terms_version'),
             ]);
             $user->roles()->sync([$roles['tenant_admin']->id]);
 
-            $token = $this->issueVerificationToken($user);
+            $token = $requiresVerification ? $this->issueVerificationToken($user) : null;
             $this->events->record('account_registered', $request, $user);
 
             return [$user, $token];
         });
 
-        $user->notify(new VerifyRegistrationEmail($token));
+        if ($verificationToken !== null) {
+            $user->notify(new VerifyRegistrationEmail($verificationToken));
+        }
 
-        return compact('user', 'token');
+        return [
+            'user' => $user,
+            'verification_token' => $verificationToken,
+        ];
     }
 
     public function verify(string $plainToken, ?Request $request = null): User

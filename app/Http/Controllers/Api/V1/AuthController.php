@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
+use App\Http\Requests\Api\V1\SocialLoginRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
 use App\Models\User;
 use App\Models\Tenant;
 use App\Services\AuthEventRecorder;
+use App\Services\SocialAuthService;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +24,10 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 final class AuthController extends Controller
 {
-    public function __construct(private readonly AuthEventRecorder $events) {}
+    public function __construct(
+        private readonly AuthEventRecorder $events,
+        private readonly SocialAuthService $socialAuth,
+    ) {}
 
     public function login(LoginRequest $request): JsonResponse
     {
@@ -36,7 +41,7 @@ final class AuthController extends Controller
                 ->header('Cache-Control', 'no-store');
         }
 
-        if ($user->email_verified_at === null) {
+        if (config('auth.require_email_verification') && $user->email_verified_at === null) {
             $this->events->record('login_blocked_unverified', $request, $user);
 
             return response()->json([
@@ -58,6 +63,14 @@ final class AuthController extends Controller
 
         $token = Auth::guard('api')->login($user);
         $this->events->record('login_succeeded', $request, $user);
+
+        return $this->tokenResponse($token);
+    }
+
+    public function socialLogin(SocialLoginRequest $request): JsonResponse
+    {
+        $user = $this->socialAuth->authenticate($request->validated(), $request);
+        $token = Auth::guard('api')->login($user);
 
         return $this->tokenResponse($token);
     }
@@ -202,9 +215,9 @@ final class AuthController extends Controller
             'phone' => $user->phone,
             'company_name' => $user->company_name,
             'preferences' => array_replace($this->defaultPreferences(), $user->preferences ?? []),
-            'avatar_url' => $user->avatar_path !== null
-                ? $this->avatarUrl($user->avatar_path)
-                : null,
+            'avatar_url' => $user->avatar_external_url
+                ?? ($user->avatar_path !== null ? $this->avatarUrl($user->avatar_path) : null),
+            'email_verified_at' => $user->email_verified_at?->toISOString(),
         ];
     }
 
