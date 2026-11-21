@@ -250,19 +250,37 @@ final class SharedVehicleController extends Controller
             ->where('target_tenant_id', $actor->tenant_id)->where('include_history', true)->firstOrFail();
         $old = DB::table('repasse_cases')->where('id', $t->source_vehicle_id)
             ->where('tenant_id', $t->source_tenant_id)->firstOrFail();
-        $entries = DB::table('repasse_case_financial_entries')
-            ->where('tenant_id', $t->source_tenant_id)->where('repasse_case_id', $old->id)
-            ->orderByDesc('id')->limit(100)->get(['id', 'kind', 'status', 'category', 'description',
+        $params = $request->validate([
+            'before_entry' => ['sometimes', 'integer', 'min:1'],
+            'before_document' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $entryQuery = DB::table('repasse_case_financial_entries')
+            ->where('tenant_id', $t->source_tenant_id)->where('repasse_case_id', $old->id);
+        if (isset($params['before_entry'])) {
+            $entryQuery->where('id', '<', $params['before_entry']);
+        }
+        $entryPage = $entryQuery->orderByDesc('id')->limit(51)
+            ->get(['id', 'kind', 'status', 'category', 'description',
                 'amount_cents', 'effective_on', 'voided_at', 'created_by', 'paid_by_user_id']);
-        $documents = DB::table('repasse_case_evidence')
+        $entries = $entryPage->take(50)->values();
+        $documentsQuery = DB::table('repasse_case_evidence')
             ->where('tenant_id', $t->source_tenant_id)->where('repasse_case_id', $old->id)
-            ->whereNull('archived_at')->orderByDesc('id')->limit(100)
+            ->whereNull('archived_at');
+        if (isset($params['before_document'])) {
+            $documentsQuery->where('id', '<', $params['before_document']);
+        }
+        $documentPage = $documentsQuery->orderByDesc('id')->limit(51)
             ->get(['id', 'original_name', 'document_type', 'mime', 'size_bytes']);
+        $documents = $documentPage->take(50)->values();
         return response()->json(['data' => [
             'title' => $old->title, 'plate' => $old->plate,
             'historical_purchase_amount_cents' => $old->purchase_amount_cents,
             'historical_sale_amount_cents' => $old->sale_amount_cents,
             'entries' => $entries, 'documents' => $documents,
+            'entries_more' => $entryPage->count() > 50,
+            'documents_more' => $documentPage->count() > 50,
+            'entries_cursor' => $entries->last()?->id,
+            'documents_cursor' => $documents->last()?->id,
         ]])->header('Cache-Control', 'no-store, private');
     }
 
