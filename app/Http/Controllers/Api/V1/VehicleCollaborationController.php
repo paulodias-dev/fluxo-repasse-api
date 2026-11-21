@@ -175,6 +175,16 @@ final class VehicleCollaborationController extends Controller
             if ($vehicle->status !== 'draft') {
                 throw ValidationException::withMessages(['vehicle' => 'O veículo não está mais disponível.']);
             }
+            // A permissão do destinatário pode mudar nos sete dias do convite.
+            // Revalidar no aceite para não oferecer leitura restrita fictícia a
+            // alguém que já possui cases.manage irrestrito dentro do tenant.
+            if ($invite->kind === 'share' &&
+                (int) $invite->owner_tenant_id === (int) $actor->tenant_id &&
+                (! $invite->include_history || ! $invite->allow_write) &&
+                $actor->hasPermission('cases.manage')) {
+                throw ValidationException::withMessages(['invitation' =>
+                    'Este usuário já possui acesso irrestrito aos veículos da empresa. Ajuste seu papel antes de aceitar compartilhamento limitado.']);
+            }
             if ($invite->kind === 'transfer') {
                 $result = $this->completeTransfer($invite, $vehicle, $actor);
             } else {
