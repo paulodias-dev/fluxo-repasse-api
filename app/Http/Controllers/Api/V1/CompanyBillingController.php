@@ -51,7 +51,12 @@ final class CompanyBillingController
             if (! $s->provider_id) {
                 $g=DB::table('saas_gateways')->where('environment',$s->environment)->firstOrFail();
                 $p=DB::table('saas_plans')->find($s->plan_id);
-                $remote=MercadoSubscriptions::call($s->environment,'post','/preapproval',[
+                // Recupera um acordo criado antes de uma resposta perdida.
+                $matches=MercadoSubscriptions::call($s->environment,'get','/preapproval/search',[
+                    'external_reference'=>$s->id,
+                ]);
+                $remote=collect($matches['results'] ?? [])->firstWhere('external_reference',$s->id);
+                $remote ??= MercadoSubscriptions::call($s->environment,'post','/preapproval',[
                     'external_reference'=>$s->id,'reason'=>$p->name,'payer_email'=>$user->email,'back_url'=>$g->return_url,
                     'status'=>'pending','auto_recurring'=>['frequency'=>1,'frequency_type'=>'months',
                         'transaction_amount'=>$s->monthly_cents/100,'currency_id'=>'BRL'],

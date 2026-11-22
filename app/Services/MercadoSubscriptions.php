@@ -64,7 +64,14 @@ final class MercadoSubscriptions
         DB::transaction(function () use ($env,$invoice,$pid) {
             $sub=DB::table('saas_subscriptions')->where('environment',$env)
                 ->where('provider_id',$invoice['preapproval_id'])->lockForUpdate()->first();
-            if (! $sub) return;
+            if (! $sub) {
+                // A notificação pode chegar antes da resposta de criação.
+                $agreement=self::call($env,'get','/preapproval/'.rawurlencode($invoice['preapproval_id']));
+                $local=DB::table('saas_subscriptions')->where('id',$agreement['external_reference'] ?? '')
+                    ->where('environment',$env)->whereNull('provider_id')->exists();
+                abort_if($local,503,'Assinatura em processamento.');
+                return;
+            }
             $payment=self::call($env,'get','/v1/payments/'.rawurlencode((string)$pid));
             $amount=(int)round(((float)($payment['transaction_amount'] ?? 0))*100);
             abort_unless((string)$payment['id'] === (string)$pid && $payment['currency_id']==='BRL'
