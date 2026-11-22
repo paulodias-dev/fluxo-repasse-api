@@ -624,3 +624,5 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('throttle:repasse-admin-write')->name('api.v1.admin.users.status');
     });
 });
+
+require __DIR__.'/billing.php';

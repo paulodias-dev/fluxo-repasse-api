@@ -34,7 +34,14 @@ final class EnsureCurrentSession
         // Não aceitar tenant_id arbitrário do cliente, inclusive em headers.
         $request->attributes->set('verified_tenant_id', $tenantId);
         try {
-            return $next($request);
+            $response = $next($request);
+            if ($response->isSuccessful() && ($request->routeIs('api.v1.operations.vehicles', 'api.v1.cases.show')
+                || (! $request->isMethodSafe() && ! $request->is('api/v1/auth/*')))) {
+                \Illuminate\Support\Facades\DB::table('users')->where('id', $user->id)
+                    ->where(fn ($q) => $q->whereNull('last_activity')->orWhere('last_activity', '<', now()->subMinute()))
+                    ->update(['last_activity' => now()]);
+            }
+            return $response;
         } finally {
             $request->attributes->remove('verified_tenant_id');
         }

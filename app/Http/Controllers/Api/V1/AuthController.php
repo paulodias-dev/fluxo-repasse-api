@@ -63,6 +63,10 @@ final class AuthController extends Controller
         }
 
         $token = Auth::guard('api')->login($user);
+        DB::table('users')->where('id', $user->id)->update([
+            'first_observed_login' => DB::raw('COALESCE(first_observed_login, CURRENT_TIMESTAMP)'),
+            'last_observed_login' => now(), 'last_activity' => now(), 'last_login_method' => 'password',
+        ]);
         $this->events->record('login_succeeded', $request, $user);
 
         return $this->tokenResponse($token);
@@ -80,6 +84,10 @@ final class AuthController extends Controller
         }
 
         $token = Auth::guard('api')->login($user);
+        DB::table('users')->where('id', $user->id)->update([
+            'first_observed_login' => DB::raw('COALESCE(first_observed_login, CURRENT_TIMESTAMP)'),
+            'last_observed_login' => now(), 'last_activity' => now(), 'last_login_method' => $request->validated('provider'),
+        ]);
 
         return $this->tokenResponse($token);
     }
