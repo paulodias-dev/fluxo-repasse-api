@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AccessManagementController;
+use App\Http\Controllers\Api\V1\ConnectionsController;
+use App\Http\Controllers\Api\V1\ConversationsController;
+use App\Http\Controllers\Api\V1\VehicleCollaborationController;
+use App\Http\Controllers\Api\V1\SharedVehicleController;
 use App\Http\Controllers\Api\V1\AdminUserAuditController;
 use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -81,6 +85,66 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');
         });
     });
+    // Macro 60 — contatos e conversas são por usuário, inclusive entre tenants.
+    // NENHUMA rota altera o tenant do JWT. Recursos cruzados usam ACL específica.
+    Route::prefix('connections')->middleware(['bearer.only','auth:api','session.current'])
+        ->group(function (): void {
+            Route::get('/search', [ConnectionsController::class, 'search'])->middleware('throttle:repasse-admin-read');
+            Route::get('/', [ConnectionsController::class, 'index']);
+            Route::post('/', [ConnectionsController::class, 'requestConnection'])->middleware('throttle:repasse-admin-write');
+            Route::post('/{connection}/respond', [ConnectionsController::class, 'respond'])->middleware('throttle:repasse-admin-write');
+            Route::patch('/{connection}/favorite', [ConnectionsController::class, 'favorite'])->middleware('throttle:repasse-admin-write');
+            Route::delete('/{connection}', [ConnectionsController::class, 'remove'])->middleware('throttle:repasse-admin-write');
+            Route::get('/notifications', [ConnectionsController::class, 'notifications']);
+            Route::patch('/notifications/{notification}/read', [ConnectionsController::class, 'readNotification'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::get('/invitations', [VehicleCollaborationController::class, 'index']);
+            Route::post('/invitations/{invitation}/respond', [VehicleCollaborationController::class, 'decide'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::post('/invitations/token', [VehicleCollaborationController::class, 'acceptByToken'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::get('/chats', [ConversationsController::class, 'index']);
+            Route::post('/chats/direct', [ConversationsController::class, 'direct'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::get('/chats/{conversation}/messages', [ConversationsController::class, 'messages']);
+            Route::post('/chats/{conversation}/messages', [ConversationsController::class, 'send'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::post('/chats/{conversation}/read', [ConversationsController::class, 'markRead']);
+            Route::get('/chats/{conversation}/messages/{message}/file', [ConversationsController::class, 'download']);
+            Route::get('/chats/{conversation}/stream', [ConversationsController::class, 'stream'])
+                ->middleware('throttle:repasse-admin-read');
+        });
+    Route::prefix('vehicles/{vehicle}/collaboration')->middleware([
+        'bearer.only','auth:api','session.current','permission:cases.manage',
+    ])->group(function (): void {
+        Route::get('/', [VehicleCollaborationController::class, 'forVehicle']);
+        Route::post('/invite', [VehicleCollaborationController::class, 'invite'])
+            ->middleware('throttle:repasse-admin-write');
+        Route::delete('/grants/{grantId}', [VehicleCollaborationController::class, 'revoke'])
+            ->middleware('throttle:repasse-admin-write');
+        Route::post('/invitations/{id}/resend', [VehicleCollaborationController::class, 'resend'])
+            ->middleware('throttle:repasse-admin-write');
+        Route::delete('/invitations/{id}', [VehicleCollaborationController::class, 'cancelInvitation'])
+            ->middleware('throttle:repasse-admin-write');
+    });
+    Route::prefix('shared-vehicles')->middleware(['bearer.only','auth:api','session.current'])
+        ->group(function (): void {
+            Route::get('/{grantId}', [SharedVehicleController::class, 'show']);
+            Route::patch('/{grantId}', [SharedVehicleController::class, 'update'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::post('/{grantId}/finance', [SharedVehicleController::class, 'entry'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::get('/{grantId}/documents', [SharedVehicleController::class, 'documents']);
+            Route::post('/{grantId}/documents', [SharedVehicleController::class, 'addDocument'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::get('/{grantId}/documents/{document}', [SharedVehicleController::class, 'download']);
+        });
+    Route::prefix('collaboration-transfers')->middleware(['bearer.only','auth:api','session.current'])
+        ->group(function (): void {
+            Route::get('/{transfer}/history', [SharedVehicleController::class, 'oldHistory']);
+            Route::get('/{transfer}/documents/{document}', [SharedVehicleController::class, 'oldDocument']);
+        });
+
     // Cadastro base de pessoas/empresas, sem conta bancária, valores ou regras de repasse.
     Route::prefix('parties')->middleware([
         'bearer.only', 'auth:api', 'session.current', 'permission:parties.manage',

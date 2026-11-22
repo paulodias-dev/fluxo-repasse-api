@@ -49,6 +49,7 @@ final class VehicleFinanceController extends Controller
             'description' => ['required', 'string', 'min:2', 'max:255'],
             'amount_cents' => ['required', 'integer', 'min:1', 'max:999999999999'],
             'effective_on' => ['required', 'date_format:Y-m-d'],
+            'paid_by_user_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ];
         if ($replacement) {
             $rules['reason'] = ['required', 'string', 'min:5', 'max:500'];
@@ -142,11 +143,12 @@ final class VehicleFinanceController extends Controller
     {
         $this->operations->restrict($request, [
             'kind', 'status', 'category', 'category_id', 'description',
-            'amount_cents', 'effective_on',
+            'amount_cents', 'effective_on', 'paid_by_user_id',
         ]);
         $data = $request->validate($this->entryRules());
         $id = DB::transaction(function () use ($request, $case, $data): int {
             $this->operations->editable($case);
+            $this->validatePayer($case, $data);
             $category = $this->workspace->category($data);
             $id = $this->createEntry($case, $request, $data, $category);
             $this->workspace->event($case, $id, $request, 'created', [
@@ -166,7 +168,7 @@ final class VehicleFinanceController extends Controller
     {
         $this->operations->restrict($request, [
             'kind', 'status', 'category', 'category_id', 'description',
-            'amount_cents', 'effective_on', 'reason',
+            'amount_cents', 'effective_on', 'paid_by_user_id', 'reason',
         ]);
         $data = $request->validate($this->entryRules(true));
         $reason = trim($data['reason']);
@@ -184,6 +186,7 @@ final class VehicleFinanceController extends Controller
                     'entry' => 'O lançamento já foi estornado ou substituído.',
                 ]);
             }
+            $this->validatePayer($case, $data);
             $category = $this->workspace->category($data);
             $newId = $this->createEntry($case, $request, $data, $category, $entry);
             TenantDB::table('repasse_case_financial_entries')->where('id', $entry)
@@ -352,9 +355,32 @@ final class VehicleFinanceController extends Controller
             'description' => $description, 'amount_cents' => $data['amount_cents'],
             'effective_on' => $data['effective_on'] ?? null,
             'replaces_entry_id' => $replaces,
+            'paid_by_user_id' => $data['paid_by_user_id'] ?? null,
             'created_by' => $request->user('api')->getAuthIdentifier(),
             'created_at' => now(), 'updated_at' => now(),
         ]);
+    }
+
+    private function validatePayer(int $case, array $data): void
+    {
+        $payer = $data['paid_by_user_id'] ?? null;
+        if ($payer === null) return;
+        if ($data['status'] !== 'realized') {
+            throw ValidationException::withMessages([
+                'paid_by_user_id' => 'Lançamentos previstos ainda não possuem pagador confirmado.',
+            ]);
+        }
+        $tenant = \App\Support\TenantContext::requireId();
+        $local = TenantDB::table('users')->where('id', $payer)->where('is_active', true)->exists();
+        $partner = DB::table('vehicle_access_grants')
+            ->where('owner_tenant_id', $tenant)->where('vehicle_id', $case)
+            ->where('recipient_id', $payer)->where('status', 'active')
+            ->whereNull('revoked_at')->exists();
+        if (! $local && ! $partner) {
+            throw ValidationException::withMessages([
+                'paid_by_user_id' => 'Pagador deve pertencer à empresa ou ser sócio autorizado neste veículo.',
+            ]);
+        }
     }
 
     private function safe(?string $raw): string
