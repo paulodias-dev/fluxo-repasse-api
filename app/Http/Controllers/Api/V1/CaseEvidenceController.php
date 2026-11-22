@@ -92,6 +92,9 @@ final class CaseEvidenceController extends Controller
         try {
             DB::transaction(function () use ($case, $request, $data, $contents, $path, $original, $mime, $sha, &$id): void {
                 $this->operations->editable($case);
+                if ($data['document_type'] === 'foto_veiculo' && str_starts_with($mime, 'image/')) {
+                    \App\Services\CompanyPlan::check($case);
+                }
                 if (! Storage::disk('local')->put($path, $contents)) {
                     throw ValidationException::withMessages(['file' => 'Não foi possível guardar o documento.']);
                 }
@@ -161,6 +164,9 @@ final class CaseEvidenceController extends Controller
                 ->where('id', $evidence)->whereNull('archived_at')->lockForUpdate()->firstOrFail();
             $nextType = $data['document_type'] ?? $row->document_type;
             $isImage = str_starts_with((string) $row->mime, 'image/');
+            if ($isImage && $nextType === 'foto_veiculo' && $row->document_type !== $nextType) {
+                \App\Services\CompanyPlan::check($case);
+            }
             if (($data['is_cover'] ?? false) && (! $isImage || $nextType !== 'foto_veiculo')) {
                 throw ValidationException::withMessages(['is_cover' => 'Somente fotos do veículo podem ser a foto principal.']);
             }
@@ -205,6 +211,11 @@ final class CaseEvidenceController extends Controller
         try {
             DB::transaction(function () use ($request, $case, $evidence, $row, $prepared, $path, &$newId): void {
                 $this->operations->editable($case);
+                $row = TenantDB::table('repasse_case_evidence')->where('repasse_case_id', $case)
+                    ->where('id', $evidence)->whereNull('archived_at')->where('document_type','foto_veiculo')->lockForUpdate()->firstOrFail();
+                if (!str_starts_with($row->mime, 'image/')) {
+                    \App\Services\CompanyPlan::check($case);
+                }
                 if (! Storage::disk('local')->put($path, $prepared['contents'])) {
                     throw ValidationException::withMessages(['file' => 'Não foi possível guardar a nova foto.']);
                 }

@@ -382,6 +382,9 @@ final class RepasseCaseController extends Controller
                     'fipe_queried_at' => now(),
                 ];
             }
+            if (empty($data['sold_on'])) {
+                \App\Services\CompanyPlan::check();
+            }
             $id = TenantDB::table('repasse_cases')->insertGetId([
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
@@ -472,6 +475,10 @@ final class RepasseCaseController extends Controller
             }
             $newPlate = array_key_exists('plate', $data) ? $data['plate'] : $current->plate;
             $newStatus = $data['status'] ?? $current->status;
+            $sold = array_key_exists('sold_on', $data) ? $data['sold_on'] : $current->sold_on;
+            if ($newStatus === 'draft' && ! $sold && ($current->status !== 'draft' || $current->sold_on)) {
+                \App\Services\CompanyPlan::check();
+            }
             if ($newPlate && $newStatus === 'draft') $this->assertNoDuplicateActivePlate($newPlate, $case);
             $description = array_key_exists('description', $data) ? $data['description'] : $current->description;
             $status = $data['status'] ?? $current->status;
