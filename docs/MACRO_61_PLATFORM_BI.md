@@ -24,3 +24,11 @@ php artisan test --filter=PlatformAnalyticsTest
 vendor/bin/pint --test
 php artisan test
 QA com SQLite e MySQL, incluindo duas empresas e produção/sandbox. A documentação não prova que os comandos foram executados.
+
+
+## Integridade de implantação e performance
+- Migration aditiva \`2026_11_23_100000_add_platform_analytics_indexes.php\`: índices para datas de criação, último acesso por tenant, vendas, cobrança e assinaturas. Não usa \`migrate:fresh\` nem altera registros existentes. Em MySQL com alto volume, executar em janela de baixo tráfego por risco de bloqueio temporário na criação dos índices.
+- GET /platform/companies aceita \`search\` até 120 caracteres e mantém paginação. Consulta operada exclusivamente pelo papel global, sem diretório público.
+- Cada KPI é agregado diretamente no banco; nenhum endpoint envia linhas de mensagens ou dados financeiros de veículos para cálculo no browser.
+- O Dashboard atual reconsulta a cada 60 segundos enquanto aberto, sem leitura em background. Antes de escala elevada, medir consultas reais e avaliar cache por período/ambiente com invalidação curta.
+- Suite PHPUnit cobre autorização global, sandbox/produção, MRR vs cobrança, período inválido, Empresa 360 por tenant e pesquisa. Nenhum teste foi declarado executado nesta criação.
