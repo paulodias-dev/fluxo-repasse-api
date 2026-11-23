@@ -41,6 +41,22 @@ final class VehicleCollaborationController extends Controller
             ->whereNull('g.revoked_at')
             ->select('g.id', 'g.vehicle_id', 'g.include_history', 'g.allow_write',
                 'v.title', 'v.plate', 'v.brand', 'v.model', 'v.status')
+            ->selectSub(
+                DB::table('repasse_case_evidence as photo')
+                    ->select('photo.id')
+                    ->whereColumn('photo.repasse_case_id', 'v.id')
+                    ->whereColumn('photo.tenant_id', 'v.tenant_id')
+                    ->whereNull('photo.archived_at')
+                    ->where('photo.mime', 'like', 'image/%')
+                    ->where(function ($inner): void {
+                        $inner->where('photo.document_type', 'foto_veiculo')->orWhereNull('photo.document_type');
+                    })
+                    ->orderByDesc('photo.is_cover')
+                    ->orderByDesc('photo.document_type')
+                    ->orderBy('photo.id')
+                    ->limit(1),
+                'image_document_id'
+            )
             ->orderByDesc('g.id')->get();
         $transfers = DB::table('vehicle_ownership_transfers')
             ->where('recipient_id', $actor->id)->where('include_history', true)
