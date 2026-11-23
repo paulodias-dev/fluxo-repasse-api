@@ -46,6 +46,7 @@ final class CrossTenantCollaborationTest extends TestCase
         $jwt = $this->postJson('/api/v1/auth/login', [
             'email' => $u->email, 'password' => 'Strong-Passphrase-123!',
         ])->assertOk()->json('access_token');
+
         return [$u, $jwt];
     }
 
@@ -229,6 +230,7 @@ final class CrossTenantCollaborationTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('status');
         $this->assertDatabaseCount('vehicle_ownership_transfers', 1);
     }
+
     public function test_chat_idempotency_key_rejects_a_different_message(): void
     {
         [$owner, $jwtOwner] = $this->account();
@@ -345,5 +347,4 @@ final class CrossTenantCollaborationTest extends TestCase
             ->assertJsonPath('data.documents_more', false);
         $this->assertNotSame($first->json('data.entries.49.id'), $second->json('data.entries.0.id'));
     }
-
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\CollaborationAccess;
 use App\Support\TenantContext;
 use App\Support\TenantDB;
@@ -29,6 +30,7 @@ final class VehicleCollaborationController extends Controller
                 $q->where('r.recipient_id', $actor->id)
                     ->orWhere('r.recipient_email', mb_strtolower($actor->email));
             })
+            ->whereNull('v.admin_deleted_at')
             ->where('r.status', 'pending')->where('r.expires_at', '>', now())
             ->select('r.id', 'r.kind', 'r.include_history', 'r.allow_write',
                 'r.created_at', 'r.expires_at', 'v.title as vehicle_title', 'v.plate')
@@ -39,6 +41,7 @@ final class VehicleCollaborationController extends Controller
             })
             ->where('g.recipient_id', $actor->id)->where('g.status', 'active')
             ->whereNull('g.revoked_at')
+            ->whereNull('v.admin_deleted_at')
             ->select('g.id', 'g.vehicle_id', 'g.include_history', 'g.allow_write',
                 'v.title', 'v.plate', 'v.brand', 'v.model', 'v.status')
             ->selectSub(
@@ -61,6 +64,7 @@ final class VehicleCollaborationController extends Controller
         $transfers = DB::table('vehicle_ownership_transfers')
             ->where('recipient_id', $actor->id)->where('include_history', true)
             ->orderByDesc('id')->get(['id', 'source_vehicle_id', 'target_vehicle_id', 'created_at']);
+
         return response()->json(['incoming' => $incoming, 'shared' => $shared, 'transfers' => $transfers])
             ->header('Cache-Control', 'no-store, private');
     }
@@ -79,6 +83,7 @@ final class VehicleCollaborationController extends Controller
             ->where('owner_tenant_id', $tenant)->where('vehicle_id', $vehicle)
             ->where('status', 'pending')->orderByDesc('id')->limit(30)
             ->get(['id', 'recipient_email', 'kind', 'include_history', 'allow_write', 'expires_at']);
+
         return response()->json(['grants' => $grants, 'outgoing' => $outgoing])
             ->header('Cache-Control', 'no-store, private');
     }
@@ -105,15 +110,13 @@ final class VehicleCollaborationController extends Controller
             ->where('is_active', true)->first(['id', 'email', 'tenant_id']);
         if ($recipient && (int) $recipient->tenant_id === TenantContext::requireId()) {
             if ($data['kind'] === 'transfer' && ! $data['include_history']) {
-                throw ValidationException::withMessages(['include_history' =>
-                    'Nesta empresa a transferência sem histórico não pode garantir isolamento por usuário.']);
+                throw ValidationException::withMessages(['include_history' => 'Nesta empresa a transferência sem histórico não pode garantir isolamento por usuário.']);
             }
             if ($data['kind'] === 'share' &&
                 (! $data['include_history'] || ! $data['allow_write'])) {
-                $recipientUser = \App\Models\User::query()->find($recipient->id);
+                $recipientUser = User::query()->find($recipient->id);
                 if ($recipientUser && $recipientUser->hasPermission('cases.manage')) {
-                    throw ValidationException::withMessages(['email' =>
-                        'Este usuário já possui acesso operacional a todos os veículos da empresa pelo papel atual. Para restringir histórico ou edição, ajuste primeiro as permissões do usuário.']);
+                    throw ValidationException::withMessages(['email' => 'Este usuário já possui acesso operacional a todos os veículos da empresa pelo papel atual. Para restringir histórico ou edição, ajuste primeiro as permissões do usuário.']);
                 }
             }
         }
@@ -128,7 +131,10 @@ final class VehicleCollaborationController extends Controller
                 ->where('owner_tenant_id', TenantContext::requireId())->where('vehicle_id', $vehicle)
                 ->where('recipient_email', $email)->where('status', 'pending')
                 ->where('expires_at', '>', now())->exists();
-            if ($pending) throw ValidationException::withMessages(['email' => 'Já existe um convite pendente para este endereço.']);
+            if ($pending) {
+                throw ValidationException::withMessages(['email' => 'Já existe um convite pendente para este endereço.']);
+            }
+
             return DB::table('vehicle_collaboration_requests')->insertGetId([
                 'owner_tenant_id' => TenantContext::requireId(), 'vehicle_id' => $vehicle,
                 'sender_id' => $actor->id, 'recipient_id' => $recipient?->id,
@@ -162,6 +168,7 @@ final class VehicleCollaborationController extends Controller
             report($e);
             $sent = false;
         }
+
         return response()->json(['data' => ['id' => $id, 'email_sent' => $sent],
             'message' => $sent ? 'Convite enviado.' : 'Convite registrado, mas o e-mail não pôde ser enviado.'], 201)
             ->header('Cache-Control', 'no-store, private');
@@ -171,7 +178,7 @@ final class VehicleCollaborationController extends Controller
     {
         $actor = $this->access->actor($request);
         $data = $request->validate(['accept' => ['required', 'boolean']]);
-        $out = DB::transaction(function () use ($request, $actor, $invitation, $data) {
+        $out = DB::transaction(function () use ($actor, $invitation, $data) {
             $invite = DB::table('vehicle_collaboration_requests')
                 ->where('id', $invitation)->lockForUpdate()->firstOrFail();
             abort_unless((int) $invite->recipient_id === (int) $actor->id ||
@@ -184,6 +191,7 @@ final class VehicleCollaborationController extends Controller
                     'status' => 'declined', 'resolved_at' => now(), 'updated_at' => now(),
                 ]);
                 $this->access->notify($invite->sender_id, 'vehicle_declined', ['request_id' => $invite->id]);
+
                 return ['status' => 'declined'];
             }
             $vehicle = DB::table('repasse_cases')->where('id', $invite->vehicle_id)
@@ -199,8 +207,7 @@ final class VehicleCollaborationController extends Controller
                 (int) $invite->owner_tenant_id === (int) $actor->tenant_id &&
                 (! $invite->include_history || ! $invite->allow_write) &&
                 $actor->hasPermission('cases.manage')) {
-                throw ValidationException::withMessages(['invitation' =>
-                    'Este usuário já possui acesso irrestrito aos veículos da empresa. Ajuste seu papel antes de aceitar compartilhamento limitado.']);
+                throw ValidationException::withMessages(['invitation' => 'Este usuário já possui acesso irrestrito aos veículos da empresa. Ajuste seu papel antes de aceitar compartilhamento limitado.']);
             }
             if ($invite->kind === 'transfer') {
                 $result = $this->completeTransfer($invite, $vehicle, $actor);
@@ -219,8 +226,10 @@ final class VehicleCollaborationController extends Controller
             $this->access->notify($invite->sender_id, 'vehicle_accepted', [
                 'request_id' => $invite->id, 'kind' => $invite->kind,
             ]);
+
             return $result;
         }, 3);
+
         return response()->json(['data' => $out])->header('Cache-Control', 'no-store, private');
     }
 
@@ -235,6 +244,7 @@ final class VehicleCollaborationController extends Controller
             ->where('token_hash', hash('sha256', $data['token']))->first();
         abort_unless($invite && mb_strtolower($invite->recipient_email) === mb_strtolower($actor->email), 404);
         $request->merge(['accept' => $data['accept']]);
+
         return $this->decide($request, (int) $invite->id);
     }
 
@@ -265,6 +275,7 @@ final class VehicleCollaborationController extends Controller
         $ownerUser = (int) $vehicle->created_by ?: (int) $invite->sender_id;
         $chat = $this->access->vehicleGroup((int) $vehicle->id,
             (int) $invite->owner_tenant_id, $ownerUser, (int) $actor->id);
+
         return ['status' => 'accepted', 'kind' => 'share', 'grant_id' => $grant, 'chat_id' => $chat];
     }
 
@@ -274,20 +285,20 @@ final class VehicleCollaborationController extends Controller
         // tenant e preservado integralmente para auditoria, sem movê-lo por SQL.
         if (! $invite->include_history &&
             (int) $invite->owner_tenant_id === (int) $actor->tenant_id) {
-            throw ValidationException::withMessages(['include_history' =>
-                'Transferência sem histórico entre usuários da mesma empresa exige isolamento individual ainda indisponível.']);
+            throw ValidationException::withMessages(['include_history' => 'Transferência sem histórico entre usuários da mesma empresa exige isolamento individual ainda indisponível.']);
         }
         $unsettled = DB::table('repasse_settlements')
             ->where('tenant_id', $invite->owner_tenant_id)
             ->where('repasse_case_id', $vehicle->id)
             ->where('status', '!=', 'cancelled')->exists();
         if ($unsettled) {
-            throw ValidationException::withMessages(['vehicle' =>
-                'Existe repasse financeiro não cancelado. Resolva o repasse antes de transferir a titularidade.']);
+            throw ValidationException::withMessages(['vehicle' => 'Existe repasse financeiro não cancelado. Resolva o repasse antes de transferir a titularidade.']);
         }
         $previous = DB::table('vehicle_ownership_transfers')
             ->where('source_vehicle_id', $vehicle->id)->exists();
-        if ($previous) throw ValidationException::withMessages(['vehicle' => 'Veículo já transferido.']);
+        if ($previous) {
+            throw ValidationException::withMessages(['vehicle' => 'Veículo já transferido.']);
+        }
         foreach (array_unique([(int) $invite->owner_tenant_id, (int) $actor->tenant_id]) as $tenantId) {
             DB::table('tenants')->where('id', $tenantId)->lockForUpdate()->firstOrFail();
         }
@@ -331,6 +342,7 @@ final class VehicleCollaborationController extends Controller
             ['tenant_id' => $actor->tenant_id, 'repasse_case_id' => $target,
                 'actor_user_id' => $actor->id, 'event_type' => 'ownership_received', 'created_at' => now()],
         ]);
+
         return ['status' => 'accepted', 'kind' => 'transfer', 'vehicle_id' => $target,
             'history_available' => (bool) $invite->include_history];
     }
@@ -347,9 +359,11 @@ final class VehicleCollaborationController extends Controller
                 'status' => 'revoked', 'revoked_at' => now(), 'updated_at' => now(),
             ]);
             $chat = DB::table('collab_conversations')->where('vehicle_id', $vehicle)->first();
-            if ($chat) DB::table('collab_conversation_members')
-                ->where('conversation_id', $chat->id)->where('user_id', $grant->recipient_id)
-                ->update(['removed_at' => now(), 'updated_at' => now()]);
+            if ($chat) {
+                DB::table('collab_conversation_members')
+                    ->where('conversation_id', $chat->id)->where('user_id', $grant->recipient_id)
+                    ->update(['removed_at' => now(), 'updated_at' => now()]);
+            }
             DB::table('repasse_case_events')->insert([
                 'tenant_id' => $grant->owner_tenant_id, 'repasse_case_id' => $vehicle,
                 'actor_user_id' => $grant->recipient_id, 'event_type' => 'collaboration_revoked',
@@ -357,6 +371,7 @@ final class VehicleCollaborationController extends Controller
             ]);
             $this->access->notify((int) $grant->recipient_id, 'vehicle_revoked', ['vehicle_id' => $vehicle]);
         });
+
         return response()->json(['message' => 'Acesso revogado e conversa encerrada para o participante.']);
     }
 
@@ -374,6 +389,7 @@ final class VehicleCollaborationController extends Controller
                 'token_hash' => hash('sha256', $token),
                 'expires_at' => now()->addDays(7), 'updated_at' => now(),
             ]);
+
             return $row;
         });
         $url = rtrim((string) config('app.frontend_url'), '/').'/conexoes/convite?token='.urlencode($token);
@@ -389,6 +405,7 @@ final class VehicleCollaborationController extends Controller
             report($e);
             $sent = false;
         }
+
         return response()->json(['email_sent' => $sent,
             'message' => $sent ? 'Convite reenviado.' : 'O convite foi renovado, mas o e-mail falhou.'])
             ->header('Cache-Control', 'no-store, private');
@@ -403,6 +420,7 @@ final class VehicleCollaborationController extends Controller
             ->where('vehicle_id', $vehicle)->where('status', 'pending')
             ->update(['status' => 'revoked', 'resolved_at' => now(), 'updated_at' => now()]);
         abort_unless($updated, 404);
+
         return response()->json(['message' => 'Convite cancelado.']);
     }
 }

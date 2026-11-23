@@ -64,32 +64,62 @@ final class PlatformVehicleController extends Controller
             $row = DB::table('repasse_cases')->where('id', $vehicle)->lockForUpdate()->first();
             abort_unless($row, 404);
 
-            if ($row->admin_deleted_at !== null) {
-                return ['changed' => false, 'id' => (int) $row->id];
+            $changed = $row->admin_deleted_at === null;
+            $deletedAt = $row->admin_deleted_at ?? now();
+            if ($changed) {
+                DB::table('repasse_cases')->where('id', $vehicle)->update([
+                    'admin_deleted_at' => $deletedAt,
+                    'admin_deleted_by' => $actor->getAuthIdentifier(),
+                    'admin_deletion_reason' => trim($data['reason']),
+                    'updated_at' => $deletedAt,
+                ]);
             }
 
-            DB::table('repasse_cases')->where('id', $vehicle)->update([
-                'admin_deleted_at' => now(),
-                'admin_deleted_by' => $actor->getAuthIdentifier(),
-                'admin_deletion_reason' => trim($data['reason']),
-                'updated_at' => now(),
-            ]);
+            DB::table('vehicle_access_grants')
+                ->where('vehicle_id', $vehicle)
+                ->where('status', 'active')
+                ->whereNull('revoked_at')
+                ->update([
+                    'status' => 'revoked',
+                    'revoked_at' => $deletedAt,
+                    'updated_at' => $deletedAt,
+                ]);
 
-            DB::table('repasse_case_events')->insert([
-                'tenant_id' => $row->tenant_id,
-                'repasse_case_id' => $vehicle,
-                'actor_user_id' => $actor->getAuthIdentifier(),
-                'event_type' => 'admin_vehicle_deleted',
-                'details' => json_encode([
-                    'reason' => trim($data['reason']),
-                    'previous_status' => $row->status,
-                    'owner_id' => $row->created_by,
+            DB::table('vehicle_collaboration_requests')
+                ->where('vehicle_id', $vehicle)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'revoked',
+                    'resolved_at' => $deletedAt,
+                    'updated_at' => $deletedAt,
+                ]);
+
+            DB::table('collab_conversation_members')
+                ->whereIn('conversation_id', DB::table('collab_conversations')
+                    ->where('vehicle_id', $vehicle)->select('id'))
+                ->whereNull('removed_at')
+                ->update([
+                    'removed_at' => $deletedAt,
+                    'updated_at' => $deletedAt,
+                ]);
+
+            if ($changed) {
+                DB::table('repasse_case_events')->insert([
                     'tenant_id' => $row->tenant_id,
-                ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
-                'created_at' => now(),
-            ]);
+                    'repasse_case_id' => $vehicle,
+                    'actor_user_id' => $actor->getAuthIdentifier(),
+                    'event_type' => 'admin_vehicle_deleted',
+                    'details' => json_encode([
+                        'reason' => trim($data['reason']),
+                        'previous_status' => $row->status,
+                        'owner_id' => $row->created_by,
+                        'tenant_id' => $row->tenant_id,
+                    ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+                    'created_at' => $deletedAt,
+                ]);
+            }
 
-            return ['changed' => true, 'id' => (int) $row->id];
+            return ['changed' => $changed, 'id' => (int) $row->id];
         });
 
         return response()->json($result, $result['changed'] ? 200 : 409)
