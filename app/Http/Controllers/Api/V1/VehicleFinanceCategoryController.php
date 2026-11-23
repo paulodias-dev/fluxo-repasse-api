@@ -6,6 +6,7 @@ use App\Support\TenantDB;
 
 use App\Http\Controllers\Controller;
 use App\Services\CaseOperations;
+use App\Services\FinanceCategoryCatalog;
 use App\Services\VehicleFinanceWorkspace;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -18,12 +19,17 @@ final class VehicleFinanceCategoryController extends Controller
 {
     public function __construct(
         private readonly CaseOperations $operations,
+        private readonly FinanceCategoryCatalog $catalog,
         private readonly VehicleFinanceWorkspace $finance,
     ) {}
 
     public function index(Request $request, int $case): JsonResponse
     {
         $this->operations->ensureExists($case);
+        $this->catalog->ensureForTenant(
+            (int) $request->user('api')->tenant_id,
+            (int) $request->user('api')->getAuthIdentifier(),
+        );
         $filters = $request->validate([
             'kind' => ['sometimes', Rule::in(['all', 'expense', 'income'])],
             'include_inactive' => ['sometimes', 'boolean'],

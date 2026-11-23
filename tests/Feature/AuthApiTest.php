@@ -130,6 +130,20 @@ final class AuthApiTest extends TestCase
             'name' => 'Revenda Teste',
             'is_active' => true,
         ]);
+        $this->assertDatabaseHas('repasse_financial_categories', [
+            'tenant_id' => $user->tenant_id,
+            'kind' => 'expense',
+            'slug' => 'geral',
+            'name' => 'Geral',
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('repasse_financial_categories', [
+            'tenant_id' => $user->tenant_id,
+            'kind' => 'income',
+            'slug' => 'geral',
+            'name' => 'Geral',
+            'is_active' => true,
+        ]);
         $this->assertFalse($user->is_active);
         $this->assertNull($user->email_verified_at);
         $this->assertTrue($user->roles()->where('slug', 'tenant_admin')->exists());

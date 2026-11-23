@@ -44,6 +44,7 @@ final class PublicRegistrationService
                 'terms_version' => config('app.terms_version'),
             ]);
             $user->roles()->sync([$roles['tenant_admin']->id]);
+            app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $user->id);
 
             $token = $requiresVerification ? $this->issueVerificationToken($user) : null;
             $this->events->record('account_registered', $request, $user);

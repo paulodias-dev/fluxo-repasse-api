@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Tenant;
 use App\Support\TenantRoles;
 use App\Services\AuthEventRecorder;
+use App\Services\FinanceCategoryCatalog;
 use App\Services\VehicleCatalogSyncService;
 use App\Support\OperationalAccessCatalog;
 use App\Support\OperationalAcceptance;
@@ -81,6 +82,7 @@ Artisan::command('repasse:tenant:create {slug : Identificador único da empresa}
         ]);
         $roles = TenantRoles::provision((int) $tenant->id);
         $admin->roles()->sync([$roles['tenant_admin']->id]);
+        app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $admin->id);
     });
 
     $this->info('Empresa e primeiro administrador criados. Nenhum dado de outra empresa foi compartilhado.');
@@ -138,6 +140,7 @@ Artisan::command('repasse:tenant:seed', function (): int {
 
             $roles = TenantRoles::provision((int) $tenant->id);
             $admin->roles()->syncWithoutDetaching([$roles['tenant_admin']->id]);
+            app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $admin->id);
         });
     } catch (RuntimeException $exception) {
         $this->error($exception->getMessage());

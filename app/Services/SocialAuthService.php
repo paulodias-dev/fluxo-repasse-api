@@ -89,6 +89,7 @@ final class SocialAuthService
                     'avatar_external_url' => $this->safeAvatarUrl($socialUser->getAvatar()),
                 ]);
                 $user->roles()->sync([$roles['tenant_admin']->id]);
+                app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $user->id);
                 $this->events->record('account_registered_social', $request, $user);
             } else {
                 $updates = [];
