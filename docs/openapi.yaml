@@ -4509,6 +4509,35 @@ paths:
   /billing/checkout: {"post":{"summary":"Iniciar contratação","security":[{"BearerAuth":[]}],"parameters":[],"responses":{"200":{"description":"Operação concluída"}},"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"plan_id":{"type":"integer"}},"required":["plan_id"]}}}}}}
   /billing/subscriptions/{subscription}/cancel: {"post":{"summary":"Cancelar renovação","security":[{"BearerAuth":[]}],"parameters":[{"name":"subscription","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"204":{"description":"Operação concluída"}}}}
   /billing/notifications/{environment}: {"post":{"summary":"Receber notificação assinada","security":[],"parameters":[{"name":"environment","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"204":{"description":"Operação concluída"}},"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"type":{"type":"string"}}}}}}}}
+  /platform/analytics/overview:
+    get:
+      tags: [Administração de usuários]
+      summary: Business Intelligence global do SaaS (papel global platform_admin)
+      description: Dados agregados e somente leitura. Receita confirmada não é MRR; ambiente production por padrão. Não retorna dados financeiros operacionais de tenants.
+      security: [{BearerAuth: []}]
+      parameters:
+        - {name: days, in: query, schema: {type: integer, enum: [7, 30, 90, 365]}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+        - {name: environment, in: query, schema: {type: string, enum: [production, test]}}
+      responses:
+        '200': {description: KPIs, série temporal, planos base, alertas e definições}
+        '403': {description: Acesso exclusivo de operador global}
+        '422': {description: Período inválido ou maior que 366 dias}
+  /platform/companies/{company}/360:
+    get:
+      tags: [Administração de usuários]
+      summary: Dados agregados de uso e assinatura de uma empresa
+      security: [{BearerAuth: []}]
+      parameters:
+        - {name: company, in: path, required: true, schema: {type: integer}}
+        - {name: days, in: query, schema: {type: integer, enum: [7, 30, 90, 365]}}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Empresa, uso e cobrança sem exibir dados operacionais individuais}
+        '403': {description: Operador sem privilégio global}
+        '404': {description: Empresa inexistente}
   /platform/users: {"get":{"summary":"Consultar atividade","security":[{"BearerAuth":[]}],"parameters":[{"in":"query","name":"provider","schema":{"type":"string"}},{"in":"query","name":"active_since","schema":{"type":"string"}},{"in":"query","name":"created_vehicle","schema":{"type":"integer"}}],"responses":{"200":{"description":"Operação concluída"}}}}
   /platform/plans: {"get":{"summary":"Consultar catálogo","security":[{"BearerAuth":[]}],"parameters":[],"responses":{"200":{"description":"Operação concluída"}}},"post":{"summary":"Criar plano","security":[{"BearerAuth":[]}],"parameters":[],"responses":{"200":{"description":"Operação concluída"}},"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"name":{"type":"string"},"monthly_cents":{"type":"integer"},"vehicle_limit":{"type":"integer","nullable":true},"photo_limit":{"type":"integer","nullable":true},"available":{"type":"boolean"}},"required":["name","monthly_cents","vehicle_limit","photo_limit","available"]}}}}}}
   /platform/plans/{plan}: {"put":{"summary":"Editar plano","security":[{"BearerAuth":[]}],"parameters":[{"name":"plan","in":"path","required":true,"schema":{"type":"integer"}}],"responses":{"200":{"description":"Operação concluída"}},"requestBody":{"content":{"application/json":{"schema":{"type":"object","properties":{"name":{"type":"string"},"monthly_cents":{"type":"integer"},"vehicle_limit":{"type":"integer","nullable":true},"photo_limit":{"type":"integer","nullable":true},"available":{"type":"boolean"}},"required":["name","monthly_cents","vehicle_limit","photo_limit","available"]}}}}}}
