@@ -4,17 +4,20 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\CollaborationAccess;
+use App\Services\MediaStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class SharedVehicleController extends Controller
 {
-    public function __construct(private readonly CollaborationAccess $access) {}
+    public function __construct(
+        private readonly CollaborationAccess $access,
+        private readonly MediaStorage $media,
+    ) {}
 
     private function vehicle(object $grant): object
     {
@@ -29,7 +32,9 @@ final class SharedVehicleController extends Controller
             ->leftJoin('users as payer', 'payer.id', '=', 'e.paid_by_user_id')
             ->where('e.tenant_id', $grant->owner_tenant_id)
             ->where('e.repasse_case_id', $grant->vehicle_id)->whereNull('e.voided_at');
-        if (! $grant->include_history) $query->where('e.id', '>', $grant->entry_floor_id);
+        if (! $grant->include_history) {
+            $query->where('e.id', '>', $grant->entry_floor_id);
+        }
 
         return $query->orderByDesc('e.id')->limit(100)
             ->get(['e.id', 'e.kind', 'e.status', 'e.category', 'e.description',
@@ -53,6 +58,7 @@ final class SharedVehicleController extends Controller
                 ->where('vehicle_id', $vehicle->id)->where('owner_tenant_id', $grant->owner_tenant_id)
                 ->where('status', 'active')->whereNull('revoked_at')->pluck('recipient_id')->all()
         )))->where('is_active', true)->get(['id', 'name']);
+
         return response()->json(['data' => [
             'participants' => $participants,
             'id' => $grant->id, 'vehicle_id' => $vehicle->id,
@@ -81,7 +87,9 @@ final class SharedVehicleController extends Controller
             'vehicle_type' => ['sometimes', 'nullable', Rule::in(['cars', 'motorcycles', 'trucks'])],
             'vehicle_version' => ['sometimes', 'nullable', 'string', 'max:180'],
         ]);
-        if ($data === []) throw ValidationException::withMessages(['vehicle' => 'Informe os campos a alterar.']);
+        if ($data === []) {
+            throw ValidationException::withMessages(['vehicle' => 'Informe os campos a alterar.']);
+        }
         DB::transaction(function () use ($grant, $request, $data) {
             // A mesma linha é bloqueada pela revogação: nenhuma gravação é concluída
             // depois que o proprietário encerra a permissão.
@@ -96,6 +104,7 @@ final class SharedVehicleController extends Controller
             ]);
             $this->event($grant, $request, 'collaborator_profile_updated');
         });
+
         return $this->show($request, $grantId);
     }
 
@@ -145,6 +154,7 @@ final class SharedVehicleController extends Controller
                     (int) ($previous->paid_by_user_id ?? 0) !== (int) ($data['paid_by_user_id'] ?? 0)) {
                     abort(409, 'Identificador de tentativa reutilizado com outros dados.');
                 }
+
                 return [(int) $previous->id, false];
             }
             $id = DB::table('repasse_case_financial_entries')->insertGetId([
@@ -165,8 +175,10 @@ final class SharedVehicleController extends Controller
                     JSON_THROW_ON_ERROR), 'created_at' => now(),
             ]);
             $this->event($grant, $request, 'collaborator_finance_created');
+
             return [$id, true];
         }, 3);
+
         return response()->json(['data' => ['id' => $id[0], 'created' => $id[1]]],
             $id[1] ? 201 : 200)->header('Cache-Control', 'no-store, private');
     }
@@ -176,7 +188,10 @@ final class SharedVehicleController extends Controller
         $grant = $this->access->grant($request, $grantId);
         $query = DB::table('repasse_case_evidence')->where('tenant_id', $grant->owner_tenant_id)
             ->where('repasse_case_id', $grant->vehicle_id)->whereNull('archived_at');
-        if (! $grant->include_history) $query->where('id', '>', $grant->document_floor_id);
+        if (! $grant->include_history) {
+            $query->where('id', '>', $grant->document_floor_id);
+        }
+
         return response()->json(['data' => $query->orderByDesc('id')->limit(100)
             ->get(['id', 'original_name', 'document_type', 'document_label', 'mime',
                 'size_bytes', 'created_at'])], 200, [], JSON_INVALID_UTF8_SUBSTITUTE)
@@ -197,6 +212,7 @@ final class SharedVehicleController extends Controller
                 ->orderByDesc('is_cover')->orderByDesc('id')->value('id');
             abort_unless((int) $cover === (int) $file->id, 404);
         }
+
         return $this->privateFile($file);
     }
 
@@ -207,20 +223,19 @@ final class SharedVehicleController extends Controller
         $data = $request->validate([
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,webp'],
             'document_type' => ['required', Rule::in([
-                'foto_veiculo','crlv','crv_dut','ipva','laudo_cautelar','laudo_tecnico',
-                'laudo_concessionaria','nota_fiscal','contrato','outros',
+                'foto_veiculo', 'crlv', 'crv_dut', 'ipva', 'laudo_cautelar', 'laudo_tecnico',
+                'laudo_concessionaria', 'nota_fiscal', 'contrato', 'outros',
             ])],
-            'document_label' => ['required_if:document_type,outros', 'nullable','string','max:120'],
+            'document_label' => ['required_if:document_type,outros', 'nullable', 'string', 'max:120'],
         ]);
         $file = $data['file'];
-        $path = $file->store('repasse-evidence/'.$grant->vehicle_id, 'local');
-        abort_unless($path, 503);
+        $path = $this->media->store($file, 'repasse-evidence/'.$grant->vehicle_id);
         try {
             $id = DB::transaction(function () use ($request, $grant, $data, $file, $path) {
                 // A mesma linha é bloqueada pela revogação: nenhuma gravação é concluída
-            // depois que o proprietário encerra a permissão.
-            DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
-            $this->access->grant($request, (int) $grant->id, true);
+                // depois que o proprietário encerra a permissão.
+                DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
+                $this->access->grant($request, (int) $grant->id, true);
                 $case = DB::table('repasse_cases')->where('id', $grant->vehicle_id)
                     ->where('tenant_id', $grant->owner_tenant_id)->lockForUpdate()->firstOrFail();
                 abort_unless($case->status === 'draft', 422);
@@ -235,12 +250,14 @@ final class SharedVehicleController extends Controller
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
                 $this->event($grant, $request, 'collaborator_document_uploaded');
+
                 return $id;
             });
         } catch (\Throwable $e) {
-            Storage::disk('local')->delete($path);
+            $this->media->delete($path);
             throw $e;
         }
+
         return response()->json(['data' => ['id' => $id]], 201);
     }
 
@@ -274,6 +291,7 @@ final class SharedVehicleController extends Controller
         $documentPage = $documentsQuery->orderByDesc('id')->limit(51)
             ->get(['id', 'original_name', 'document_type', 'mime', 'size_bytes']);
         $documents = $documentPage->take(50)->values();
+
         return response()->json(['data' => [
             'title' => $old->title, 'plate' => $old->plate,
             'historical_purchase_amount_cents' => $old->purchase_amount_cents,
@@ -295,16 +313,17 @@ final class SharedVehicleController extends Controller
         $file = DB::table('repasse_case_evidence')->where('id', $document)
             ->where('tenant_id', $t->source_tenant_id)->where('repasse_case_id', $t->source_vehicle_id)
             ->whereNull('archived_at')->firstOrFail();
+
         return $this->privateFile($file);
     }
 
     private function privateFile(object $file): StreamedResponse
     {
-        abort_unless(Storage::disk('local')->exists($file->storage_path), 404);
-        if (! hash_equals($file->sha256, hash('sha256', Storage::disk('local')->get($file->storage_path)))) {
+        if (! $this->media->verify($file->storage_path, (int) $file->size_bytes, $file->sha256)) {
             abort(409, 'Arquivo com integridade divergente.');
         }
-        return Storage::disk('local')->download($file->storage_path, $file->original_name, [
+
+        return $this->media->download($file->storage_path, $file->original_name, [
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
@@ -323,6 +342,8 @@ final class SharedVehicleController extends Controller
     private function assertFields(Request $request, array $allowed): void
     {
         $unknown = array_diff(array_keys($request->all()), $allowed);
-        if ($unknown) throw ValidationException::withMessages(array_fill_keys($unknown, 'Campo não permitido.'));
+        if ($unknown) {
+            throw ValidationException::withMessages(array_fill_keys($unknown, 'Campo não permitido.'));
+        }
     }
 }

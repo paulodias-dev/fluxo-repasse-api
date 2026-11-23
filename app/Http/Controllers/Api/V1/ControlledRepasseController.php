@@ -8,7 +8,7 @@ use App\Services\RepasseFinancialOverview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class ControlledRepasseController extends Controller
 {
@@ -46,6 +46,7 @@ final class ControlledRepasseController extends Controller
     {
         $this->only($request, ['page']);
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
+
         return $this->json($this->service->index($case));
     }
 
@@ -71,6 +72,7 @@ final class ControlledRepasseController extends Controller
             'lines.*.basis_points' => ['sometimes', 'integer', 'min:1', 'max:10000'],
         ]);
         $result = $this->service->create($case, $input, (int) $request->user('api')->id);
+
         return $this->json($result, $result['created'] ? 201 : 200);
     }
 
@@ -78,6 +80,7 @@ final class ControlledRepasseController extends Controller
     {
         $this->only($request, ['confirm']);
         $request->validate(['confirm' => ['required', 'accepted']]);
+
         return $this->json(['data' => $this->service->approve(
             $case, $settlement, (int) $request->user('api')->id
         )]);
@@ -114,6 +117,7 @@ final class ControlledRepasseController extends Controller
         $result = $this->service->pay(
             $case, $settlement, $input, (int) $request->user('api')->id, $request->file('proof')
         );
+
         return $this->json($result, $result['created'] ? 201 : 200);
     }
 
@@ -121,12 +125,13 @@ final class ControlledRepasseController extends Controller
     {
         $this->only($request, ['reason']);
         $input = $request->validate(['reason' => ['required', 'string', 'min:5', 'max:500']]);
+
         return $this->json(['data' => $this->service->voidPayment(
             $case, $settlement, $payment, $input['reason'], (int) $request->user('api')->id
         )]);
     }
 
-    public function proof(int $case, int $settlement, int $payment): BinaryFileResponse
+    public function proof(int $case, int $settlement, int $payment): StreamedResponse
     {
         return $this->service->proof($case, $settlement, $payment);
     }

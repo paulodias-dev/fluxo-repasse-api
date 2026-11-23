@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\MediaStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -119,6 +119,7 @@ final class PlatformVehicleController extends Controller
             $event->details = $event->details === null
                 ? null
                 : json_decode((string) $event->details, true);
+
             return $event;
         });
 
@@ -136,11 +137,12 @@ final class PlatformVehicleController extends Controller
                 $type->where('photo.document_type', 'foto_veiculo')->orWhereNull('photo.document_type');
             })->orderByDesc('photo.is_cover')->orderByDesc('photo.id')
             ->first(['photo.storage_path', 'photo.original_name', 'photo.mime']);
-        abort_unless($file && Storage::disk('local')->exists($file->storage_path), 404);
+        abort_unless($file && app(MediaStorage::class)->exists($file->storage_path), 404);
 
         $name = Str::ascii((string) $file->original_name);
         $name = preg_replace('/[^A-Za-z0-9._ -]/', '_', $name);
-        return Storage::disk('local')->download($file->storage_path, $name ?: 'veiculo.jpg', [
+
+        return app(MediaStorage::class)->download($file->storage_path, $name ?: 'veiculo.jpg', [
             'Content-Type' => $file->mime,
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',

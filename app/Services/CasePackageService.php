@@ -3,23 +3,25 @@
 namespace App\Services;
 
 use App\Support\TenantDB;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
 final class CasePackageService
 {
     public const MAX_FILES = 40;
+
     public const MAX_SCENARIOS = 30;
+
     public const MAX_REVIEWS = 30;
+
     public const MAX_TOTAL_BYTES = 104857600;
 
     public function __construct(
         private readonly ScenarioPlanner $scenarios,
-        private readonly ScenarioReviewService $reviews
+        private readonly ScenarioReviewService $reviews,
+        private readonly MediaStorage $media,
     ) {}
 
     public function normalize(int $caseId, array $data): array
@@ -27,6 +29,7 @@ final class CasePackageService
         $ids = static function (array $values): array {
             $result = array_map('intval', $values);
             sort($result, SORT_NUMERIC);
+
             return $result;
         };
 
@@ -81,7 +84,9 @@ final class CasePackageService
             ->select('id', 'body', 'author_id', 'created_at')->orderBy('id')->limit(401)->get();
 
         foreach (['parties' => $parties, 'tasks' => $tasks, 'checklist' => $checklist, 'notes' => $notes] as $key => $rows) {
-            if ($rows->count() > 400) $this->fail('case_id', "O dossiê tem mais de 400 registros na seção {$key}; reduza o conjunto antes de criar o pacote.");
+            if ($rows->count() > 400) {
+                $this->fail('case_id', "O dossiê tem mais de 400 registros na seção {$key}; reduza o conjunto antes de criar o pacote.");
+            }
         }
 
         $files = [];
@@ -99,7 +104,9 @@ final class CasePackageService
             foreach ($evidenceIds as $id) {
                 $evidence = $records[$id];
                 $bytes += (int) $evidence->size_bytes;
-                if ($bytes > self::MAX_TOTAL_BYTES) $this->fail('evidence_ids', 'O pacote ultrapassou 100 MB em anexos.');
+                if ($bytes > self::MAX_TOTAL_BYTES) {
+                    $this->fail('evidence_ids', 'O pacote ultrapassou 100 MB em anexos.');
+                }
                 $this->verifyFile($evidence);
                 $files[] = [
                     'id' => (int) $evidence->id,
@@ -116,7 +123,9 @@ final class CasePackageService
         $selectedScenarios = [];
         foreach ($normalized['scenario_ids'] as $id) {
             $scenario = $this->scenarios->show($id);
-            if ($scenario['case_id'] !== $caseId) $this->fail('scenario_ids', 'O cenário não pertence ao dossiê.');
+            if ($scenario['case_id'] !== $caseId) {
+                $this->fail('scenario_ids', 'O cenário não pertence ao dossiê.');
+            }
             $version = $this->scenarios->versionDetail($id, $scenario['revision']);
             $selectedScenarios[] = [
                 'id' => $id,
@@ -129,9 +138,13 @@ final class CasePackageService
         $selectedReviews = [];
         foreach ($normalized['review_ids'] as $id) {
             $review = $this->reviews->show($id);
-            if ($review['case_id'] !== $caseId) $this->fail('review_ids', 'A revisão não pertence ao dossiê.');
+            if ($review['case_id'] !== $caseId) {
+                $this->fail('review_ids', 'A revisão não pertence ao dossiê.');
+            }
             $integrity = $this->reviews->verify($id);
-            if (! $integrity['valid']) $this->fail('review_ids', 'A trilha interna de uma revisão não passou na verificação de integridade.');
+            if (! $integrity['valid']) {
+                $this->fail('review_ids', 'A trilha interna de uma revisão não passou na verificação de integridade.');
+            }
             $original = $this->reviews->snapshot($id, $this->scenarios);
             $selectedReviews[] = [
                 'id' => $id,
@@ -184,11 +197,7 @@ final class CasePackageService
 
     private function verifyFile(object $file): void
     {
-        $disk = Storage::disk('local');
-        if (! $disk->exists($file->storage_path)) abort(409, 'Evidência indisponível no armazenamento privado.');
-        $physical = $disk->path($file->storage_path);
-        if (! is_file($physical) || filesize($physical) !== (int) $file->size_bytes
-            || ! hash_equals($file->sha256, hash_file('sha256', $physical))) {
+        if (! $this->media->verify($file->storage_path, (int) $file->size_bytes, $file->sha256)) {
             abort(409, 'Evidência alterada desde o armazenamento original.');
         }
     }
@@ -198,6 +207,7 @@ final class CasePackageService
         $normalized = $this->normalize($caseId, $input);
         $manifest = $this->assemble($caseId, $normalized);
         $serialized = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+
         return [
             'manifest' => $manifest,
             'manifest_sha256' => hash('sha256', $serialized),
@@ -217,18 +227,25 @@ final class CasePackageService
             $previous = TenantDB::table('repasse_case_packages')
                 ->where('request_key', $requestKey)->lockForUpdate()->first();
             if ($previous) {
-                if (! hash_equals($previous->request_digest, $digest)) abort(409, 'Chave já utilizada com dados diferentes.');
+                if (! hash_equals($previous->request_digest, $digest)) {
+                    abort(409, 'Chave já utilizada com dados diferentes.');
+                }
+
                 return ['id' => (int) $previous->id, 'created' => false];
             }
 
             $case = TenantDB::table('repasse_cases')->where('id', $caseId)->lockForUpdate()->firstOrFail();
-            if ($case->status !== 'draft') $this->fail('case_id', 'O dossiê precisa estar aberto para formalizar um pacote.');
+            if ($case->status !== 'draft') {
+                $this->fail('case_id', 'O dossiê precisa estar aberto para formalizar um pacote.');
+            }
 
             // Refresh ALL sources under the dossier lock, then force preview equality.
             $manifest = $this->assemble($caseId, $normalized);
             $serialized = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
             $hash = hash('sha256', $serialized);
-            if (! hash_equals($expected, $hash)) abort(409, 'O conteúdo mudou desde a prévia. Recalcule antes de registrar.');
+            if (! hash_equals($expected, $hash)) {
+                abort(409, 'O conteúdo mudou desde a prévia. Recalcule antes de registrar.');
+            }
 
             $inserted = TenantDB::table('repasse_case_packages')->insertOrIgnore([
                 'repasse_case_id' => $caseId, 'request_key' => $requestKey,
@@ -242,13 +259,16 @@ final class CasePackageService
                 'created_by' => $actor, 'created_at' => now(), 'updated_at' => now(),
             ]);
             $row = TenantDB::table('repasse_case_packages')->where('request_key', $requestKey)->firstOrFail();
-            if (! hash_equals($row->request_digest, $digest)) abort(409, 'Chave já utilizada com dados diferentes.');
+            if (! hash_equals($row->request_digest, $digest)) {
+                abort(409, 'Chave já utilizada com dados diferentes.');
+            }
             if ($inserted) {
                 TenantDB::table('repasse_case_events')->insert([
                     'repasse_case_id' => $caseId, 'actor_user_id' => $actor,
                     'event_type' => 'case_package_created', 'created_at' => now(),
                 ]);
             }
+
             return ['id' => (int) $row->id, 'created' => (bool) $inserted];
         }, 3);
 
@@ -264,6 +284,7 @@ final class CasePackageService
     public function list(int $caseId): mixed
     {
         TenantDB::table('repasse_cases')->where('id', $caseId)->firstOrFail();
+
         return TenantDB::table('repasse_case_packages')
             ->where('repasse_case_id', $caseId)
             ->select('id', 'repasse_case_id as case_id', 'title', 'note', 'manifest_sha256',
@@ -277,7 +298,10 @@ final class CasePackageService
         $row = $this->lookup($caseId, $packageId);
         $manifest = json_decode($row->manifest, true, 512, JSON_THROW_ON_ERROR);
         $hash = hash('sha256', json_encode($manifest, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        if (! hash_equals($row->manifest_sha256, $hash)) abort(409, 'Integridade do manifesto não confirmada.');
+        if (! hash_equals($row->manifest_sha256, $hash)) {
+            abort(409, 'Integridade do manifesto não confirmada.');
+        }
+
         return [
             'id' => (int) $row->id, 'case_id' => (int) $row->repasse_case_id,
             'title' => $row->title, 'note' => $row->note,
@@ -301,13 +325,17 @@ final class CasePackageService
                 && hash_equals($file['sha256'], $row->sha256)
                 && (int) $file['size_bytes'] === (int) $row->size_bytes;
             if ($valid) {
-                try { $this->verifyFile($row); }
-                catch (\Throwable $e) { $valid = false; }
+                try {
+                    $this->verifyFile($row);
+                } catch (\Throwable $e) {
+                    $valid = false;
+                }
             }
             $intact = $intact && $valid;
             $files[] = ['id' => $file['id'], 'name' => $file['name'],
                 'sha256' => $file['sha256'], 'available_and_intact' => $valid];
         }
+
         return [
             'package_id' => $packageId, 'manifest_sha256' => $package['manifest_sha256'],
             'manifest_integrity' => true,
@@ -331,14 +359,20 @@ final class CasePackageService
             $removed = [];
             $modified = [];
             foreach ($rightMap as $id => $entry) {
-                if (! $leftMap->has($id)) $added[] = (int) $id;
-                elseif ($leftMap[$id] !== $entry) $modified[] = (int) $id;
+                if (! $leftMap->has($id)) {
+                    $added[] = (int) $id;
+                } elseif ($leftMap[$id] !== $entry) {
+                    $modified[] = (int) $id;
+                }
             }
             foreach ($leftMap as $id => $entry) {
-                if (! $rightMap->has($id)) $removed[] = (int) $id;
+                if (! $rightMap->has($id)) {
+                    $removed[] = (int) $id;
+                }
             }
             $changes[$type] = ['added_ids' => $added, 'removed_ids' => $removed, 'modified_ids' => $modified];
         }
+
         return [
             'left_package_id' => $leftId, 'right_package_id' => $rightId,
             'same_manifest' => hash_equals($left['manifest_sha256'], $right['manifest_sha256']),
@@ -353,18 +387,23 @@ final class CasePackageService
      */
     public function archive(int $caseId, int $packageId): string
     {
-        if (! class_exists(ZipArchive::class)) abort(503, 'A extensão PHP ZIP não está disponível.');
+        if (! class_exists(ZipArchive::class)) {
+            abort(503, 'A extensão PHP ZIP não está disponível.');
+        }
         $package = $this->show($caseId, $packageId);
         if (! $this->verify($caseId, $packageId)['available_for_download']) {
             abort(409, 'O pacote contém arquivo ausente ou divergente; consulte a verificação de integridade.');
         }
         $file = tempnam(sys_get_temp_dir(), 'repasse_pkg_');
-        if ($file === false) abort(503, 'Não foi possível preparar o arquivo temporário.');
-        $zip = new ZipArchive();
+        if ($file === false) {
+            abort(503, 'Não foi possível preparar o arquivo temporário.');
+        }
+        $zip = new ZipArchive;
         if ($zip->open($file, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             @unlink($file);
             abort(503, 'Não foi possível abrir o ZIP.');
         }
+        $temporarySources = [];
         try {
             $json = json_encode([
                 'package_id' => $packageId, 'case_id' => $caseId,
@@ -373,7 +412,9 @@ final class CasePackageService
                 'manifest' => $package['manifest'],
                 'notice' => 'PACOTE DOCUMENTAL; NÃO É PAGAMENTO OU APROVAÇÃO FINANCEIRA',
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            if (! $zip->addFromString('manifesto.json', $json)) abort(503, 'Falha ao inserir o manifesto.');
+            if (! $zip->addFromString('manifesto.json', $json)) {
+                abort(503, 'Falha ao inserir o manifesto.');
+            }
             foreach ($package['manifest']['evidence'] as $entry) {
                 $row = TenantDB::table('repasse_case_evidence')
                     ->where('repasse_case_id', $caseId)->where('id', $entry['id'])->firstOrFail();
@@ -382,20 +423,45 @@ final class CasePackageService
                 $safeName = trim($safeName, '. ');
                 $safeName = $safeName !== '' ? $safeName : 'documento';
                 $entryName = 'documentos/'.$entry['id'].'-'.substr($safeName, 0, 160);
-                if (! $zip->addFile(Storage::disk('local')->path($row->storage_path), $entryName)) {
+                $temporarySource = tempnam(sys_get_temp_dir(), 'repasse_evidence_');
+                if ($temporarySource === false) {
+                    abort(503, 'Não foi possível preparar a evidência para o ZIP.');
+                }
+                $source = $this->media->readStream($row->storage_path);
+                $target = fopen($temporarySource, 'wb');
+                if (! is_resource($target)) {
+                    fclose($source);
+                    @unlink($temporarySource);
+                    abort(503, 'Não foi possível preparar a evidência para o ZIP.');
+                }
+                try {
+                    stream_copy_to_stream($source, $target);
+                } finally {
+                    fclose($source);
+                    fclose($target);
+                }
+                $temporarySources[] = $temporarySource;
+                if (! $zip->addFile($temporarySource, $entryName)) {
                     abort(503, 'Falha ao incorporar a evidência ao ZIP.');
                 }
             }
-            if (! $zip->close()) abort(503, 'Falha ao finalizar ZIP.');
+            if (! $zip->close()) {
+                abort(503, 'Falha ao finalizar ZIP.');
+            }
             // ZipArchive may read source files lazily at close(); verify again afterwards.
             if (! $this->verify($caseId, $packageId)['available_for_download']) {
                 abort(409, 'Um arquivo mudou durante a preparação do pacote.');
             }
+
             return $file;
         } catch (\Throwable $e) {
             $zip->close();
             @unlink($file);
             throw $e;
+        } finally {
+            foreach ($temporarySources as $temporarySource) {
+                @unlink($temporarySource);
+            }
         }
     }
 }

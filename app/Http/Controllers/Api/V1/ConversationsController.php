@@ -4,18 +4,21 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Services\CollaborationAccess;
+use App\Services\MediaStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 final class ConversationsController extends Controller
 {
-    public function __construct(private readonly CollaborationAccess $access) {}
+    public function __construct(
+        private readonly CollaborationAccess $access,
+        private readonly MediaStorage $media,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -31,7 +34,7 @@ final class ConversationsController extends Controller
         foreach ($records as $row) {
             try {
                 $this->access->activeMember($request, (int) $row->id);
-            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            } catch (HttpException $e) {
                 continue;
             }
             $last = DB::table('collab_messages')->where('conversation_id', $row->id)
@@ -52,6 +55,7 @@ final class ConversationsController extends Controller
                 'participants' => $others, 'unread' => $unread, 'last_message' => $last,
             ];
         }
+
         return response()->json(['data' => $result])->header('Cache-Control', 'no-store, private');
     }
 
@@ -70,8 +74,10 @@ final class ConversationsController extends Controller
             ]);
             $this->access->conversationMember($id, $c->user_low_id);
             $this->access->conversationMember($id, $c->user_high_id);
+
             return $id;
         });
+
         return response()->json(['data' => ['id' => $chatId]])->header('Cache-Control', 'no-store, private');
     }
 
@@ -114,6 +120,7 @@ final class ConversationsController extends Controller
                     'm.file_name', 'm.file_mime', 'm.file_size', 'm.created_at'])
                 ->reverse()->values();
         }
+
         return response()->json(['data' => $rows])->header('Cache-Control', 'no-store, private');
     }
 
@@ -145,6 +152,7 @@ final class ConversationsController extends Controller
             ->where('sender_id', $actor->id)->where('request_key', $data['request_key'])->first();
         if ($existing) {
             $this->assertSameAttempt($existing, $body, $fileSha);
+
             return response()->json(['data' => ['id' => $existing->id, 'created' => false]])
                 ->header('Cache-Control', 'no-store, private');
         }
@@ -153,8 +161,7 @@ final class ConversationsController extends Controller
         $meta = [];
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $path = $file->store('collab-messages/'.$conversation, 'local');
-            if (! $path) abort(503, 'Não foi possível armazenar o arquivo.');
+            $path = $this->media->store($file, 'collab-messages/'.$conversation);
             $meta = [
                 'file_path' => $path,
                 'file_name' => mb_substr(basename(str_replace('\\', '/', $file->getClientOriginalName())), 0, 180),
@@ -174,6 +181,7 @@ final class ConversationsController extends Controller
                     ->where('sender_id', $actor->id)->where('request_key', $data['request_key'])->first();
                 if ($again) {
                     $this->assertSameAttempt($again, $body, $fileSha);
+
                     return ['id' => (int) $again->id, 'created' => false];
                 }
                 $id = DB::table('collab_messages')->insertGetId([
@@ -184,15 +192,23 @@ final class ConversationsController extends Controller
                 DB::table('collab_conversations')->where('id', $conversation)->update(['updated_at' => now()]);
                 $others = DB::table('collab_conversation_members')->where('conversation_id', $conversation)
                     ->where('user_id', '<>', $actor->id)->whereNull('removed_at')->pluck('user_id');
-                foreach ($others as $recipient) $this->access->notify((int) $recipient,
-                    'new_message', ['chat_id' => $conversation, 'message_id' => $id]);
+                foreach ($others as $recipient) {
+                    $this->access->notify((int) $recipient,
+                        'new_message', ['chat_id' => $conversation, 'message_id' => $id]);
+                }
+
                 return ['id' => $id, 'created' => true];
             }, 3);
-            if (! $id['created'] && $path) Storage::disk('local')->delete($path);
+            if (! $id['created'] && $path) {
+                $this->media->delete($path);
+            }
         } catch (Throwable $e) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) {
+                $this->media->delete($path);
+            }
             throw $e;
         }
+
         return response()->json(['data' => $id], $id['created'] ? 201 : 200)
             ->header('Cache-Control', 'no-store, private');
     }
@@ -204,6 +220,7 @@ final class ConversationsController extends Controller
         DB::table('collab_conversation_members')->where('id', $member->id)
             ->update(['last_read_message_id' => max((int) $member->last_read_message_id,
                 (int) $member->joined_after_message_id, $latest), 'updated_at' => now()]);
+
         return response()->json(['message' => 'Lido.']);
     }
 
@@ -215,11 +232,11 @@ final class ConversationsController extends Controller
             ->where('id', '>', $member->joined_after_message_id)
             ->whereNotNull('file_path')->first();
         abort_unless($file, 404);
-        if (! Storage::disk('local')->exists($file->file_path) ||
-            ! hash_equals($file->file_sha256, hash('sha256', Storage::disk('local')->get($file->file_path)))) {
+        if (! $this->media->verify($file->file_path, (int) $file->file_size, $file->file_sha256)) {
             abort(409, 'Arquivo indisponível ou divergente.');
         }
-        return Storage::disk('local')->download($file->file_path, $file->file_name, [
+
+        return $this->media->download($file->file_path, $file->file_name, [
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
@@ -236,6 +253,7 @@ final class ConversationsController extends Controller
         $member = $this->access->activeMember($request, $conversation);
         $data = $request->validate(['after' => ['sometimes', 'integer', 'min:0']]);
         $cursor = max((int) ($data['after'] ?? 0), (int) $member->joined_after_message_id);
+
         return response()->stream(function () use ($request, $conversation, $cursor) {
             $expires = microtime(true) + 18;
             echo ": conectado\n\n";
@@ -257,7 +275,9 @@ final class ConversationsController extends Controller
                     echo "event: message\n";
                     echo 'data: '.json_encode($message, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)."\n\n";
                 }
-                if ($rows === []) echo ": heartbeat\n\n";
+                if ($rows === []) {
+                    echo ": heartbeat\n\n";
+                }
                 @ob_flush();
                 flush();
                 sleep(1);

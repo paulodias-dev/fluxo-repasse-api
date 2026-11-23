@@ -8,18 +8,20 @@ use App\Http\Requests\Api\V1\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\SocialLoginRequest;
 use App\Http\Requests\Api\V1\UpdateProfileRequest;
-use App\Models\User;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\AuthEventRecorder;
+use App\Services\MediaStorage;
 use App\Services\SocialAuthService;
 use App\Support\OperationalAccessCatalog;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
@@ -29,6 +31,7 @@ final class AuthController extends Controller
     public function __construct(
         private readonly AuthEventRecorder $events,
         private readonly SocialAuthService $socialAuth,
+        private readonly MediaStorage $media,
     ) {}
 
     public function login(LoginRequest $request): JsonResponse
@@ -93,7 +96,7 @@ final class AuthController extends Controller
         return $this->tokenResponse($token);
     }
 
-    public function forgotPassword(\Illuminate\Http\Request $request): JsonResponse
+    public function forgotPassword(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
         Password::sendResetLink(['email' => mb_strtolower(trim($data['email']))]);
@@ -104,7 +107,7 @@ final class AuthController extends Controller
         ])->header('Cache-Control', 'no-store');
     }
 
-    public function resetPassword(\Illuminate\Http\Request $request): JsonResponse
+    public function resetPassword(Request $request): JsonResponse
     {
         $data = $request->validate([
             'token' => ['required', 'string'],
@@ -148,12 +151,12 @@ final class AuthController extends Controller
     }
 
     /** Per-user UI preferences; the user ID comes exclusively from the JWT session. */
-    public function updatePreferences(\Illuminate\Http\Request $request): JsonResponse
+    public function updatePreferences(Request $request): JsonResponse
     {
         $changes = $request->validate([
-            'theme_mode' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(['light', 'dark', 'system'])],
+            'theme_mode' => ['sometimes', 'required', Rule::in(['light', 'dark', 'system'])],
             'sidebar_collapsed' => ['sometimes', 'required', 'boolean'],
-            'vehicle_view' => ['sometimes', 'required', \Illuminate\Validation\Rule::in(['list', 'grid'])],
+            'vehicle_view' => ['sometimes', 'required', Rule::in(['list', 'grid'])],
         ]);
 
         $preferences = DB::transaction(function () use ($request, $changes): array {
@@ -176,7 +179,7 @@ final class AuthController extends Controller
         $newAvatarPath = null;
 
         if ($request->hasFile('avatar')) {
-            $newAvatarPath = $request->file('avatar')->store('avatars/'.$user->getKey(), 'public');
+            $newAvatarPath = $this->media->store($request->file('avatar'), 'avatars/'.$user->getKey());
         }
 
         try {
@@ -199,14 +202,14 @@ final class AuthController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($newAvatarPath !== null) {
-                Storage::disk('public')->delete($newAvatarPath);
+                $this->media->delete($newAvatarPath);
             }
 
             throw $exception;
         }
 
         if ($oldAvatarPath !== null && $newAvatarPath !== null && str_starts_with($oldAvatarPath, 'avatars/')) {
-            Storage::disk('public')->delete($oldAvatarPath);
+            $this->media->delete($oldAvatarPath);
         }
 
         $response = [
@@ -234,6 +237,7 @@ final class AuthController extends Controller
     public function access(): JsonResponse
     {
         $user = Auth::guard('api')->user();
+
         return response()->json([
             'data' => $this->diagnostic($user),
         ])->header('Cache-Control', 'no-store, private');
@@ -245,6 +249,7 @@ final class AuthController extends Controller
         $platformAdmin = $user->roles()->where('slug', 'platform_admin')->exists();
         $missing = $platformAdmin
             ? OperationalAccessCatalog::missingForAdmin($granted) : [];
+
         return [
             'is_platform_admin' => $platformAdmin,
             'granted_count' => count($granted),

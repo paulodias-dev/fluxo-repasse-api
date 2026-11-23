@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Support\TenantDB;
-
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -23,6 +23,7 @@ final class ExternalTransferReportService
     public function __construct(
         private readonly ObligationProposalService $proposals,
         private readonly CaseOperations $operations,
+        private readonly MediaStorage $media,
     ) {}
 
     private function row(int $case, int $term, int $proposal, int $report): object
@@ -149,7 +150,7 @@ final class ExternalTransferReportService
         ];
     }
 
-    private function filtered(int $case, int $term, int $proposal, string $status): \Illuminate\Database\Query\Builder
+    private function filtered(int $case, int $term, int $proposal, string $status): Builder
     {
         $query = TenantDB::table('repasse_external_transfer_reports')
             ->where('repasse_case_id', $case)
@@ -320,7 +321,7 @@ final class ExternalTransferReportService
                 $storedPath = 'repasse-external-proofs/'.$case.'/'.Str::uuid().'.'.$extension;
                 $handle = fopen($proof->getRealPath(), 'rb');
                 try {
-                    $stored = Storage::disk('local')->put($storedPath, $handle);
+                    $this->media->putStream($storedPath, $handle);
                 } finally {
                     if (is_resource($handle)) {
                         fclose($handle);
@@ -358,7 +359,7 @@ final class ExternalTransferReportService
             });
         } catch (Throwable $error) {
             if ($storedPath !== null) {
-                Storage::disk('local')->delete($storedPath);
+                $this->media->delete($storedPath);
             }
             throw $error;
         }
@@ -406,27 +407,21 @@ final class ExternalTransferReportService
         return $this->show($case, $term, $proposal, $report);
     }
 
-    public function proof(int $case, int $term, int $proposal, int $report): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function proof(int $case, int $term, int $proposal, int $report): StreamedResponse
     {
         $this->show($case, $term, $proposal, $report);
+
         return $this->downloadProof($this->row($case, $term, $proposal, $report));
     }
 
-    private function downloadProof(object $row): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    private function downloadProof(object $row): StreamedResponse
     {
-        $disk = Storage::disk('local');
-        if (! $disk->exists($row->proof_path)) {
-            abort(404, 'Comprovante privado não localizado.');
-        }
-        $path = $disk->path($row->proof_path);
-        if (! is_file($path)
-            || (int) filesize($path) !== (int) $row->proof_size_bytes
-            || ! hash_equals($row->proof_sha256, hash_file('sha256', $path))) {
+        if (! $this->media->verify($row->proof_path, (int) $row->proof_size_bytes, $row->proof_sha256)) {
             abort(409, 'Comprovante com integridade divergente.');
         }
         $name = preg_replace('/[^A-Za-z0-9._ -]/', '_', Str::ascii($row->proof_name));
 
-        return response()->download($path, $name ?: 'comprovante', [
+        return $this->media->download($row->proof_path, $name ?: 'comprovante', [
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
@@ -445,6 +440,7 @@ final class ExternalTransferReportService
         $source = $this->proposal($case, $term, $proposal);
         $names = $this->lines($source);
         $query = $this->filtered($case, $term, $proposal, $status);
+
         return response()->streamDownload(function () use ($query, $source, $names): void {
             $out = fopen('php://output', 'wb');
             fwrite($out, "\xEF\xBB\xBF");
@@ -485,7 +481,7 @@ final class ExternalTransferReportService
 
     // Macro 49 — mesma tabela documental, sem exigir modelos/comissões/minutas.
     // Não registra obrigação nem comprova liquidação bancária.
-    private function directQuery(int $case, string $status = 'all'): \Illuminate\Database\Query\Builder
+    private function directQuery(int $case, string $status = 'all'): Builder
     {
         $query = TenantDB::table('repasse_external_transfer_reports')
             ->where('repasse_case_id', $case)
@@ -664,16 +660,11 @@ final class ExternalTransferReportService
                 $path = 'repasse-external-proofs/'.$case.'/'.Str::uuid().'.'.$extension;
                 $handle = fopen($proof->getRealPath(), 'rb');
                 try {
-                    $stored = Storage::disk('local')->put($path, $handle);
+                    $this->media->putStream($path, $handle);
                 } finally {
                     if (is_resource($handle)) {
                         fclose($handle);
                     }
-                }
-                if (! $stored) {
-                    throw ValidationException::withMessages([
-                        'proof' => 'Falha ao salvar comprovante privado.',
-                    ]);
                 }
                 $id = TenantDB::table('repasse_external_transfer_reports')->insertGetId([
                     'repasse_case_id' => $case,
@@ -705,7 +696,7 @@ final class ExternalTransferReportService
             });
         } catch (Throwable $error) {
             if ($path !== null) {
-                Storage::disk('local')->delete($path);
+                $this->media->delete($path);
             }
             throw $error;
         }
@@ -750,7 +741,7 @@ final class ExternalTransferReportService
         return $this->directShow($case, $report);
     }
 
-    public function directProof(int $case, int $report): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    public function directProof(int $case, int $report): BinaryFileResponse
     {
         $this->directShow($case, $report);
 
@@ -761,6 +752,7 @@ final class ExternalTransferReportService
     {
         $this->operations->ensureExists($case);
         $query = $this->directQuery($case, $status);
+
         return response()->streamDownload(function () use ($query): void {
             $out = fopen('php://output', 'wb');
             fwrite($out, "\xEF\xBB\xBF");
@@ -794,5 +786,4 @@ final class ExternalTransferReportService
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
-
 }

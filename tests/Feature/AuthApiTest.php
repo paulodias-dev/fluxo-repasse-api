@@ -46,7 +46,7 @@ final class AuthApiTest extends TestCase
 
     public function test_authenticated_user_can_update_profile_and_avatar(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
         $user = User::factory()->create(['password' => 'Strong-Passphrase-123!']);
         $token = $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
@@ -73,7 +73,7 @@ final class AuthApiTest extends TestCase
             'phone' => '(82) 99999-9999',
             'company_name' => 'Fluxo Sistemas',
         ]);
-        Storage::disk('public')->assertExists($updated->avatar_path);
+        Storage::disk('local')->assertExists($updated->avatar_path);
 
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
         $this->withToken($response->json('access_token'))->getJson('/api/v1/auth/me')

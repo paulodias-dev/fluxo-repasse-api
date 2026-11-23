@@ -27,6 +27,9 @@
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
+        <env name="MEDIA_DISK" value="local" force="true"/>
+        <env name="MEDIA_FALLBACK_DISK" value="local" force="true"/>
+        <env name="MEDIA_MIRROR_DISK" value="" force="true"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

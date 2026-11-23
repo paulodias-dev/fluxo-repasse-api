@@ -2,17 +2,16 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Support\TenantDB;
-
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AttachVehicleFinanceDocumentRequest;
 use App\Services\CaseOperations;
+use App\Services\MediaStorage;
 use App\Services\VehicleFinanceWorkspace;
+use App\Support\TenantDB;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -23,6 +22,7 @@ final class VehicleFinanceDocumentController extends Controller
     public function __construct(
         private readonly CaseOperations $operations,
         private readonly VehicleFinanceWorkspace $finance,
+        private readonly MediaStorage $media,
     ) {}
 
     public function attach(AttachVehicleFinanceDocumentRequest $request, int $case, int $entry): JsonResponse
@@ -41,7 +41,9 @@ final class VehicleFinanceDocumentController extends Controller
             $original = mb_substr(trim(preg_replace(
                 '/[\x00-\x1F\x7F]/u', '', basename($original)
             )), 0, 180);
-            if ($original === '') $original = 'comprovante';
+            if ($original === '') {
+                $original = 'comprovante';
+            }
             $mime = $file->getMimeType();
             $extension = match ($mime) {
                 'application/pdf' => 'pdf',
@@ -81,14 +83,14 @@ final class VehicleFinanceDocumentController extends Controller
                         ->where('link.entry_id', $entry)
                         ->where('evidence.sha256', $sha)
                         ->whereNull('evidence.archived_at')
-                        ->select('evidence.storage_path', 'evidence.sha256')
+                        ->select('evidence.storage_path', 'evidence.sha256', 'evidence.size_bytes')
                         ->first();
                     if ($alreadyLinked) {
-                        $disk = Storage::disk('local');
-                        $originalPath = $disk->path($alreadyLinked->storage_path);
-                        if (! $disk->exists($alreadyLinked->storage_path) ||
-                            ! is_file($originalPath) ||
-                            ! hash_equals($alreadyLinked->sha256, hash_file('sha256', $originalPath))) {
+                        if (! $this->media->verify(
+                            $alreadyLinked->storage_path,
+                            (int) $alreadyLinked->size_bytes,
+                            $alreadyLinked->sha256
+                        )) {
                             abort(409, 'Comprovante anterior indisponível ou com integridade divergente.');
                         }
 
@@ -99,13 +101,11 @@ final class VehicleFinanceDocumentController extends Controller
                 if ($file) {
                     $resource = fopen($file->getRealPath(), 'rb');
                     try {
-                        if (! Storage::disk('local')->put($path, $resource)) {
-                            throw ValidationException::withMessages([
-                                'file' => 'Não foi possível armazenar o comprovante.',
-                            ]);
-                        }
+                        $this->media->putStream($path, $resource);
                     } finally {
-                        if (is_resource($resource)) fclose($resource);
+                        if (is_resource($resource)) {
+                            fclose($resource);
+                        }
                     }
                     $evidence = TenantDB::table('repasse_case_evidence')->insertGetId([
                         'repasse_case_id' => $case, 'original_name' => $original,
@@ -129,7 +129,9 @@ final class VehicleFinanceDocumentController extends Controller
                         ->where('evidence_id', $evidence)->first();
                     if ($existing) {
                         if ((int) $existing->entry_id === $entry &&
-                            (int) $existing->repasse_case_id === $case) return false;
+                            (int) $existing->repasse_case_id === $case) {
+                            return false;
+                        }
                         throw ValidationException::withMessages([
                             'evidence_id' => 'Documento já vinculado a outro lançamento.',
                         ]);
@@ -150,12 +152,16 @@ final class VehicleFinanceDocumentController extends Controller
                 return true;
             });
         } catch (UniqueConstraintViolationException) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) {
+                $this->media->delete($path);
+            }
             throw ValidationException::withMessages([
                 'evidence_id' => 'Documento já vinculado. Atualize a lista.',
             ]);
         } catch (Throwable $exception) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) {
+                $this->media->delete($path);
+            }
             throw $exception;
         }
 
@@ -201,19 +207,15 @@ final class VehicleFinanceDocumentController extends Controller
             ->join('repasse_case_evidence as e', 'e.id', '=', 'l.evidence_id')
             ->where('l.repasse_case_id', $case)->where('l.entry_id', $entry)
             ->where('l.evidence_id', $evidence)->whereNull('e.archived_at')
-            ->select('e.storage_path', 'e.original_name', 'e.sha256')->firstOrFail();
-        $storage = Storage::disk('local');
-        if (! $storage->exists($document->storage_path)) abort(404);
-
-        $realPath = $storage->path($document->storage_path);
-        if (! is_file($realPath) || ! hash_equals($document->sha256, hash_file('sha256', $realPath))) {
+            ->select('e.storage_path', 'e.original_name', 'e.sha256', 'e.size_bytes')->firstOrFail();
+        if (! $this->media->verify($document->storage_path, (int) $document->size_bytes, $document->sha256)) {
             abort(409, 'Integridade do comprovante divergente.');
         }
 
         $name = Str::ascii($document->original_name);
         $name = preg_replace('/[^A-Za-z0-9._ -]/', '_', $name);
 
-        return $storage->download($document->storage_path, $name ?: 'comprovante', [
+        return $this->media->download($document->storage_path, $name ?: 'comprovante', [
             'Content-Type' => 'application/octet-stream',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',

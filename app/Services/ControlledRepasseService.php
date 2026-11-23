@@ -5,21 +5,25 @@ namespace App\Services;
 use App\Support\TenantDB;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 final class ControlledRepasseService
 {
-    public function __construct(private readonly RepasseManualCalculator $calculator) {}
+    public function __construct(
+        private readonly RepasseManualCalculator $calculator,
+        private readonly MediaStorage $media,
+    ) {}
 
     private function vehicle(int $case, bool $lock = false): object
     {
         $query = TenantDB::table('repasse_cases')->where('id', $case);
         $row = ($lock ? $query->lockForUpdate() : $query)->first();
-        if (! $row) abort(404);
+        if (! $row) {
+            abort(404);
+        }
 
         return $row;
     }
@@ -33,6 +37,7 @@ final class ControlledRepasseService
         if (! $row) {
             throw ValidationException::withMessages(['parties' => 'Use apenas pessoas ativas vinculadas a este veículo.']);
         }
+
         return $row;
     }
 
@@ -41,7 +46,10 @@ final class ControlledRepasseService
         $query = TenantDB::table('repasse_settlements')
             ->where('repasse_case_id', $case)->where('id', $id);
         $row = ($lock ? $query->lockForUpdate() : $query)->first();
-        if (! $row) abort(404);
+        if (! $row) {
+            abort(404);
+        }
+
         return $row;
     }
 
@@ -80,6 +88,7 @@ final class ControlledRepasseService
         $page->getCollection()->transform(function (object $row) use ($case): array {
             return $this->snapshot($case, $row, false);
         });
+
         return $page->toArray();
     }
 
@@ -97,6 +106,7 @@ final class ControlledRepasseService
         }
         $destinations = $lines->map(static function (object $line) use ($paid, $row): array {
             $settled = $paid[$line->id] ?? 0;
+
             return [
                 'id' => (int) $line->id, 'beneficiary_party_id' => (int) $line->beneficiary_party_id,
                 'beneficiary_name' => $line->beneficiary_name,
@@ -108,6 +118,7 @@ final class ControlledRepasseService
             ];
         })->all();
         $paidTotal = array_sum($paid);
+
         return [
             'id' => (int) $row->id, 'vehicle_id' => $case,
             'payer_party_id' => (int) $row->payer_party_id,
@@ -138,6 +149,7 @@ final class ControlledRepasseService
     public function show(int $case, int $id): array
     {
         $this->vehicle($case);
+
         return $this->snapshot($case, $this->settlement($case, $id));
     }
 
@@ -162,6 +174,7 @@ final class ControlledRepasseService
                     || ! hash_equals($previous->intent_sha256, $digest)) {
                     abort(409, 'Identificador já usado em outra operação.');
                 }
+
                 return ['id' => (int) $previous->id, 'created' => false];
             }
             if ($vehicle->sold_on === null || $vehicle->sale_amount_cents === null) {
@@ -194,6 +207,7 @@ final class ControlledRepasseService
                 ]);
             }
             $this->event($id, null, $actor, 'created', ['base_amount_cents' => $intent['base_amount_cents']]);
+
             return ['id' => (int) $id, 'created' => true];
         });
 
@@ -205,7 +219,9 @@ final class ControlledRepasseService
         DB::transaction(function () use ($case, $id, $actor): void {
             $vehicle = $this->vehicle($case, true);
             $row = $this->settlement($case, $id, true);
-            if ($row->status !== 'draft') abort(409, 'Somente rascunhos podem ser aprovados.');
+            if ($row->status !== 'draft') {
+                abort(409, 'Somente rascunhos podem ser aprovados.');
+            }
             if ($vehicle->sold_on === null || $vehicle->sale_amount_cents === null) {
                 abort(409, 'Venda datada precisa permanecer registrada.');
             }
@@ -220,6 +236,7 @@ final class ControlledRepasseService
             ]);
             $this->event($id, null, $actor, 'approved');
         });
+
         return $this->show($case, $id);
     }
 
@@ -247,6 +264,7 @@ final class ControlledRepasseService
                         || ! hash_equals($previous->intent_sha256, $digest)) {
                         abort(409, 'Identificador já utilizado em outro pagamento.');
                     }
+
                     return ['created' => false];
                 }
                 if ($settlement->status !== 'approved') {
@@ -260,7 +278,9 @@ final class ControlledRepasseService
                 }
                 $line = TenantDB::table('repasse_settlement_lines')
                     ->where('settlement_id', $id)->where('id', $intent['line_id'])->first();
-                if (! $line) abort(404);
+                if (! $line) {
+                    abort(404);
+                }
                 $this->participant($case, (int) $settlement->payer_party_id);
                 $this->participant($case, (int) $line->beneficiary_party_id);
                 $already = (int) TenantDB::table('repasse_settlement_payments')
@@ -273,15 +293,17 @@ final class ControlledRepasseService
                     $mime = $proof->getMimeType();
                     $extension = ['application/pdf' => 'pdf', 'image/jpeg' => 'jpg',
                         'image/png' => 'png', 'image/webp' => 'webp'][$mime] ?? null;
-                    if ($extension === null) throw ValidationException::withMessages(['proof' => 'Formato de arquivo não permitido.']);
+                    if ($extension === null) {
+                        throw ValidationException::withMessages(['proof' => 'Formato de arquivo não permitido.']);
+                    }
                     $path = 'repasse-settlement-proofs/'.(string) $case.'/'.Str::uuid().'.'.$extension;
                     $handle = fopen($proof->getRealPath(), 'rb');
                     try {
-                        if (! Storage::disk('local')->put($path, $handle)) {
-                            throw ValidationException::withMessages(['proof' => 'Falha ao guardar comprovante privado.']);
-                        }
+                        $this->media->putStream($path, $handle);
                     } finally {
-                        if (is_resource($handle)) fclose($handle);
+                        if (is_resource($handle)) {
+                            fclose($handle);
+                        }
                     }
                 }
                 $payment = TenantDB::table('repasse_settlement_payments')->insertGetId([
@@ -299,12 +321,16 @@ final class ControlledRepasseService
                 $this->event($id, $payment, $actor, 'payment_reported', [
                     'line_id' => (int) $line->id, 'amount_cents' => $intent['amount_cents'],
                 ]);
+
                 return ['created' => true];
             });
         } catch (Throwable $error) {
-            if ($path) Storage::disk('local')->delete($path);
+            if ($path) {
+                $this->media->delete($path);
+            }
             throw $error;
         }
+
         return ['data' => $this->show($case, $id), 'created' => $result['created']];
     }
 
@@ -318,8 +344,12 @@ final class ControlledRepasseService
             }
             $row = TenantDB::table('repasse_settlement_payments')
                 ->where('settlement_id', $id)->where('id', $payment)->lockForUpdate()->first();
-            if (! $row) abort(404);
-            if ($row->voided_at !== null) abort(409, 'Pagamento já estornado.');
+            if (! $row) {
+                abort(404);
+            }
+            if ($row->voided_at !== null) {
+                abort(409, 'Pagamento já estornado.');
+            }
             TenantDB::table('repasse_settlement_payments')->where('id', $payment)->update([
                 'voided_by' => $actor, 'voided_at' => now(), 'void_reason' => $reason,
             ]);
@@ -327,17 +357,19 @@ final class ControlledRepasseService
                 'reason' => $reason, 'amount_cents' => (int) $row->amount_cents,
             ]);
         });
+
         return $this->show($case, $id);
     }
 
     public function cancel(
         int $case, int $id, string $reason, int $actor, bool $mayApprove
-    ): array
-    {
+    ): array {
         DB::transaction(function () use ($case, $id, $reason, $actor, $mayApprove): void {
             $this->vehicle($case, true);
             $row = $this->settlement($case, $id, true);
-            if ($row->status === 'cancelled') abort(409, 'Distribuição já cancelada.');
+            if ($row->status === 'cancelled') {
+                abort(409, 'Distribuição já cancelada.');
+            }
             // O autor pode retirar apenas o próprio rascunho. Uma obrigação já
             // aprovada somente pode ser cancelada por quem possui a alçada.
             if (! $mayApprove && ! ($row->status === 'draft'
@@ -354,24 +386,24 @@ final class ControlledRepasseService
             ]);
             $this->event($id, null, $actor, 'cancelled', ['reason' => $reason]);
         });
+
         return $this->show($case, $id);
     }
 
-    public function proof(int $case, int $id, int $payment): BinaryFileResponse
+    public function proof(int $case, int $id, int $payment): StreamedResponse
     {
         $this->vehicle($case);
         $this->settlement($case, $id);
         $row = TenantDB::table('repasse_settlement_payments')
             ->where('settlement_id', $id)->where('id', $payment)->first();
-        if (! $row || ! $row->proof_path) abort(404);
-        $disk = Storage::disk('local');
-        if (! $disk->exists($row->proof_path)) abort(409, 'Comprovante indisponível.');
-        $physical = $disk->path($row->proof_path);
-        if ((int) filesize($physical) !== (int) $row->proof_size_bytes ||
-            ! hash_equals($row->proof_sha256, hash_file('sha256', $physical))) {
+        if (! $row || ! $row->proof_path) {
+            abort(404);
+        }
+        if (! $this->media->verify($row->proof_path, (int) $row->proof_size_bytes, $row->proof_sha256)) {
             abort(409, 'Falha de integridade do comprovante.');
         }
-        return response()->download($physical, $row->proof_name ?: 'comprovante', [
+
+        return $this->media->download($row->proof_path, $row->proof_name ?: 'comprovante', [
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
         ]);
