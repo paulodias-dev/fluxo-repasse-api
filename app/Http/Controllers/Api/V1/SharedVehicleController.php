@@ -19,7 +19,7 @@ final class SharedVehicleController extends Controller
     private function vehicle(object $grant): object
     {
         return DB::table('repasse_cases')->where('id', $grant->vehicle_id)
-            ->where('tenant_id', $grant->owner_tenant_id)->firstOrFail();
+            ->where('tenant_id', $grant->owner_tenant_id)->whereNull('admin_deleted_at')->firstOrFail();
     }
 
     private function financialRows(object $grant): array
@@ -88,7 +88,8 @@ final class SharedVehicleController extends Controller
             DB::table('vehicle_access_grants')->where('id', $grant->id)->lockForUpdate()->firstOrFail();
             $this->access->grant($request, (int) $grant->id, true);
             $vehicle = DB::table('repasse_cases')->where('id', $grant->vehicle_id)
-                ->where('tenant_id', $grant->owner_tenant_id)->lockForUpdate()->firstOrFail();
+                ->where('tenant_id', $grant->owner_tenant_id)->whereNull('admin_deleted_at')
+                ->lockForUpdate()->firstOrFail();
             abort_unless($vehicle->status === 'draft', 422);
             DB::table('repasse_cases')->where('id', $vehicle->id)->update([
                 ...$data, 'updated_by' => $request->user('api')->id, 'updated_at' => now(),

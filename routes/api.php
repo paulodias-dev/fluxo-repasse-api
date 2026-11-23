@@ -65,6 +65,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/social', [AuthController::class, 'socialLogin'])
             ->middleware('throttle:repasse-social')
             ->name('api.v1.auth.social');
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+            ->middleware('throttle:repasse-password')
+            ->name('api.v1.auth.forgot-password');
+        Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+            ->middleware('throttle:repasse-password')
+            ->name('api.v1.auth.reset-password');
 
         // A renovação precisa aceitar o access token expirado enquanto ele
         // ainda estiver dentro da janela JWT_REFRESH_TTL.

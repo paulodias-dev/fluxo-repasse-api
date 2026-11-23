@@ -20,6 +20,20 @@ final class CorsOperationsTest extends TestCase
         $this->assertStringContainsString('PATCH', (string) $response->headers->get('Access-Control-Allow-Methods'));
     }
 
+    public function test_platform_plan_put_is_allowed_by_cors_policy(): void
+    {
+        $this->assertContains('PUT', config('cors.allowed_methods'));
+
+        $response = $this->withHeaders([
+            'Origin' => 'http://localhost:5173',
+            'Access-Control-Request-Method' => 'PUT',
+            'Access-Control-Request-Headers' => 'authorization,content-type',
+        ])->options('/api/v1/platform/plans/1');
+
+        $this->assertContains($response->getStatusCode(), [200, 204]);
+        $this->assertStringContainsString('PUT', (string) $response->headers->get('Access-Control-Allow-Methods'));
+    }
+
     public function test_request_id_is_visible_to_the_browser_without_exposing_tokens(): void
     {
         $this->assertContains('X-Request-ID', config('cors.exposed_headers'));

@@ -25,7 +25,8 @@ final class CompanyPlan
 
     public static function vehicles(): int
     {
-        return TenantDB::table('repasse_cases')->where('status','draft')->whereNull('sold_on')->count();
+        return TenantDB::table('repasse_cases')->whereNull('admin_deleted_at')
+            ->where('status','draft')->whereNull('sold_on')->count();
     }
 
     public static function photos(int $case): int

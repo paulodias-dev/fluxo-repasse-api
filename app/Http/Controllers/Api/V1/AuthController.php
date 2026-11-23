@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
@@ -90,6 +91,43 @@ final class AuthController extends Controller
         ]);
 
         return $this->tokenResponse($token);
+    }
+
+    public function forgotPassword(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $data = $request->validate(['email' => ['required', 'email', 'max:255']]);
+        Password::sendResetLink(['email' => mb_strtolower(trim($data['email']))]);
+
+        // Não revela se a conta existe. Isso evita enumeração de usuários.
+        return response()->json([
+            'message' => 'Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha.',
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    public function resetPassword(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255'],
+            'password' => ['required', 'string', 'min:12', 'confirmed'],
+        ]);
+        $resetUser = null;
+        $status = Password::reset($data, function (User $user, string $password) use (&$resetUser): void {
+            $resetUser = $user;
+            $user->password = $password;
+            $user->auth_version = (int) $user->auth_version + 1;
+            $user->save();
+        });
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json(['message' => 'O link é inválido ou expirou. Solicite uma nova redefinição.'], 422)
+                ->header('Cache-Control', 'no-store');
+        }
+        if ($resetUser instanceof User) {
+            $this->events->record('password_reset', $request, $resetUser);
+        }
+
+        return response()->json(['message' => 'Senha redefinida. Entre novamente com a nova senha.'])
+            ->header('Cache-Control', 'no-store');
     }
 
     public function me(): JsonResponse

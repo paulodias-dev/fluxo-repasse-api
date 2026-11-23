@@ -93,7 +93,8 @@ final class PlatformAnalyticsController
                 'vehicles' => 0, 'revenue_cents' => 0];
         }
         foreach (['tenants' => 'companies', 'users' => 'users', 'repasse_cases' => 'vehicles'] as $table => $metric) {
-            $rows = DB::table($table)->whereBetween('created_at', [$period['from'], $period['to']])
+            $rows = DB::table($table)->when($table === 'repasse_cases', fn ($query) => $query->whereNull('admin_deleted_at'))
+                ->whereBetween('created_at', [$period['from'], $period['to']])
                 ->selectRaw('DATE(created_at) as metric_date, COUNT(*) as aggregate')
                 ->groupByRaw('DATE(created_at)')->get();
             foreach ($rows as $row) {
@@ -175,11 +176,11 @@ final class PlatformAnalyticsController
             'users_new' => $this->windowCount('users', $current),
             'users_new_previous' => $this->windowCount('users', $previous),
             'companies_engaged' => $engagedCompanies,
-            'vehicles_active' => DB::table('repasse_cases')
+            'vehicles_active' => DB::table('repasse_cases')->whereNull('admin_deleted_at')
                 ->where('status', 'draft')->whereNull('sold_on')->count(),
-            'vehicles_new' => $this->windowCount('repasse_cases', $current),
-            'vehicles_new_previous' => $this->windowCount('repasse_cases', $previous),
-            'vehicles_sold' => DB::table('repasse_cases')->whereNotNull('sold_on')
+            'vehicles_new' => $this->windowCount('repasse_cases', $current, fn ($q) => $q->whereNull('admin_deleted_at')),
+            'vehicles_new_previous' => $this->windowCount('repasse_cases', $previous, fn ($q) => $q->whereNull('admin_deleted_at')),
+            'vehicles_sold' => DB::table('repasse_cases')->whereNull('admin_deleted_at')->whereNotNull('sold_on')
                 ->whereBetween('sold_on', [$p['from']->toDateString(), $p['to']->toDateString()])->count(),
             'subscriptions_recurring' => (clone $recurring)->count(),
             'mrr_cents' => (int) (clone $recurring)->sum('s.monthly_cents'),
@@ -222,7 +223,21 @@ final class PlatformAnalyticsController
             ->first(['id', 'name', 'slug', 'is_active', 'saas_managed', 'saas_plan_id', 'created_at']);
         abort_unless($tenant, 404);
         $users = DB::table('users')->where('tenant_id', $company);
-        $vehicles = DB::table('repasse_cases')->where('tenant_id', $company);
+        $vehicles = DB::table('repasse_cases')->where('tenant_id', $company)->whereNull('admin_deleted_at');
+        $vehicleList = DB::table('repasse_cases as v')
+            ->where('v.tenant_id', $company)->whereNull('v.admin_deleted_at')
+            ->select([
+                'v.id', 'v.title', 'v.status', 'v.plate', 'v.brand', 'v.model',
+                'v.model_year', 'v.sold_on', 'v.created_at',
+            ])->selectSub(
+                DB::table('repasse_case_evidence as photo')
+                    ->whereColumn('photo.repasse_case_id', 'v.id')->where('photo.tenant_id', $company)
+                    ->whereNull('photo.archived_at')->where('photo.mime', 'like', 'image/%')
+                    ->where(function ($type): void {
+                        $type->where('photo.document_type', 'foto_veiculo')->orWhereNull('photo.document_type');
+                    })->orderByDesc('photo.is_cover')->orderByDesc('photo.id')->limit(1)->select('photo.id'),
+                'image_document_id'
+            )->orderByDesc('v.updated_at')->orderByDesc('v.id')->limit(100)->get();
         $subscription = DB::table('saas_subscriptions')->where('tenant_id', $company)
             ->where('environment', 'production')->orderByDesc('created_at')->first([
                 'id', 'status', 'plan_id', 'monthly_cents', 'paid_until', 'environment',
@@ -256,6 +271,7 @@ final class PlatformAnalyticsController
                 'vehicles_sold' => (clone $vehicles)->whereNotNull('sold_on')->count(),
                 'max_photos_per_vehicle' => $maxPhotos,
             ],
+            'vehicles' => $vehicleList,
             'billing' => [
                 'plan' => $plan, 'legacy' => ! (bool) $tenant->saas_managed,
                 'latest_subscription' => $subscription,

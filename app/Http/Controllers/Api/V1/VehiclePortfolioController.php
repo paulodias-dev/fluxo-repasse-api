@@ -377,6 +377,7 @@ final class VehiclePortfolioController extends Controller
             ->groupBy('repasse_case_id');
 
         return TenantDB::table('repasse_cases as c')
+            ->whereNull('c.admin_deleted_at')
             ->leftJoinSub($tasks, 't', static fn ($join) => $join->on('t.repasse_case_id', '=', 'c.id'))
             ->leftJoinSub($checks, 'k', static fn ($join) => $join->on('k.repasse_case_id', '=', 'c.id'))
             ->leftJoinSub($documents, 'd', static fn ($join) => $join->on('d.repasse_case_id', '=', 'c.id'))

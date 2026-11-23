@@ -28,6 +28,12 @@ final class TenantQueryBuilder extends Builder
         $this->tenantId = $tenantId;
         parent::from($table);
         parent::where($qualifier.'.tenant_id', '=', $tenantId);
+        // Remoções administrativas são lógicas: todos os módulos da empresa
+        // deixam de enxergar o veículo, enquanto a plataforma preserva a
+        // linha e consulta sua auditoria pela conexão global.
+        if (str_starts_with($table, 'repasse_cases')) {
+            parent::whereNull($qualifier.'.admin_deleted_at');
+        }
 
         return $this;
     }

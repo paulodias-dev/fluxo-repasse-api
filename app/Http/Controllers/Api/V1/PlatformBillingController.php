@@ -12,7 +12,8 @@ final class PlatformBillingController
     public function users(Request $request)
     {
         $v = $request->validate(['provider'=>'sometimes|string|max:30','active_since'=>'sometimes|date','created_vehicle'=>'sometimes|in:0,1']);
-        $created = DB::table('repasse_cases')->selectRaw('1')->whereColumn('created_by','users.id')->whereColumn('repasse_cases.tenant_id','users.tenant_id');
+        $created = DB::table('repasse_cases')->selectRaw('1')->whereNull('admin_deleted_at')
+            ->whereColumn('created_by','users.id')->whereColumn('repasse_cases.tenant_id','users.tenant_id');
         $q = DB::table('users')->join('tenants','tenants.id','=','users.tenant_id')
             ->select('users.id','users.name','users.email','tenant_id','tenants.name as company','first_observed_login','last_observed_login','last_login_method','last_activity')
             ->selectSub($created->clone()->limit(1),'created_vehicle');
@@ -20,6 +21,43 @@ final class PlatformBillingController
         if (isset($v['active_since'])) $q->where('last_activity','>=',$v['active_since']);
         if (isset($v['created_vehicle'])) $q->whereExists($created, 'and', ! (bool) $v['created_vehicle']);
         return $q->orderBy('users.id')->paginate(50);
+    }
+
+    public function userActivity(Request $request, int $user)
+    {
+        $request->validate(['page' => ['sometimes', 'integer', 'min:1', 'max:10000']]);
+        $account = DB::table('users as u')->join('tenants as t', 't.id', '=', 'u.tenant_id')
+            ->where('u.id', $user)
+            ->first(['u.id', 'u.name', 'u.email', 't.name as company']);
+        abort_unless($account, 404);
+
+        $security = DB::table('auth_security_events as e')
+            ->leftJoin('users as actor', 'actor.id', '=', 'e.actor_user_id')
+            ->where('e.user_id', $user)
+            ->selectRaw("e.id as event_id, 'seguranca' as source, e.event_type, e.actor_user_id,
+                actor.name as actor_name, NULL as vehicle_id, NULL as vehicle_title,
+                NULL as company_name, NULL as details, e.created_at");
+        $operational = DB::table('repasse_case_events as e')
+            ->join('repasse_cases as vehicle', 'vehicle.id', '=', 'e.repasse_case_id')
+            ->join('tenants as company', 'company.id', '=', 'vehicle.tenant_id')
+            ->leftJoin('users as actor', 'actor.id', '=', 'e.actor_user_id')
+            ->where('e.actor_user_id', $user)
+            ->selectRaw("e.id as event_id, 'operacional' as source, e.event_type, e.actor_user_id,
+                actor.name as actor_name, vehicle.id as vehicle_id, vehicle.title as vehicle_title,
+                company.name as company_name, e.details, e.created_at");
+
+        $activity = $security->unionAll($operational);
+        $events = DB::query()->fromSub($activity, 'activity')
+            ->orderByDesc('created_at')->orderByDesc('event_id')->paginate(30);
+        $events->through(static function (object $event): object {
+            $event->details = $event->details === null
+                ? null
+                : json_decode((string) $event->details, true);
+            return $event;
+        });
+
+        return response()->json(['user' => $account, 'events' => $events])
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function plans()
@@ -47,8 +85,12 @@ final class PlatformBillingController
         $p = DB::table('saas_plans')->find($plan);
         abort_unless($p,404);
         $limits = $request->validate(['vehicle_limit'=>'sometimes|integer|min:0','photo_limit'=>'sometimes|integer|min:0']);
-        $vehicles = DB::table('repasse_cases')->selectRaw('tenant_id, count(*) as used')->whereNull('sold_on')->where('status','draft')->groupBy('tenant_id');
-        $photos = DB::table('repasse_case_evidence')->selectRaw('tenant_id, repasse_case_id, count(*) as used')->whereNull('archived_at')->where('document_type','foto_veiculo')->where('mime','like','image/%')->groupBy('tenant_id','repasse_case_id');
+        $vehicles = DB::table('repasse_cases')->selectRaw('tenant_id, count(*) as used')->whereNull('admin_deleted_at')->whereNull('sold_on')->where('status','draft')->groupBy('tenant_id');
+        $photos = DB::table('repasse_case_evidence as photo')->join('repasse_cases as vehicle', function ($join): void {
+                $join->on('vehicle.id', '=', 'photo.repasse_case_id')->on('vehicle.tenant_id', '=', 'photo.tenant_id');
+            })->selectRaw('photo.tenant_id, photo.repasse_case_id, count(*) as used')
+            ->whereNull('vehicle.admin_deleted_at')->whereNull('photo.archived_at')->where('photo.document_type','foto_veiculo')
+            ->where('photo.mime','like','image/%')->groupBy('photo.tenant_id','photo.repasse_case_id');
         $max = DB::query()->fromSub($photos,'photos')->selectRaw('tenant_id, max(used) as used')->groupBy('tenant_id');
         $q = DB::table('tenants')->leftJoinSub($vehicles,'v','v.tenant_id','=','tenants.id')
             ->leftJoinSub($max,'p','p.tenant_id','=','tenants.id')

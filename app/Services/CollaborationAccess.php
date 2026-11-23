@@ -33,7 +33,7 @@ final class CollaborationAccess
 
     public function ownedVehicle(int $id): object
     {
-        return TenantDB::table('repasse_cases')->where('id', $id)->firstOrFail();
+        return TenantDB::table('repasse_cases')->where('id', $id)->whereNull('admin_deleted_at')->firstOrFail();
     }
 
     public function grant(Request $request, int $grantId, bool $write = false): object
@@ -45,7 +45,7 @@ final class CollaborationAccess
             })
             ->where('g.id', $grantId)->where('g.recipient_id', $actor->id)
             ->where('g.status', 'active')->whereNull('g.revoked_at')
-            ->where('v.status', 'draft')
+            ->where('v.status', 'draft')->whereNull('v.admin_deleted_at')
             ->select('g.*', 'v.title', 'v.status as vehicle_status')
             ->first();
         abort_unless($grant, 404);
@@ -71,7 +71,7 @@ final class CollaborationAccess
         } else {
             $owner = DB::table('repasse_cases')->where('id', $member->vehicle_id)
                 ->where('tenant_id', $member->owner_tenant_id)->first();
-            abort_unless($owner && $owner->status === 'draft', 404);
+            abort_unless($owner && $owner->status === 'draft' && $owner->admin_deleted_at === null, 404);
             $owns = (int) $owner->created_by === (int) $actor->id &&
                 (int) $owner->tenant_id === (int) $actor->tenant_id;
             $grant = DB::table('vehicle_access_grants')

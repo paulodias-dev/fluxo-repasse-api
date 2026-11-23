@@ -187,7 +187,8 @@ final class VehicleCollaborationController extends Controller
                 return ['status' => 'declined'];
             }
             $vehicle = DB::table('repasse_cases')->where('id', $invite->vehicle_id)
-                ->where('tenant_id', $invite->owner_tenant_id)->lockForUpdate()->firstOrFail();
+                ->where('tenant_id', $invite->owner_tenant_id)->whereNull('admin_deleted_at')
+                ->lockForUpdate()->firstOrFail();
             if ($vehicle->status !== 'draft') {
                 throw ValidationException::withMessages(['vehicle' => 'O veículo não está mais disponível.']);
             }

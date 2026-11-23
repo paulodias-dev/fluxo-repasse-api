@@ -30,6 +30,7 @@ final class RepasseCaseController extends Controller
             'id', 'title', 'description', 'status', 'plate', 'brand', 'model',
             'purchased_on', 'purchase_amount_cents', 'sale_amount_cents', 'created_at', 'updated_at',
         ]);
+        $query->whereNull('admin_deleted_at');
         if (($filters['status'] ?? 'all') !== 'all') {
             $query->where('status', $filters['status']);
         }
@@ -60,7 +61,7 @@ final class RepasseCaseController extends Controller
      */
     private function closeoutSnapshot(int $case): array
     {
-        $vehicle = TenantDB::table('repasse_cases')->where('id', $case)->first([
+        $vehicle = TenantDB::table('repasse_cases')->where('id', $case)->whereNull('admin_deleted_at')->first([
             'id', 'title', 'status', 'updated_at', 'purchase_amount_cents',
             'sale_amount_cents', 'sold_on',
         ]);
@@ -605,7 +606,7 @@ final class RepasseCaseController extends Controller
     public function events(Request $request, int $case): JsonResponse
     {
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
-        if (! TenantDB::table('repasse_cases')->where('id', $case)->exists()) abort(404);
+        if (! TenantDB::table('repasse_cases')->where('id', $case)->whereNull('admin_deleted_at')->exists()) abort(404);
         return response()->json([
             'events' => TenantDB::table('repasse_case_events')->where('repasse_case_id', $case)
                 ->select('id', 'event_type', 'actor_user_id', 'created_at')
@@ -615,7 +616,7 @@ final class RepasseCaseController extends Controller
 
     private function details(int $id): array
     {
-        $case = TenantDB::table('repasse_cases')->where('id', $id)->first();
+        $case = TenantDB::table('repasse_cases')->where('id', $id)->whereNull('admin_deleted_at')->first();
         if (! $case) abort(404);
         $parties = TenantDB::table('repasse_case_parties as cp')
             ->join('parties as p', 'p.id', '=', 'cp.party_id')

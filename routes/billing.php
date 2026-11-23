@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\CompanyBillingController as Company;
 use App\Http\Controllers\Api\V1\PlatformBillingController as Platform;
 use App\Http\Controllers\Api\V1\PlatformAnalyticsController as Analytics;
+use App\Http\Controllers\Api\V1\PlatformVehicleController as Vehicles;
 use App\Http\Middleware\PlatformOperator;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,7 @@ Route::prefix('v1')->middleware(['bearer.only','auth:api','session.current'])->g
         Route::get('analytics/overview', [Analytics::class, 'overview']);
         Route::get('companies/{company}/360', [Analytics::class, 'company']);
         Route::get('users',[Platform::class,'users']);
+        Route::get('users/{user}/activity',[Platform::class,'userActivity']);
         Route::get('plans',[Platform::class,'plans']);
         Route::post('plans',[Platform::class,'save']);
         Route::put('plans/{plan}',[Platform::class,'save']);
@@ -24,6 +26,10 @@ Route::prefix('v1')->middleware(['bearer.only','auth:api','session.current'])->g
         Route::put('companies/{company}/plan',[Platform::class,'migrateCompany']);
         Route::get('companies/{company}/billing',[Platform::class,'ledger']);
         Route::get('gateways',[Platform::class,'gateways']);
+        Route::get('vehicles',[Vehicles::class,'index']);
+        Route::get('vehicles/{vehicle}/image',[Vehicles::class,'image']);
+        Route::delete('vehicles/{vehicle}',[Vehicles::class,'destroy']);
+        Route::get('vehicles/{vehicle}/history',[Vehicles::class,'history']);
         Route::put('gateways/{environment}',[Platform::class,'configure']);
         Route::post('gateways/{environment}/test',[Platform::class,'probe']);
     });
