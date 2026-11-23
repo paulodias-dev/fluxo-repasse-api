@@ -63,9 +63,15 @@ final class PlatformBillingController
         })->orderBy('tenants.id')->paginate(50);
     }
 
-    public function companies()
+    public function companies(Request $request)
     {
-        return DB::table('tenants')->select('id','name','saas_managed','saas_plan_id')->orderBy('id')->paginate(50);
+        $input = $request->validate(['search' => ['sometimes', 'string', 'max:120']]);
+        $q = DB::table('tenants')->select('id', 'name', 'saas_managed', 'saas_plan_id');
+        $search = trim((string) ($input['search'] ?? ''));
+        if ($search !== '') {
+            $q->where('name', 'like', '%'.$search.'%');
+        }
+        return $q->orderBy('id')->paginate(50);
     }
 
     public function migrateCompany(Request $request, int $company)
