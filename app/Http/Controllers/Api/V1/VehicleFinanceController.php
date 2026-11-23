@@ -145,7 +145,7 @@ final class VehicleFinanceController extends Controller
             'kind', 'status', 'category', 'category_id', 'description',
             'amount_cents', 'effective_on', 'paid_by_user_id',
         ]);
-        $data = $request->validate($this->entryRules());
+        $data = $this->normalizePayer($request, $request->validate($this->entryRules()));
         $id = DB::transaction(function () use ($request, $case, $data): int {
             $this->operations->editable($case);
             $this->validatePayer($case, $data);
@@ -170,7 +170,7 @@ final class VehicleFinanceController extends Controller
             'kind', 'status', 'category', 'category_id', 'description',
             'amount_cents', 'effective_on', 'paid_by_user_id', 'reason',
         ]);
-        $data = $request->validate($this->entryRules(true));
+        $data = $this->normalizePayer($request, $request->validate($this->entryRules(true)));
         $reason = trim($data['reason']);
         if (mb_strlen($reason) < 5) {
             throw ValidationException::withMessages(['reason' => 'Justifique a retificação.']);
@@ -252,6 +252,8 @@ final class VehicleFinanceController extends Controller
             TenantDB::table('repasse_case_financial_entries')->where('id', $entry)->update([
                 'status' => 'realized',
                 'effective_on' => $data['effective_on'],
+                'paid_by_user_id' => $record->paid_by_user_id
+                    ?? $request->user('api')->getAuthIdentifier(),
                 'updated_at' => now(),
             ]);
             $this->workspace->event($case, $entry, $request, 'realized', [
@@ -381,6 +383,15 @@ final class VehicleFinanceController extends Controller
                 'paid_by_user_id' => 'Pagador deve pertencer à empresa ou ser sócio autorizado neste veículo.',
             ]);
         }
+    }
+
+    private function normalizePayer(Request $request, array $data): array
+    {
+        $data['paid_by_user_id'] = $data['status'] === 'realized'
+            ? (int) ($data['paid_by_user_id'] ?? $request->user('api')->getAuthIdentifier())
+            : null;
+
+        return $data;
     }
 
     private function safe(?string $raw): string
