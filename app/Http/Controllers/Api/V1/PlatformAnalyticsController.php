@@ -34,7 +34,8 @@ final class PlatformAnalyticsController
             ? CarbonImmutable::createFromFormat('!Y-m-d', $input['to'])->endOfDay()
             : $today->endOfDay();
         $days = $start->diffInDays($end->startOfDay()) + 1;
-        if ($days < 1 || $days > 366 || $start->gt($today) || $end->startOfDay()->gt($today)) {
+        if ($start->gt($end) || $days < 1 || $days > 366 ||
+            $start->gt($today) || $end->startOfDay()->gt($today)) {
             throw ValidationException::withMessages(['from' => 'Selecione de 1 a 366 dias, sem datas futuras.']);
         }
 
@@ -237,7 +238,7 @@ final class PlatformAnalyticsController
         $maxPhotos = (int) DB::table('repasse_case_evidence')->where('tenant_id', $company)
             ->where('document_type', 'foto_veiculo')->where('mime', 'like', 'image/%')
             ->whereNull('archived_at')->selectRaw('repasse_case_id, COUNT(*) as total')
-            ->groupBy('repasse_case_id')->orderByDesc('total')->value('total');
+            ->groupBy('repasse_case_id')->orderByDesc('total')->first()?->total;
         $charges = DB::table('saas_charges')->where('tenant_id', $company)
             ->where('environment', 'production')->where('status', 'approved')
             ->whereBetween('created_at', [$p['from'], $p['to']]);
