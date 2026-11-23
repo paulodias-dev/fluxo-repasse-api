@@ -101,4 +101,35 @@ final class PlatformAnalyticsTest extends TestCase
                 ->assertUnprocessable();
         }
     }
+    public function test_company_360_is_scoped_even_though_dashboard_is_global(): void
+    {
+        [$operatorTenant, $admin, $jwt] = $this->login(true);
+        $otherTenant = Tenant::create([
+            'name' => 'Segunda Empresa', 'slug' => 'segundo-bi', 'is_active' => true,
+        ]);
+        $own = DB::table('repasse_cases')->insertGetId([
+            'tenant_id' => $operatorTenant->id, 'title' => 'Carro A',
+            'created_by' => $admin->id, 'status' => 'draft',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('repasse_cases')->insert([
+            'tenant_id' => $otherTenant->id, 'title' => 'Carro B',
+            'status' => 'draft', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->withToken($jwt)->getJson('/api/v1/platform/analytics/overview')
+            ->assertOk()->assertJsonPath('metrics.vehicles_active', 2);
+        $first = $this->withToken($jwt)->getJson(
+            '/api/v1/platform/companies/'.$operatorTenant->id.'/360'
+        )->assertOk()->assertJsonPath('usage.vehicles_active', 1);
+        $second = $this->withToken($jwt)->getJson(
+            '/api/v1/platform/companies/'.$otherTenant->id.'/360'
+        )->assertOk()->assertJsonPath('usage.vehicles_active', 1);
+        $this->assertSame('Central', $first->json('company.name'));
+        $this->assertSame('Segunda Empresa', $second->json('company.name'));
+        $this->assertNotSame($own, 0);
+        $this->withToken($jwt)->getJson('/api/v1/platform/companies?search=Segunda')
+            ->assertOk()->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $otherTenant->id);
+    }
+
 }
