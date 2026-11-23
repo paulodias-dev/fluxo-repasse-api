@@ -64,7 +64,7 @@ final class SharedVehicleController extends Controller
             'can_edit' => (bool) $grant->allow_write, 'include_history' => (bool) $grant->include_history,
             'photo_id' => $photo, 'chat_id' => $chat,
             'entries' => $this->financialRows($grant),
-        ]])->header('Cache-Control', 'no-store, private');
+        ]], 200, [], JSON_INVALID_UTF8_SUBSTITUTE)->header('Cache-Control', 'no-store, private');
     }
 
     public function update(Request $request, int $grantId): JsonResponse
@@ -167,7 +167,7 @@ final class SharedVehicleController extends Controller
             return [$id, true];
         }, 3);
         return response()->json(['data' => ['id' => $id[0], 'created' => $id[1]]],
-            $id[1] ? 201 : 200])->header('Cache-Control', 'no-store, private');
+            $id[1] ? 201 : 200)->header('Cache-Control', 'no-store, private');
     }
 
     public function documents(Request $request, int $grantId): JsonResponse
@@ -178,7 +178,8 @@ final class SharedVehicleController extends Controller
         if (! $grant->include_history) $query->where('id', '>', $grant->document_floor_id);
         return response()->json(['data' => $query->orderByDesc('id')->limit(100)
             ->get(['id', 'original_name', 'document_type', 'document_label', 'mime',
-                'size_bytes', 'created_at'])])->header('Cache-Control', 'no-store, private');
+                'size_bytes', 'created_at'])], 200, [], JSON_INVALID_UTF8_SUBSTITUTE)
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function download(Request $request, int $grantId, int $document): StreamedResponse
@@ -281,7 +282,7 @@ final class SharedVehicleController extends Controller
             'documents_more' => $documentPage->count() > 50,
             'entries_cursor' => $entries->last()?->id,
             'documents_cursor' => $documents->last()?->id,
-        ]])->header('Cache-Control', 'no-store, private');
+        ]], 200, [], JSON_INVALID_UTF8_SUBSTITUTE)->header('Cache-Control', 'no-store, private');
     }
 
     public function oldDocument(Request $request, int $transfer, int $document): StreamedResponse
