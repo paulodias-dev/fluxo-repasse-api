@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\ConnectionsController;
+use App\Http\Controllers\Api\V1\MobilePushDeviceController;
 use App\Http\Controllers\Api\V1\ConversationsController;
 use App\Http\Controllers\Api\V1\VehicleCollaborationController;
 use App\Http\Controllers\Api\V1\SharedVehicleController;
@@ -91,6 +92,20 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:repasse-password')->name('api.v1.auth.password');
         });
     });
+    // Dispositivos móveis: opt-in explícito, sem retornar tokens.
+    Route::prefix('mobile/devices')
+        ->middleware(['bearer.only', 'auth:api', 'session.current'])
+        ->group(function (): void {
+            Route::get('/', [MobilePushDeviceController::class, 'index'])
+                ->middleware('throttle:repasse-admin-read');
+            Route::post('/', [MobilePushDeviceController::class, 'register'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::delete('/all', [MobilePushDeviceController::class, 'destroyAll'])
+                ->middleware('throttle:repasse-admin-write');
+            Route::delete('/{deviceId}', [MobilePushDeviceController::class, 'destroy'])
+                ->whereUuid('deviceId')->middleware('throttle:repasse-admin-write');
+        });
+
     // Macro 60 — contatos e conversas são por usuário, inclusive entre tenants.
     // NENHUMA rota altera o tenant do JWT. Recursos cruzados usam ACL específica.
     Route::prefix('connections')->middleware(['bearer.only','auth:api','session.current'])
