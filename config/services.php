@@ -22,6 +22,11 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'expo_push' => [
+        'enabled' => env('EXPO_PUSH_ENABLED', false),
+        'access_token' => env('EXPO_PUSH_ACCESS_TOKEN', ''),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
