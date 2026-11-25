@@ -63,6 +63,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:repasse-login')
             ->name('api.v1.auth.login');
+        Route::post('/apple/challenge', [AuthController::class, 'appleChallenge'])->middleware('throttle:repasse-social');
+        Route::post('/apple', [AuthController::class, 'appleLogin'])->middleware('throttle:repasse-social');
         Route::post('/social', [AuthController::class, 'socialLogin'])
             ->middleware('throttle:repasse-social')
             ->name('api.v1.auth.social');

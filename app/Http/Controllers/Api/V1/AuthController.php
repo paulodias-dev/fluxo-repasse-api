@@ -76,6 +76,31 @@ final class AuthController extends Controller
         return $this->tokenResponse($token);
     }
 
+    public function appleChallenge(\App\Services\AppleIdentity $identity): JsonResponse
+    {
+        return response()->json(['data' => ['nonce' => $identity->challenge()]])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function appleLogin(\App\Http\Requests\Api\V1\AppleLoginRequest $request, \App\Services\AppleAccountService $apple): JsonResponse
+    {
+        try {
+            $user = $apple->authenticate($request->validated(), $request);
+        } catch (SocialOnboardingRequiredException) {
+            return response()->json([
+                'code' => 'social_onboarding_required',
+                'message' => 'Este é seu primeiro acesso. Aceite os termos para criar seu ambiente.',
+            ], 409)->header('Cache-Control', 'no-store');
+        }
+        $token = Auth::guard('api')->login($user);
+        DB::table('users')->where('id', $user->id)->update([
+            'first_observed_login' => DB::raw('COALESCE(first_observed_login, CURRENT_TIMESTAMP)'),
+            'last_observed_login' => now(), 'last_activity' => now(), 'last_login_method' => 'apple',
+        ]);
+
+        return $this->tokenResponse($token);
+    }
+
     public function socialLogin(SocialLoginRequest $request): JsonResponse
     {
         try {
