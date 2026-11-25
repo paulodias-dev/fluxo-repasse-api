@@ -34,6 +34,46 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /auth/apple/challenge:
+    post:
+      operationId: appleNativeChallenge
+      summary: Nonce de uso único para login Apple no iOS
+      responses:
+        '200':
+          description: Nonce válido por cinco minutos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      nonce: { type: string, minLength: 64, maxLength: 64 }
+        '503': { description: Provedor indisponível }
+  /auth/apple:
+    post:
+      operationId: appleNativeLogin
+      summary: Login ou cadastro com identidade Apple assinada
+      description: Valida assinatura RS256, issuer, audience, datas e nonce consumível; não vincula conta existente por e-mail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity_token, nonce, intent]
+              properties:
+                identity_token: { type: string, maxLength: 8192 }
+                nonce: { type: string, minLength: 64, maxLength: 64 }
+                intent: { type: string, enum: [login, register] }
+                terms_accepted: { type: boolean }
+                name: { type: string, maxLength: 180 }
+      responses:
+        '200': { description: Sessão JWT do usuário autenticado }
+        '409': { description: Primeiro acesso exige cadastro e termos }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Provedor indisponível }
   /operations/expense-categories:
     get:
       operationId: nativeExpenseCategories

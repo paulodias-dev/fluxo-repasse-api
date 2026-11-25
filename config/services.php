@@ -27,6 +27,11 @@ return [
         'access_token' => env('EXPO_PUSH_ACCESS_TOKEN', ''),
     ],
 
+    'apple_native' => [
+        'enabled' => env('APPLE_NATIVE_ENABLED', false),
+        'audience' => env('APPLE_NATIVE_AUDIENCE', ''),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
