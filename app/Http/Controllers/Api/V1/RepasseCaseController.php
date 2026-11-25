@@ -626,6 +626,16 @@ final class RepasseCaseController extends Controller
                 'party_id' => $p->party_id, 'description' => $p->description,
                 'name' => $p->name, 'type' => $p->type, 'is_active' => (bool) $p->is_active,
             ]);
+        $imageDocumentId = TenantDB::table('repasse_case_evidence')
+            ->where('repasse_case_id', $id)
+            ->whereNull('archived_at')
+            ->where('mime', 'like', 'image/%')
+            ->where(function ($query): void {
+                $query->where('document_type', 'foto_veiculo')->orWhereNull('document_type');
+            })
+            ->orderByDesc('is_cover')
+            ->orderByDesc('id')
+            ->value('id');
         return [
             'id' => $case->id, 'title' => $case->title, 'description' => $case->description,
             'status' => $case->status, 'created_at' => $case->created_at,
@@ -650,6 +660,7 @@ final class RepasseCaseController extends Controller
             'sold_on' => $case->sold_on,
             'purchase_amount_cents' => $case->purchase_amount_cents,
             'sale_amount_cents' => $case->sale_amount_cents,
+            'image_document_id' => $imageDocumentId === null ? null : (int) $imageDocumentId,
         ];
     }
 
