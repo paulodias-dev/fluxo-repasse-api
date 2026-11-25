@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class SocialAccount extends Model
 {
+    protected $hidden = ['apple_refresh_ciphertext'];
+
     protected $fillable = [
         'user_id',
         'provider',

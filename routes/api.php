@@ -82,6 +82,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.auth.refresh');
 
         Route::middleware(['bearer.only', 'auth:api', 'session.current'])->group(function (): void {
+            Route::get('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'show'])->middleware('throttle:repasse-admin-read');
+            Route::post('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'store'])->middleware('throttle:repasse-password');
+            Route::delete('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'cancel'])->middleware('throttle:repasse-password');
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
             Route::patch('/preferences', [AuthController::class, 'updatePreferences'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.auth.preferences.update');
@@ -496,6 +499,7 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/calendar/{task}', [VehicleAgendaController::class, 'update'])->middleware('throttle:repasse-admin-write');
         Route::get('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attachments']);
         Route::post('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attach'])->middleware('throttle:repasse-admin-write');
+        Route::get('/native-bi', [\App\Http\Controllers\Api\V1\NativeBiController::class, 'show'])->middleware('throttle:repasse-admin-read');
         Route::get('/expense-categories', [OperationsCenterController::class, 'expenseCategories'])
             ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.expense_categories');
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
