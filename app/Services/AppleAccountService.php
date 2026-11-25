@@ -29,7 +29,7 @@ final class AppleAccountService
                 if ($account) {
                     $existing = $account->user()->lockForUpdate()->firstOrFail();
                     abort_if(DB::table('account_deletion_requests')->where('tenant_id', $existing->tenant_id)->where('user_id', $existing->id)->where('status', 'processing')->exists(), 409, 'Solicitação de exclusão em tratamento.');
-                    if (! $existing->is_active || ! Tenant::query()->whereKey($existing->tenant_id)->where('is_active', true)->exists()) {
+                    if ($existing->privacy_closed_at !== null || ! $existing->is_active || ! Tenant::query()->whereKey($existing->tenant_id)->where('is_active', true)->exists()) {
                         throw ValidationException::withMessages(['provider' => 'Conta ou empresa indisponível.']);
                     }
                     if ($refresh !== null) { $account->forceFill(['apple_refresh_ciphertext'=>\Illuminate\Support\Facades\Crypt::encryptString($refresh),'apple_revoked_at'=>null])->save(); }

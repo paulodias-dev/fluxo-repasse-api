@@ -116,6 +116,7 @@ final class AdminUserController extends Controller
 
         DB::transaction(function () use ($request, $user, $changes, $assigningRoles, $roleIds, $actor): void {
             $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            abort_if($target->privacy_closed_at !== null, 409, 'Perfil encerrado.');
             $roleChanged = false;
 
             if ($assigningRoles) {
@@ -191,6 +192,7 @@ final class AdminUserController extends Controller
 
         $changed = DB::transaction(function () use ($request, $user, $active): bool {
             $target = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+            abort_if($target->privacy_closed_at !== null, 409, 'Perfil encerrado.');
 
             if ($target->is_active === $active) {
                 return false;

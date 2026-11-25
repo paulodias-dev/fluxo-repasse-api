@@ -11,16 +11,19 @@ final class RevokeAppleForDeletion extends Command
     public function handle(AppleTokenExchange $apple): int
     {
         if(!$this->option('confirm')){$this->error('Revise a solicitação e confirme explicitamente com --confirm.');return self::FAILURE;}
+        if (! config('services.privacy_closure.enabled')) { $this->error('Fluxo operacional de privacidade desabilitado.'); return self::FAILURE; }
         $row=DB::transaction(function () {
             $candidate=DB::table('account_deletion_requests')->where('id',$this->argument('request_id'))->first();
             if(!$candidate){return null;}
             DB::table('users')->where('id',$candidate->user_id)->where('tenant_id',$candidate->tenant_id)->lockForUpdate()->firstOrFail();
             $current=DB::table('account_deletion_requests')->where('id',$candidate->id)->whereIn('status',['pending','processing'])->lockForUpdate()->first();
             if(!$current){return null;}
+            $missing = DB::table('social_accounts')->where('user_id',$current->user_id)->where('provider','apple')->whereNull('apple_revoked_at')->whereNull('apple_refresh_ciphertext')->exists();
+            if ($missing) { return null; }
             DB::table('account_deletion_requests')->where('id',$current->id)->update(['status'=>'processing','updated_at'=>now()]);
             return $current;
         },3);
-        if(!$row){$this->error('Solicitação pendente não encontrada.');return self::FAILURE;}
+        if(!$row){$this->error('Solicitação indisponível ou credencial Apple ausente; revise antes de prosseguir.');return self::FAILURE;}
         $accounts=DB::table('social_accounts')->where('user_id',$row->user_id)->where('provider','apple')->get();
         foreach($accounts as $account){
             if($account->apple_revoked_at!==null){continue;}

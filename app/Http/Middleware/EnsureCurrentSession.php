@@ -18,7 +18,7 @@ final class EnsureCurrentSession
         $version = $payload->get('av');
 
         // Qualquer JWT anterior à migration (sem 'av') deve ser recusado.
-        if (! $user || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
+        if (! $user || $user->privacy_closed_at !== null || ! $user->is_active || ! is_int($version) || $version !== (int) $user->auth_version) {
             return response()->json(['message' => 'Sessão inválida ou conta desativada.'], 401)
                 ->header('Cache-Control', 'no-store');
         }
