@@ -99,6 +99,7 @@ final class VehiclePortfolioController extends Controller
         $query = $this->joined($today)->select([
             'c.id', 'c.title', 'c.status', 'c.vehicle_type', 'c.plate', 'c.brand', 'c.model',
             'c.model_year', 'c.purchase_location', 'c.seller_name', 'c.buyer_name',
+            'c.fipe_price_cents', 'c.fipe_reference_month', 'c.fipe_source',
             'c.purchased_on', 'c.delivered_on', 'c.sold_on',
             'c.purchase_amount_cents', 'c.sale_amount_cents', 'c.updated_at',
         ])->selectRaw('
@@ -314,7 +315,7 @@ final class VehiclePortfolioController extends Controller
         // contract to integer cents, including NEGATIVE projected results.
         $page->through(static function (object $row): object {
             foreach ([
-                'id', 'model_year', 'image_document_id', 'purchase_amount_cents', 'sale_amount_cents',
+                'id', 'model_year', 'image_document_id', 'fipe_price_cents', 'purchase_amount_cents', 'sale_amount_cents',
                 'open_tasks', 'overdue_tasks', 'pending_checklist', 'documents_count',
                 'expense_realized_cents', 'expense_planned_cents',
                 'income_realized_cents', 'income_planned_cents',
