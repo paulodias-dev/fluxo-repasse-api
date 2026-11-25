@@ -27,6 +27,11 @@ return [
         'access_token' => env('EXPO_PUSH_ACCESS_TOKEN', ''),
     ],
 
+    'privacy_closure' => [
+        'enabled' => env('PRIVACY_CLOSURE_ENABLED', false),
+        'policy_version' => env('PRIVACY_CLOSURE_POLICY_VERSION', ''),
+    ],
+
     'apple_native' => [
         'enabled' => env('APPLE_NATIVE_ENABLED', false),
         'audience' => env('APPLE_NATIVE_AUDIENCE', ''),

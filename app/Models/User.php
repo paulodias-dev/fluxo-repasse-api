@@ -25,6 +25,15 @@ class User extends Authenticatable implements JWTSubject, CanResetPasswordContra
         $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 
+    protected static function booted(): void
+    {
+        static::updating(function (self $user): void {
+            if ($user->getRawOriginal('privacy_closed_at') !== null) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['account' => 'Perfil encerrado não pode ser reativado ou alterado.']);
+            }
+        });
+    }
+
     protected $attributes = [
         'is_active' => true,
         'auth_version' => 1,
@@ -78,6 +87,7 @@ class User extends Authenticatable implements JWTSubject, CanResetPasswordContra
             'auth_version' => 'integer',
             'preferences' => 'array',
             'terms_accepted_at' => 'datetime',
+            'privacy_closed_at' => 'datetime',
         ];
     }
 

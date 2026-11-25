@@ -92,6 +92,10 @@ final class SocialAuthService
                 app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $user->id);
                 $this->events->record('account_registered_social', $request, $user);
             } else {
+                $user = User::query()->whereKey($user->getKey())->lockForUpdate()->firstOrFail();
+                if (! $user->is_active || $user->privacy_closed_at !== null) {
+                    throw ValidationException::withMessages(['provider' => 'Conta indisponível.']);
+                }
                 $updates = [];
                 if ($user->email_verified_at === null) {
                     $updates['email_verified_at'] = now();
