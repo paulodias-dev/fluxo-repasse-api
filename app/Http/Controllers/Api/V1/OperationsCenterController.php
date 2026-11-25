@@ -254,6 +254,23 @@ final class OperationsCenterController extends Controller
             ->when($range, fn ($query) => $query->whereBetween('purchased_on', [$from, $to]))
             ->sum('purchase_amount_cents');
 
+        // Capital atualmente imobilizado: somente veículos ainda ativos,
+        // somando compra conhecida e despesas realizadas não estornadas.
+        // Não depende do período do dashboard, pois representa o estoque atual.
+        $stockExpenses = TenantDB::table('repasse_case_financial_entries as e')
+            ->join('repasse_cases as c', 'c.id', '=', 'e.repasse_case_id')
+            ->where('c.status', 'draft')
+            ->whereNull('e.voided_at')
+            ->where('e.kind', 'expense')
+            ->where('e.status', 'realized')
+            ->sum('e.amount_cents');
+        $stockPurchases = TenantDB::table('repasse_cases')
+            ->where('status', 'draft')
+            ->whereNotNull('purchase_amount_cents')
+            ->sum('purchase_amount_cents');
+        $stockVehicles = TenantDB::table('repasse_cases')
+            ->where('status', 'draft')->count();
+
         $realizedIncome = (int) $entries->where('kind', 'income')->where('status', 'realized')->sum('amount_cents');
         $realizedExpenses = (int) $entries->where('kind', 'expense')->where('status', 'realized')->sum('amount_cents');
         $plannedExpenses = (int) $entries->where('kind', 'expense')->where('status', 'planned')->sum('amount_cents');
@@ -299,6 +316,8 @@ final class OperationsCenterController extends Controller
             'expense_realized_cents' => $realizedExpenses,
             'expense_planned_cents' => $plannedExpenses,
             'purchase_total_cents' => (int) $purchases,
+            'capital_stock_cents' => (int) $stockPurchases + (int) $stockExpenses,
+            'stock_vehicle_count' => (int) $stockVehicles,
             'net_realized_cents' => $revenue - $realizedExpenses,
             'chart_granularity' => $granularity,
             'chart' => array_values($points),
