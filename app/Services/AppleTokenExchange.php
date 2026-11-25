@@ -17,7 +17,8 @@ final class AppleTokenExchange
         $head=$this->b64(json_encode(['alg'=>'ES256','kid'=>$kid],JSON_THROW_ON_ERROR));
         $body=$this->b64(json_encode(['iss'=>$team,'sub'=>$aud,'aud'=>'https://appleid.apple.com','iat'=>now()->timestamp,'exp'=>now()->addMinutes(5)->timestamp],JSON_THROW_ON_ERROR));
         $private=openssl_pkey_get_private(str_replace('\\n',"\n",$key));
-        if (!$private || !openssl_sign($head.'.'.$body,$der,$private,OPENSSL_ALGO_SHA256)) { $this->fail(); }
+        $details=$private ? openssl_pkey_get_details($private) : false;
+        if (!$details || ($details['ec']['curve_name'] ?? null)!=='prime256v1' || !openssl_sign($head.'.'.$body,$der,$private,OPENSSL_ALGO_SHA256)) { $this->fail(); }
         // P-256 ECDSA DER sequence is at most 72 bytes. JOSE requires fixed 32-byte r and s.
         if (strlen($der)<8 || ord($der[0])!==48 || ord($der[1])!==strlen($der)-2 || ord($der[2])!==2) { $this->fail(); }
         $rl=ord($der[3]);$off=4+$rl;
