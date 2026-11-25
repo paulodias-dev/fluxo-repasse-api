@@ -34,6 +34,77 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /operations/expense-categories:
+    get:
+      operationId: nativeExpenseCategories
+      summary: Despesas realizadas por categoria em todo o tenant, sem paginação
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Somente despesas realizadas, não estornadas, no período
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      from: { type: string, format: date }
+                      to: { type: string, format: date }
+                      total_cents: { type: integer, format: int64 }
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category: { type: string }
+                            total_cents: { type: integer, format: int64 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /connections/devices:
+    put:
+      operationId: nativePushRegister
+      summary: Registrar dispositivo Expo por consentimento da sessão atual
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 255 }
+      responses:
+        '200': { description: Registro ativo por 30 dias; não retorna token }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Serviço remoto desabilitado }
+    delete:
+      operationId: nativePushRevoke
+      summary: Remover somente o dispositivo vinculado ao usuário da sessão
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 255 }
+      responses:
+        '200': { description: Registro removido ou inexistente }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /connections/search:
     get:
       tags: [Colaboração]

@@ -14,6 +14,27 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class OperationsCenterController extends Controller
 {
+    public function expenseCategories(\App\Http\Requests\ExpenseCategoriesRequest $request): JsonResponse
+    {
+        $period = $request->validated();
+        $rows = TenantDB::table('repasse_case_financial_entries')
+            ->where('kind', 'expense')->where('status', 'realized')
+            ->whereNull('voided_at')->whereBetween('effective_on', [$period['from'], $period['to']])
+            ->selectRaw('category, SUM(amount_cents) AS total_cents')
+            ->groupBy('category')->orderByDesc('total_cents')->orderBy('category')->get()
+            ->map(fn ($row): array => [
+                'category' => (string) $row->category,
+                'total_cents' => (int) $row->total_cents,
+            ])->values();
+
+        return response()->json(['data' => [
+            'from' => $period['from'],
+            'to' => $period['to'],
+            'total_cents' => $rows->sum('total_cents'),
+            'categories' => $rows,
+        ]])->header('Cache-Control', 'no-store, private');
+    }
+
     public function dashboard(Request $request): JsonResponse
     {
         $today = now()->toDateString();

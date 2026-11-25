@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\ConnectionsController;
+use App\Http\Controllers\Api\V1\NativeDeviceController;
 use App\Http\Controllers\Api\V1\ConversationsController;
 use App\Http\Controllers\Api\V1\VehicleCollaborationController;
 use App\Http\Controllers\Api\V1\SharedVehicleController;
@@ -95,6 +96,8 @@ Route::prefix('v1')->group(function (): void {
     // NENHUMA rota altera o tenant do JWT. Recursos cruzados usam ACL específica.
     Route::prefix('connections')->middleware(['bearer.only','auth:api','session.current'])
         ->group(function (): void {
+            Route::put('/devices', [NativeDeviceController::class, 'store'])->middleware('throttle:repasse-admin-write');
+            Route::delete('/devices', [NativeDeviceController::class, 'destroy'])->middleware('throttle:repasse-admin-write');
             Route::get('/search', [ConnectionsController::class, 'search'])->middleware('throttle:repasse-admin-read');
             Route::get('/', [ConnectionsController::class, 'index']);
             Route::post('/', [ConnectionsController::class, 'requestConnection'])->middleware('throttle:repasse-admin-write');
@@ -491,6 +494,8 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/calendar/{task}', [VehicleAgendaController::class, 'update'])->middleware('throttle:repasse-admin-write');
         Route::get('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attachments']);
         Route::post('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attach'])->middleware('throttle:repasse-admin-write');
+        Route::get('/expense-categories', [OperationsCenterController::class, 'expenseCategories'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.expense_categories');
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
             ->name('api.v1.operations.dashboard');
         Route::get('/vehicles', [VehiclePortfolioController::class, 'index'])

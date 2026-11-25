@@ -426,3 +426,14 @@ Artisan::command('repasse:acceptance {--json : Imprimir relatório sem dados pes
 
     return $result['ready'] ? Command::SUCCESS : Command::FAILURE;
 })->purpose('Diagnosticar módulos/perm. sem mutar banco ou mostrar segredos');
+
+Artisan::command('repasse:native-push:dispatch', function (): int {
+    $result = app(\App\Services\NativePushDelivery::class)->run();
+    $this->line(json_encode($result, JSON_THROW_ON_ERROR));
+
+    return Command::SUCCESS;
+})->purpose('Entregar notificações genéricas opt-in via Expo, sem conteúdo privado');
+
+\Illuminate\Support\Facades\Schedule::command('repasse:native-push:dispatch')
+    ->everyMinute()->withoutOverlapping(10)
+    ->when(fn () => (bool) config('services.expo_push.enabled'));
