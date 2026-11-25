@@ -21,11 +21,13 @@ final class AppleAccountService
     {
         $claims = $this->identity->verify($data['identity_token'], $data['nonce']);
         $subject = $claims['sub'];
+        $refresh = config('services.apple_native.exchange_required') ? app(AppleTokenExchange::class)->exchange($data['authorization_code'], $claims) : null;
         try {
-            $user = DB::transaction(function () use ($claims, $subject, $data, $request): User {
+            $user = DB::transaction(function () use ($claims, $subject, $data, $request, $refresh): User {
                 $account = SocialAccount::query()->where('provider', 'apple')->where('provider_id', $subject)
                     ->lockForUpdate()->first();
                 if ($account) {
+                    if ($refresh !== null) { $account->forceFill(['apple_refresh_ciphertext'=>\Illuminate\Support\Facades\Crypt::encryptString($refresh),'apple_revoked_at'=>null])->save(); }
                     return $account->user()->firstOrFail();
                 }
                 if ($data['intent'] !== 'register') {
@@ -54,10 +56,11 @@ final class AppleAccountService
                 ]);
                 $user->roles()->sync([$roles['tenant_admin']->id]);
                 app(FinanceCategoryCatalog::class)->ensureForTenant((int) $tenant->id, (int) $user->id);
-                SocialAccount::query()->create([
+                $account = SocialAccount::query()->create([
                     'user_id' => $user->id, 'provider' => 'apple', 'provider_id' => $subject,
                     'provider_email' => $email, 'provider_name' => $name, 'data' => [],
                 ]);
+                if ($refresh !== null) { $account->forceFill(['apple_refresh_ciphertext'=>\Illuminate\Support\Facades\Crypt::encryptString($refresh)])->save(); }
                 $this->events->record('account_registered_social', $request, $user);
 
                 return $user;

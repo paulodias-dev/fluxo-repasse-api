@@ -34,6 +34,43 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /auth/privacy/deletion:
+    get:
+      summary: Consultar solicitação própria de exclusão
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Solicitação ou data nulo }
+    post:
+      summary: Solicitar exclusão da própria conta sem apagar registros imediatamente
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: boolean }
+      responses:
+        '200': { description: Solicitação pendente }
+        '422': { description: Confirmação obrigatória }
+    delete:
+      summary: Cancelar solicitação própria ainda pendente
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Situação atual }
+  /operations/native-bi:
+    get:
+      summary: Indicadores de vendas datadas, giro, resultado por tipo e repasses aprovados
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Coorte de veículos vendidos no período; repasses somente com repasse.manage }
+        '403': { description: Permissão cases.manage obrigatória }
+        '422': { description: Período inválido }
   /auth/apple/challenge:
     post:
       operationId: appleNativeChallenge
@@ -65,6 +102,7 @@ paths:
               required: [identity_token, nonce, intent]
               properties:
                 identity_token: { type: string, maxLength: 8192 }
+                authorization_code: { type: string, maxLength: 4096, description: Obrigatório quando exchange_required habilitado }
                 nonce: { type: string, minLength: 64, maxLength: 64 }
                 intent: { type: string, enum: [login, register] }
                 terms_accepted: { type: boolean }
