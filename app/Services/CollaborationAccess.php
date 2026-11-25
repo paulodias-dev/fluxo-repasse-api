@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\TenantContext;
+use App\Jobs\SendCollaborationPush;
 use App\Support\TenantDB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -122,10 +123,24 @@ final class CollaborationAccess
 
     public function notify(int $userId, string $type, array $data): void
     {
-        DB::table('collab_notifications')->insert([
+        $id = DB::table('collab_notifications')->insertGetId([
             'recipient_id' => $userId, 'type' => $type,
             'data' => json_encode($data, JSON_THROW_ON_ERROR), 'created_at' => now(),
         ]);
+        if (! config('services.mobile_push.enabled')) {
+            return;
+        }
+
+        // Dispatch only AFTER commit. A rolled-back collaboration event may
+        // never trigger a push. Queue workers perform the external FCM call.
+        $dispatch = static function () use ($id): void {
+            SendCollaborationPush::dispatch($id)->onQueue('default');
+        };
+        if (DB::transactionLevel() > 0) {
+            DB::afterCommit($dispatch);
+        } else {
+            $dispatch();
+        }
     }
 
     public function financialPayer(int $vehicleId, int $ownerTenantId, int $payerId): void

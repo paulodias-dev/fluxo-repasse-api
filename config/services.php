@@ -55,6 +55,14 @@ return [
         ],
     ],
 
+    // Push mobile é opt-in, requer workers, HTTPS e conta de serviço privada.
+    // Nunca subir JSON de credenciais ao repositório ou expor no Flutter.
+    'mobile_push' => [
+        'enabled' => (bool) env('MOBILE_PUSH_ENABLED', false),
+        'project_id' => env('MOBILE_PUSH_PROJECT_ID', ''),
+        'credentials_file' => env('MOBILE_PUSH_CREDENTIALS_FILE', ''),
+    ],
+
     // Tokens somente no Laravel. Nenhuma URL remota é aceita do navegador.
     'vehicle_plate' => [
         'token' => env('PLACAEFIPE_API_KEY', ''),
