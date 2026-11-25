@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AccessManagementController;
 use App\Http\Controllers\Api\V1\ConnectionsController;
+use App\Http\Controllers\Api\V1\NativeDeviceController;
 use App\Http\Controllers\Api\V1\MobilePushDeviceController;
 use App\Http\Controllers\Api\V1\ConversationsController;
 use App\Http\Controllers\Api\V1\VehicleCollaborationController;
@@ -63,6 +64,8 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:repasse-login')
             ->name('api.v1.auth.login');
+        Route::post('/apple/challenge', [AuthController::class, 'appleChallenge'])->middleware('throttle:repasse-social');
+        Route::post('/apple', [AuthController::class, 'appleLogin'])->middleware('throttle:repasse-social');
         Route::post('/social', [AuthController::class, 'socialLogin'])
             ->middleware('throttle:repasse-social')
             ->name('api.v1.auth.social');
@@ -80,6 +83,9 @@ Route::prefix('v1')->group(function (): void {
             ->name('api.v1.auth.refresh');
 
         Route::middleware(['bearer.only', 'auth:api', 'session.current'])->group(function (): void {
+            Route::get('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'show'])->middleware('throttle:repasse-admin-read');
+            Route::post('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'store'])->middleware('throttle:repasse-password');
+            Route::delete('/privacy/deletion', [\App\Http\Controllers\Api\V1\AccountDeletionController::class, 'cancel'])->middleware('throttle:repasse-password');
             Route::get('/me', [AuthController::class, 'me'])->name('api.v1.auth.me');
             Route::patch('/preferences', [AuthController::class, 'updatePreferences'])
             ->middleware('throttle:repasse-admin-write')->name('api.v1.auth.preferences.update');
@@ -110,6 +116,8 @@ Route::prefix('v1')->group(function (): void {
     // NENHUMA rota altera o tenant do JWT. Recursos cruzados usam ACL específica.
     Route::prefix('connections')->middleware(['bearer.only','auth:api','session.current'])
         ->group(function (): void {
+            Route::put('/devices', [NativeDeviceController::class, 'store'])->middleware('throttle:repasse-admin-write');
+            Route::delete('/devices', [NativeDeviceController::class, 'destroy'])->middleware('throttle:repasse-admin-write');
             Route::get('/search', [ConnectionsController::class, 'search'])->middleware('throttle:repasse-admin-read');
             Route::get('/', [ConnectionsController::class, 'index']);
             Route::post('/', [ConnectionsController::class, 'requestConnection'])->middleware('throttle:repasse-admin-write');
@@ -506,6 +514,9 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/calendar/{task}', [VehicleAgendaController::class, 'update'])->middleware('throttle:repasse-admin-write');
         Route::get('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attachments']);
         Route::post('/calendar/{task}/attachments', [VehicleAgendaController::class, 'attach'])->middleware('throttle:repasse-admin-write');
+        Route::get('/native-bi', [\App\Http\Controllers\Api\V1\NativeBiController::class, 'show'])->middleware('throttle:repasse-admin-read');
+        Route::get('/expense-categories', [OperationsCenterController::class, 'expenseCategories'])
+            ->middleware('throttle:repasse-admin-read')->name('api.v1.operations.expense_categories');
         Route::get('/dashboard', [OperationsCenterController::class, 'dashboard'])
             ->name('api.v1.operations.dashboard');
         Route::get('/vehicles', [VehiclePortfolioController::class, 'index'])

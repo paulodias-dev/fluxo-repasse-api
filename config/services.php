@@ -22,6 +22,20 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'expo_push' => [
+        'enabled' => env('EXPO_PUSH_ENABLED', false),
+        'access_token' => env('EXPO_PUSH_ACCESS_TOKEN', ''),
+    ],
+
+    'apple_native' => [
+        'enabled' => env('APPLE_NATIVE_ENABLED', false),
+        'audience' => env('APPLE_NATIVE_AUDIENCE', ''),
+        'team_id' => env('APPLE_NATIVE_TEAM_ID', ''),
+        'key_id' => env('APPLE_NATIVE_KEY_ID', ''),
+        'private_key' => env('APPLE_NATIVE_PRIVATE_KEY', ''),
+        'exchange_required' => env('APPLE_NATIVE_EXCHANGE_REQUIRED', false),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

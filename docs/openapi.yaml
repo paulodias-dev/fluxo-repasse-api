@@ -34,6 +34,155 @@ tags:
   - name: Repasses externos informados
   - name: Pacotes documentais
 paths:
+  /auth/privacy/deletion:
+    get:
+      summary: Consultar solicitação própria de exclusão
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Solicitação ou data nulo }
+    post:
+      summary: Solicitar exclusão da própria conta sem apagar registros imediatamente
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: boolean }
+      responses:
+        '200': { description: Solicitação pendente }
+        '422': { description: Confirmação obrigatória }
+    delete:
+      summary: Cancelar solicitação própria ainda pendente
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200': { description: Situação atual }
+  /operations/native-bi:
+    get:
+      summary: Indicadores de vendas datadas, giro, resultado por tipo e repasses aprovados
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Coorte de veículos vendidos no período; repasses somente com repasse.manage }
+        '403': { description: Permissão cases.manage obrigatória }
+        '422': { description: Período inválido }
+  /auth/apple/challenge:
+    post:
+      operationId: appleNativeChallenge
+      summary: Nonce de uso único para login Apple no iOS
+      responses:
+        '200':
+          description: Nonce válido por cinco minutos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      nonce: { type: string, minLength: 64, maxLength: 64 }
+        '503': { description: Provedor indisponível }
+  /auth/apple:
+    post:
+      operationId: appleNativeLogin
+      summary: Login ou cadastro com identidade Apple assinada
+      description: Valida assinatura RS256, issuer, audience, datas e nonce consumível; não vincula conta existente por e-mail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity_token, nonce, intent]
+              properties:
+                identity_token: { type: string, maxLength: 8192 }
+                authorization_code: { type: string, maxLength: 4096, description: Obrigatório quando exchange_required habilitado }
+                nonce: { type: string, minLength: 64, maxLength: 64 }
+                intent: { type: string, enum: [login, register] }
+                terms_accepted: { type: boolean }
+                name: { type: string, maxLength: 180 }
+      responses:
+        '200': { description: Sessão JWT do usuário autenticado }
+        '409': { description: Primeiro acesso exige cadastro e termos }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Provedor indisponível }
+  /operations/expense-categories:
+    get:
+      operationId: nativeExpenseCategories
+      summary: Despesas realizadas por categoria em todo o tenant, sem paginação
+      security:
+        - BearerAuth: []
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Somente despesas realizadas, não estornadas, no período
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      from: { type: string, format: date }
+                      to: { type: string, format: date }
+                      total_cents: { type: integer, format: int64 }
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category: { type: string }
+                            total_cents: { type: integer, format: int64 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /connections/devices:
+    put:
+      operationId: nativePushRegister
+      summary: Registrar dispositivo Expo por consentimento da sessão atual
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 255 }
+      responses:
+        '200': { description: Registro ativo por 30 dias; não retorna token }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { description: Serviço remoto desabilitado }
+    delete:
+      operationId: nativePushRevoke
+      summary: Remover somente o dispositivo vinculado ao usuário da sessão
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 255 }
+      responses:
+        '200': { description: Registro removido ou inexistente }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
   /connections/search:
     get:
       tags: [Colaboração]
