@@ -86,8 +86,30 @@ final class OperationsCenterController extends Controller
             })->count();
 
         $finance = $this->financialDashboard($from, $to);
-        $recent = TenantDB::table('repasse_cases')->select('id', 'title', 'status', 'updated_at')
-            ->orderByDesc('updated_at')->limit(8)->get();
+        $recent = TenantDB::table('repasse_cases as c')
+            ->select(
+                'c.id', 'c.title', 'c.status', 'c.brand', 'c.model',
+                'c.vehicle_version', 'c.model_year', 'c.plate',
+                'c.sold_on', 'c.created_at', 'c.updated_at'
+            )
+            // The client downloads the selected image with its JWT; no public file URL.
+            ->selectSub(
+                TenantDB::table('repasse_case_evidence as photo')
+                    ->select('photo.id')
+                    ->whereColumn('photo.repasse_case_id', 'c.id')
+                    ->whereNull('photo.archived_at')
+                    ->where('photo.mime', 'like', 'image/%')
+                    ->where(function ($inner): void {
+                        $inner->where('photo.document_type', 'foto_veiculo')
+                            ->orWhereNull('photo.document_type');
+                    })
+                    ->orderByDesc('photo.is_cover')
+                    ->orderByDesc('photo.document_type')
+                    ->orderBy('photo.id')
+                    ->limit(1),
+                'image_document_id'
+            )
+            ->orderByDesc('c.updated_at')->limit(8)->get();
         $due = TenantDB::table('repasse_case_tasks as t')
             ->join('repasse_cases as c', 'c.id', '=', 't.repasse_case_id')
             ->whereIn('t.status', ['pending', 'doing'])->whereNotNull('t.due_on')
