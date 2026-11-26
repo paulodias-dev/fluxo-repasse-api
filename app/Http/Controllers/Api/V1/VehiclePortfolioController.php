@@ -100,7 +100,7 @@ final class VehiclePortfolioController extends Controller
             'c.id', 'c.title', 'c.status', 'c.vehicle_type', 'c.plate', 'c.brand', 'c.model',
             'c.model_year', 'c.purchase_location', 'c.seller_name', 'c.buyer_name',
             'c.fipe_price_cents', 'c.fipe_reference_month', 'c.fipe_source',
-            'c.purchased_on', 'c.delivered_on', 'c.sold_on',
+            'c.created_at', 'c.purchased_on', 'c.delivered_on', 'c.sold_on',
             'c.purchase_amount_cents', 'c.sale_amount_cents', 'c.updated_at',
         ])->selectRaw('
             COALESCE(t.open_tasks, 0) AS open_tasks,
